@@ -1,0 +1,426 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Distribution: Custom Continuous</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<script type="text/javascript" src="js/commonFunctions.js"></script>
+	<script type="text/javascript" src="js/chartFunctions.js"></script>
+	<script type="text/javascript" src="js/jstat.js"></script>
+	<script src=https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.3.0/math.min.js></script>
+	<script language="javascript">
+function probability() {	
+	var pField = document.getElementById("p")
+	var tail = false
+	var p = 0
+	if(document.getElementById('probType').value=='above') {
+		ll = parseFloat(document.getElementById("above").value)
+		ul=999999
+		p=integrate(f,ll,b,Math.min(.001,(b-a)/1000))
+		pString="P(X&gt;"+ll+")="
+	} else if (document.getElementById('probType').value=='below'){
+		ul = parseFloat(document.getElementById("below").value)
+		ll=-999999
+		p=integrate(f,a,ul,Math.min(.001,(b-a)/1000))
+		pString="P(X&lt;"+ul+")="
+	} else if (document.getElementById('probType').value=='between'){
+		ll = parseFloat(document.getElementById("ll").value)
+		ul = parseFloat(document.getElementById("ul").value)
+		p = integrate(f,ll,ul,Math.min(.001,(b-a)/1000))
+		pString="P(" +ll+"&lt;X&lt;"+ul+")="
+	}
+	else if (document.getElementById('probType').value=='tails'){
+		tail = true
+		ll = parseFloat(document.getElementById("oll").value)
+		ul = parseFloat(document.getElementById("oul").value)
+		p = 1-integrate(f,ll,ul,Math.min(.001,(b-a)/1000))
+		pString="P(X&lt;"+ll+" or X&gt;"+ul+")="
+	}
+	ctx.fillStyle='white'
+	ctx.fillRect(0,0,w,h)
+	drawDensity(ctx,box,ll,ul,tail) //canvas, bounds, mean, standard deviation, lower limit, upper limit, tail (outside or inside)
+	pField.innerHTML=pString+"<strong>"+(p).toFixed(precision)+"</strong>"
+}
+
+function fixLB(){
+	document.getElementById('a').value = Math.min(+document.getElementById('a').value,+document.getElementById('b').value-.0001)
+}
+function fixUB(){
+	document.getElementById('b').value = Math.max(+document.getElementById('b').value,+document.getElementById('a').value+.0001)
+}
+
+function getPercentile(p){
+	var x = (b+a)/2
+	var rng = (b-a)/2
+	for(var i = 0; i<50; i++){
+		rng = rng/2
+		if (integrate(f,a,x)>p){
+			x-=rng		
+		}else{
+			x+= rng
+		}
+	}
+	return x
+}
+
+function inverse() {
+	clearFields()
+	var ll, ul, x1,x2
+	ctx.clearRect(0,0,w,h)
+	tail = false
+	var p = parseFloat(document.getElementById("p2").value)
+	var x1 = getPercentile(p)
+	
+	if (document.form1.area1[0].checked) {
+		ul=b
+		ll=+(getPercentile(1-p)).toFixed(precision)
+		document.getElementById("aboveX").innerHTML="P(X&gt;<strong>"+ll+"</strong>)="+p
+	} else if (document.form1.area1[1].checked){
+		ll=a
+		ul=+(x1).toFixed(precision)
+		document.getElementById("belowX").innerHTML="P(X&lt;<strong>"+ul+"</strong>)="+p
+	} else if (document.form1.area1[2].checked){
+		ll=(getPercentile(.5-p/2)).toFixed(precision)
+		ul=(getPercentile(.5+p/2)).toFixed(precision)
+		document.getElementById("betweenX").innerHTML="P(<strong>"+ll+"</strong>&lt;X&lt;<strong>"+ul+"</strong>)="+p
+	} else if (document.form1.area1[3].checked){
+		ll=(getPercentile(p/2)).toFixed(precision)
+		ul=(getPercentile(1-p/2)).toFixed(precision)
+		tail=true
+		document.getElementById("outsideX").innerHTML="P(X&lt;<strong>"+ll+"</strong> or X&gt;<strong>"+ul+"</strong>)="+p
+	}
+	ctx.fillStyle='white'
+	ctx.fillRect(0,0,w,h)
+	drawDensity(ctx,box,ll,ul,tail)
+}
+
+function drawDensity(ctx, box, lFill, hFill, tail) {
+	var canvas = document.getElementById("densityGraph"); 
+	ctx = canvas.getContext('2d');
+	ctx.fillStyle = "white";
+	h = canvas.height 
+	w = canvas.width
+	var scale=w/490
+	var lMargin=30*scale, rMargin=30*scale, tMargin=20*scale, bMargin=30*scale
+	var chartWidth = w-rMargin-lMargin
+	var chartHeight = h-tMargin-bMargin
+
+	ctx.beginPath()
+	ctx.fillRect(0,0,w,h)
+	ctx.fill()
+
+
+	ctx.beginPath()
+	ctx.strokeStyle = "black";
+	var x=0
+
+	let scope = {x:1}
+	const node = math.parse(f, scope)
+	const code = node.compile()	
+	var maxDensity = 0
+	for (var i = a; i<b; i+= (b-a)/1000){
+		scope.x = i
+		var dens = code.eval(scope)
+		if (dens > maxDensity){
+			maxDensity = dens
+		}
+	}
+
+	setChartParams(a,b,0, maxDensity,chartWidth,chartHeight,lMargin,tMargin)
+
+	
+	var r = linTran(0,1.1*maxDensity,h,box.y1)
+  	var Ay=r[0]
+  	var by=r[1]
+	var lowX =  a
+	var highX = b
+	var r = linTran(lowX,highX,box.x1,box.x2)
+   	var Ax=r[0]; var bx=r[1]
+   	var x0 = lowX*bx+Ax
+	var xf=highX*bx+Ax
+
+	ctx.strokeStyle = "black";
+	ctx.moveTo(tx(a),ty(0))
+	ctx.lineTo(tx(b),ty(0))
+	ctx.stroke();
+
+//	ctx.beginPath()	
+//	ctx.moveTo(tx(a),ty(0))
+	
+	var inc = (b-a)/500
+	var dmax = 0
+	ctx.strokeStyle = "black";
+	ctx.beginPath();
+	if (document.getElementById("colorful").checked==true)
+		ctx.fillStyle = colorHex;
+	else
+		ctx.fillStyle = "#C0C0C0";
+	var filling=false,wasFilling=false;
+
+	ctx.moveTo(tx(a),ty(0))
+
+	for (var i=a;i<=b;i+=inc*.5){
+ 		wasFilling=filling;
+// 		xp=bx*i +Ax
+		scope.x = i
+		d =  code.eval(scope)
+//		dp= by*d+Ay
+
+		filling = (tail && (i>=hFill || i <= lFill))||(!tail && i<=hFill && i >=lFill)
+		
+		if(filling==true&&wasFilling==false){
+			ctx.beginPath();
+			ctx.moveTo(tx(i),ty(0)-1)
+		}
+		if(filling==true){
+			ctx.lineTo(tx(i),ty(d))
+		}	
+		if(filling==false&&wasFilling==true || (filling==true && i+inc>=highX)){
+			ctx.lineTo(tx(i-inc),ty(0)-1)
+			ctx.fill();
+			ctx.moveTo(tx(i),ty(0)-1)
+		}
+	}
+
+	//Next Draw line
+	ctx.beginPath();
+	ctx.lineWidth=Math.max(1,.75*scale);
+	ctx.strokeStyle="black";
+	ctx.moveTo(tx(a),ty(0))
+	for (var i=lowX;i<=highX;i+=inc*1){
+		scope.x=i
+		d=code.eval(scope)
+		//dp= by*d+Ay
+		ctx.lineTo(tx(i),ty(d)) 
+	}	
+	scope.x=(highX)
+	d=code.eval(scope)
+	ctx.lineTo(tx(b),ty(d))
+	ctx.lineTo(tx(b),ty(0));
+	ctx.stroke();	
+	
+	
+	chartAxisX(ctx,tMargin+chartHeight,lMargin,lMargin+chartWidth,a,b,6,"",false,[], 12*scale)
+}
+
+function scaleDensity(){
+	f = document.getElementById("fString").value
+	a = +document.getElementById("a").value
+	b = +document.getElementById("b").value
+	if(b>a){
+		var c=1;
+		var areaUnder = integrate("abs("+f+")",a,b,Math.min(.001,(b-a)/1000))
+//		var iterations=0
+//		do{
+		c=(1/areaUnder).toFixed(+precision)
+//			areaUnder = integrate(c+"*abs("+f+")",a,b,Math.min(.001,(b-a)/1000))
+//			alert(c + " " +areaUnder)
+//			iterations++
+//		}while (iterations<10 && Math.abs(areaUnder-1)>Math.pow(10,-precision+1));
+	
+		//let c = (1/integrate(f,a,b,Math.min(.001,(b-a)/1000))).toFixed(precision)
+//		f = c + "*abs("+f+")"
+		document.getElementById("fProperVisible").innerHTML = parseFloat(c) + "|"+f+"|"
+		f="(1/"+areaUnder + ")*abs("+f+")"
+		document.getElementById("fProper").innerHTML =  f
+	}
+}
+
+function refresh(){
+	setPrecision(document.getElementById('precision').value)
+	scaleDensity()
+	a = +document.getElementById("a").value
+	b = +document.getElementById("b").value
+	if(b>a){
+	if (document.form1.which[0].checked) {
+		probability()
+	} else{
+		inverse()
+	}
+	meanVariance()
+	}
+} 
+
+function meanVariance(){
+	f = document.getElementById("fProper").innerHTML
+	a = +document.getElementById("a").value
+	b = +document.getElementById("b").value
+	var EX= integrate(f+"*x",a,b)
+	var EXsq = 0
+	 EXsq= integrate(f+"*x^2",a,b)
+	var VAR = EXsq-Math.pow(EX,2)
+	document.getElementById("EX").innerHTML = EX.toFixed(precision)
+	document.getElementById("VAR").innerHTML = VAR.toFixed(precision)
+	document.getElementById("SD").innerHTML = Math.sqrt(VAR).toFixed(precision)
+}
+
+function integrate (funct, start, end, step) {
+	a = +document.getElementById("a").value
+	b = +document.getElementById("b").value
+	start = Math.max(a,start)
+	end = Math.min(b,end)
+	//provide a scope
+	let scope = {x:1}
+	const node = math.parse(funct, scope)
+	const code = node.compile()
+  let total = 0
+  step = step || 0.01
+  for (let x = start; x < end; x += step) {
+	scope.x = x+step/2
+	total += code.eval(scope) * step
+  }
+  return total
+}
+
+
+function sampleOne(){
+	return +(getPercentile(Math.random(),a,b)).toFixed(precision)
+}
+
+	</script>
+	<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+</head>
+<body onload="loadPrecision();init('densityGraph');loadColorChoice();linkMenu();setColors();showHideProbs(false);refresh()">
+<div id="container">
+	<div id="title" onClick="setColors()">StatPowers</div>
+	<div id="menu"></div>
+	<div class="container">
+	<h3>Custom Continuous Distribution</h3>
+	<div class="canvasdiv">
+		<canvas id="densityGraph" width="496" height="300" class='zoomable'>
+			<p>Your browser doesn't support canvas. Please update your browser.</p>
+		</canvas>
+		<a class="downloadButton topright" href="" onClick="downloadCanvas(this,'densityGraph','densityGraph.png');"></a>
+	</div>
+	<form name="form1">
+<div id="parameters"><strong>Distribution Parameters:</strong><br/>
+<div class='relative'>
+							<div class='helpDiv minimized'>
+								<a  onClick='toggle(this);' class='expander'>?</a>
+								<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+								<span>
+Enter a nonnegative density function. If it is not scaled, that's ok.
+								</span>
+							</div>
+						</div>
+  <table  border="0">
+    <tr>
+      <td>Density Function: f(x)~</td>
+      <td><input name="fString" type="text" id="fString"  value="x^2" size="30" maxlength="100" onchange="refresh()" /> </td>
+	</tr>
+    <tr>
+      <td>Density Function: f(x)=</td>
+      <td id="fProperVisible">  </td>
+	</tr>
+	<tr>
+	  <td>Support L.B.</td>
+      <td><input type="number" id="a"  value="0" class="smallNumber" onchange="fixLB();refresh()" /></td>
+	</tr>
+	<tr>
+      <td>Support U.B.</td>
+      <td><input type="number" id="b"  value="1" class="smallNumber" onchange="fixUB();refresh()" /></td>
+    </tr>
+  </table>
+</div>
+<div id="fProper" style="display:none;"></div>
+<div class='container'>
+<h3>Choose Calculator Type</h3>
+	<div class="radio-toolbar">
+		<input type="radio" id="radio1" name="which" checked onClick="document.getElementById('apDiv2').style.display='block';document.getElementById('apDiv1').style.display='none';probability()">
+		<label for="radio1">Probability</label>
+		
+		<input type="radio" id="radio2" name="which" onClick="document.getElementById('apDiv1').style.display='block';document.getElementById('apDiv2').style.display='none';inverse()">
+		<label for="radio2">Percentiles</label>	
+	</div>
+<div class="content">
+	<div id="apDiv1" style="display:none">
+	  <table  border="0">
+	  <tr>
+		<td>Area / Probability</td>
+		<td> <input name="p" type="number" id="p2" class="mediumNumber" value=.05 min=0 max=1 step=.01 onchange="inverse()"/></td>
+		</tr>
+	  </table>
+
+	  <div class="results">
+		<strong>Results:</strong>
+		<table><tr>
+			<td><label><input name="area1" type="radio" id="abovea1" value="above" checked="checked" onclick="inverse()"/>
+			Above:</label></td>
+			<td id="aboveX"></td>
+		</tr><tr>
+			<td><label><input name="area1" type="radio" id="belowa1" value="above"  onclick="inverse()" />
+			Below:</label></td>
+			<td id="belowX"></td>
+		</tr><tr>
+			<td><label><input name="area1" type="radio" id="betweena1" value="above"  onclick="inverse()"/>
+			Middle:</label></td>
+			<td id="betweenX"></td>
+		</tr><tr>
+			<td><label><input name="area1" type="radio" id="outside1" value="above"  onclick="inverse()"/>
+			Tails:</label></td>
+			<td id="outsideX"></td>
+		</tr></table>
+		<!--input type="button"  value="Recalculate" onclick="inverse()"/-->
+	   </div> 
+	</div>
+	<div id="apDiv2" style="display:block">
+
+	<span><select id="probType" onchange="showHideProbs(false);probability();">
+			  <option value="above" selected>Above</option>
+			  <option value="below">Below</option>
+			  <option value="between" selected>Between</option>
+			  <option value="tails" >Tails</option>
+			</select>
+	</span>
+	<span>
+		<span id="prob_above" style="display:none;">
+			P(X &ge;     
+			<input type="number" id="above"  value=".5" class="smallNumber" step="1" onchange="probability()"/>)
+		</span>
+		<span id="prob_below" style="display:none;">
+			P(X &le; 
+			<input type="number" id="below"  value=".5" class="smallNumber" step="1" onchange="probability()" />)
+		</span>
+		<span id="prob_between" style="display:none;">
+			P(
+			<input type="number" id="ll"  value=".2" class="smallNumber" step="1" onchange="fixBounds('ll','ul',true);probability()" />
+			&le; X &le;
+			<input type="number" id="ul" value=".7" class="smallNumber" step="1" onchange="fixBounds('ll','ul',false);probability()" />)
+		</span>
+		<span id="prob_tails" style="display:none;">
+			P(X &le;
+			<input type="number" id="oll"  value=".3" class="smallNumber" step="1" onchange="fixBounds('oll','oul',true);probability()" />
+			or X &ge; 
+			<input type="number" id="oul" value=".7" class="smallNumber" step="1" onchange="fixBounds('oll','oul',false);probability()" />)
+		</span>
+	</span>
+
+	<div class="results">
+		<strong>Results:</strong><br />
+		Expected Value: <span id="EX"></span><br/>
+		Variance: <span id="VAR"></span><br/>
+		Standard Deviation: <span id="SD"></span><br/>
+		Area (probability) <span id="p"></span>
+		<br />
+		<!--input name="draw" type="button"  value="Recalculate" onClick="probability()" /-->
+	</div>
+</div>
+</div>
+<div class="container" id="sampling-container">
+</div>
+</form>
+<div>
+</div>
+  <script type="text/javascript">
+    // use math.js
+	//provide a scope
+//	let scope = {c:1, x:4}	
+	let f = document.getElementById("fString").value
+	let a = document.getElementById("a").value
+	let b = document.getElementById("b").value
+buildPanel("sampling","Sampling")
+  </script>
+
+</body>
+</html>

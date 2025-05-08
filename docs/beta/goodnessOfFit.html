@@ -1,0 +1,82 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Goodness of Fit Test</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<script type="text/javascript" src="js/commonFunctions.js"></script>
+	<script type="text/javascript" src="js/jstat.js"></script>
+	<script language="javascript">
+var debug=false;
+function refresh(){
+	setPrecision(document.getElementById('precision').value)
+} 
+
+function buildInputs(){
+	var n= Math.round(parseFloat(document.getElementById("n").value))
+	var outputString= "<table>\n"
+		outputString += "<tr> <td>Outcome</td><td>Observed</td><td>Expected</td></tr>\n"
+		for (var i = 0; i<n; i++){
+			var element = document.getElementById("x_"+i)
+			var x=""
+			var o=""
+			var e=""
+			if (typeof(element) != 'undefined' && element != null){
+				var x=document.getElementById("x_"+i).value
+				var o=document.getElementById("o_"+i).value
+				var e=document.getElementById("e_"+i).value
+			} 
+			if(document.getElementById('uniform').checked==true) e=1/n
+			outputString += "<tr> <td><input id='x_"+i+"' value='"+x+"' onChange='refresh()'></td><td><input id='o_"+i+"' type='number' min='0' step='1' value='"+o+"' class='smallNumber' onChange='refresh();'></td><td><input id='e_"+i+"' type='number' min='0' value='"+e+"' class='mediumNumber' onChange='refresh();'></td></td></tr>\n"
+		}
+		
+	outputString+="</table>"
+	document.getElementById("distribution").innerHTML=outputString
+//	distributionGood()
+	
+}
+
+function autoIncrement() {
+	var x = +document.getElementById("x_0").value;
+	var n= Math.round(parseFloat(document.getElementById("n").value))
+	if(x=="") x=0;
+	for (var i = 0; i<n; i++){
+		document.getElementById('x_'+i).value=x;
+		x++;
+	}
+//	distributionGood()
+}
+
+
+</script>
+
+<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+
+</head>
+
+<body onload="loadPrecision();loadColorChoice();linkMenu();setColors();buildInputs();">
+<div id="container">
+	<div id="title" onClick="setColors()">StatPowers</div>
+	<div id="menu"></div>
+	<div class='container'>
+		<h3>Goodness Of Fit Test</h3>
+		<form name="form1">
+			<div class='content'>
+			<div class='options'>  
+				Number of Possible Values
+				<input name="n" type="number" id="n" min="2" step="1" value="4" class="tinyNumber" onchange="buildInputs()" />
+				<button name="autoincrement" type="button"  value="Auto Increment" onClick="autoIncrement();" >Auto Increment</button><br>
+				<input type='checkbox' id='uniform' onChange='buildInputs()'>Equally Likely
+				<div id="distribution">
+				</div>
+			</div>
+			<button name="test" type="button"  value="Run Test" onClick="goodnessOfFitTest();" >Run Test</button>
+			<div class="results" id="chiSqTest"></div>
+			</div>
+		</form>
+	</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+US Voter Turnout Data.
+Description
+State-level data on federal elections held in November between 1980 and 2014.
+
+Usage
+voter_count
+Format
+A data frame with 936 rows and 7 variables.
+
+year
+Year election was held.
+
+region
+Specifies if data is state or national total.
+
+voting_eligible_population
+Number of citizens eligible to vote; does not count felons.
+
+total_ballots_counted
+Number of ballots cast.
+
+highest_office
+Number of ballots that contained a vote for the highest office of that election.
+
+percent_total_ballots_counted
+Overall voter turnout percentage.
+
+percent_highest_office
+Highest office voter turnout percentage.
+
+Source
+United States Election Project

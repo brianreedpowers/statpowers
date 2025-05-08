@@ -1,0 +1,438 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Sampling Distribution (Mean)</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+	<script type="text/javascript" src="js/chartFunctions.js"></script>
+	<script type="text/javascript" src="js/commonFunctions.js"></script>
+	<script type="text/javascript" src="js/jstat.js"></script>
+<script language="javascript">
+function clearFields() {
+	document.getElementById("belowX").innerHTML=""
+	document.getElementById("aboveX").innerHTML=""
+	document.getElementById("betweenX").innerHTML=""
+	document.getElementById("outsideX").innerHTML=""
+	document.getElementById("belowXapprox").innerHTML=""
+	document.getElementById("aboveXapprox").innerHTML=""
+	document.getElementById("betweenXapprox").innerHTML=""
+	document.getElementById("outsideXapprox").innerHTML=""
+}
+
+function probability() {	
+	var pField = document.getElementById("p")
+	var pApproxField = document.getElementById("pApprox")
+	var x = parseFloat(document.getElementById("x").value)
+	var n = parseFloat(document.getElementById("n").value)
+	var pHat = x/n
+	//document.getElementById("pHat").value = +pHat.toFixed(precision)
+	var stderror = Math.sqrt(pHat*(1-pHat)/n)
+	var tail = false
+
+	var p = 0
+	var pApprox = 0
+	if(document.getElementById('area').value=="above") {
+		ll = parseFloat(document.getElementById("Xabove").value) 
+		ul=n
+		p=1-jStat.binomial.cdf(ll-1,n,pHat)
+		pApprox = 1-jStat.normal.cdf(parseFloat(document.getElementById("above").value),pHat,stderror)
+	} else if (document.getElementById('area').value=="below"){
+		ul = (parseFloat(document.getElementById("Xbelow").value) )
+		ll=0
+		p=jStat.binomial.cdf(ul,n,pHat)
+		pApprox = jStat.normal.cdf(parseFloat(document.getElementById("below").value),pHat,stderror)
+	} else if (document.getElementById('area').value=="between"){
+		ll = parseFloat(document.getElementById("Xll").value) 
+		ul = parseFloat(document.getElementById("Xul").value) 
+		p = jStat.binomial.cdf(ul,n,pHat)-jStat.binomial.cdf(ll-1,n,pHat)
+		pApprox = jStat.normal.cdf(parseFloat(document.getElementById("ul").value),pHat,stderror) - jStat.normal.cdf(parseFloat(document.getElementById("ll").value),pHat,stderror)
+	}
+	else if (document.getElementById('area').value=="tails"){
+		tail = true
+		ll = parseFloat(document.getElementById("Xoll").value) 
+		ul = parseFloat(document.getElementById("Xoul").value) 
+		p = 1-(jStat.binomial.cdf(ul-1,n,pHat)-jStat.binomial.cdf(ll,n,pHat))
+		pApprox = 1-(jStat.normal.cdf(parseFloat(document.getElementById("oul").value),pHat,stderror) - jStat.normal.cdf(parseFloat(document.getElementById("oll").value),pHat,stderror))
+	}
+
+	ctx.fillStyle = "white";
+	ctx.fillRect(0,0,w,h)
+	drawBinomial(n,pHat,ll,ul,tail)
+	pField.innerHTML=(p).toFixed(precision)
+	pApproxField.innerHTML=(pApprox).toFixed(precision)
+	document.getElementById('meanSamp1').innerHTML = pHat.toFixed(precision)
+	document.getElementById('sdSamp1').innerHTML = stderror.toFixed(precision)
+	document.getElementById("exactDistribution").innerHTML="nP&#770; ~ Binom("+n+","+pHat.toFixed(precision)+")"
+	document.getElementById("distributionType").innerHTML="P&#770; &#11806; N("+pHat.toFixed(precision)+","+stderror.toFixed(precision)+")"
+}
+
+function inverse() {
+	clearFields()
+	var ll, ul, x1,x2
+	var x = parseFloat(document.getElementById("x").value)
+	var n = parseFloat(document.getElementById("n").value)
+	var pHat = x/n
+	document.getElementById("pHat").value = +pHat.toFixed(precision)
+	var stderror = Math.sqrt(pHat*(1-pHat)/n)
+	ctx.clearRect(0,0,w,h)
+	tail = false
+	var p = parseFloat(document.getElementById("p2").value)
+	var x1 = jStat.ibetainv(p,x,n-x+1)
+	var x1approx = jStat.normal.inv(p,pHat,stderror) 
+
+	if (document.getElementById('area1').value=="above") {
+		ul=1
+		llapprox = jStat.normal.inv(1-p,pHat,stderror)
+		ll = jStat.ibetainv(1-p,x+1,n-x)
+		document.getElementById("aboveX").innerHTML= (ll).toFixed(precision)
+		document.getElementById("aboveXapprox").innerHTML= (llapprox).toFixed(precision)
+	} else if (document.getElementById('area1').value=="below"){
+		ll=0
+		ul=+(x1).toFixed(precision)
+		document.getElementById("belowX").innerHTML= (ul).toFixed(precision)
+		document.getElementById("belowXapprox").innerHTML= (x1approx).toFixed(precision)
+	} else if (document.getElementById('area1').value=="between"){
+		ll=(jStat.ibetainv(.5-p/2,x,n-x+1)).toFixed(precision)
+		ul=(jStat.ibetainv(.5+p/2,x+1,n-x)).toFixed(precision)
+		llapprox=(jStat.normal.inv(.5-p/2,pHat,stderror)).toFixed(precision)
+		ulapprox=(jStat.normal.inv(.5+p/2,pHat,stderror)).toFixed(precision)
+		document.getElementById("betweenX").innerHTML= (ll)  + " and " + (ul) 
+		document.getElementById("betweenXapprox").innerHTML= (llapprox) + " and " + (ulapprox) 
+	} else if (document.getElementById('area1').value=="tails"){
+		ll=(jStat.ibetainv(p/2,x+1,n-x)).toFixed(precision)
+		ul=(jStat.ibetainv(1-p/2,x,n-x+1)).toFixed(precision)
+		llapprox=(jStat.normal.inv(p/2,pHat,stderror)).toFixed(precision)
+		ulapprox=(jStat.normal.inv(1-p/2,pHat,stderror)).toFixed(precision)
+		tail=true
+		document.getElementById("outsideX").innerHTML= (ll)  + " and " + (ul) 
+		document.getElementById("outsideXapprox").innerHTML= (llapprox) + " and " + (ulapprox) 
+	}
+	ctx.fillStyle = "white";
+	ctx.fillRect(0,0,w,h)
+	drawBinomial(n,pHat,ll*n,ul*n,tail)
+	document.getElementById("distributionTypeInv").innerHTML="P&#770; ~ Binom("+n+","+pHat.toFixed(precision)+")/n"
+	document.getElementById("distributionTypeInvApprox").innerHTML="P&#770; &#11806; N("+pHat.toFixed(precision)+","+stderror.toFixed(precision)+")"
+}
+
+function drawBinomial(n,p,lFill,hFill, tail) {
+	var canvas = document.getElementById("normal"); 
+	ctx = canvas.getContext('2d');
+	h = canvas.height 
+	w = canvas.width
+	var scale=w/490
+	var lMargin=50*scale, rMargin=25*scale, tMargin=10*scale, bMargin=50*scale
+
+	ctx.fillStyle = "white";
+	ctx.beginPath()
+	ctx.fillRect(0,0,w,h)
+	ctx.fill()
+
+	var chartHeight=h-tMargin-bMargin
+	var chartWidth = w-lMargin-rMargin
+	var barWidth = chartWidth/(n+1)
+
+	ctx.beginPath()
+	var maxDensity = Math.max(jStat.binomial.pdf(Math.round((n)*p),n,p),jStat.binomial.pdf(Math.round((n+1)*p),n,p))
+
+	ctx.strokeStyle = "black";
+	ctx.fillStyle = "white";
+	ctx.lineWidth=Math.max(1,.75*scale);
+	var fillColor = (document.getElementById("colorful").checked==true ? colorHex : "#C0C0C0");
+
+
+	setChartParams(0,n,0,maxDensity,chartWidth,chartHeight,lMargin,tMargin)
+
+	chartAxisY(ctx,lMargin,tMargin+chartHeight,tMargin,0,maxDensity,10,"Probability",true,lMargin+chartWidth,true,fontSizeAxis*scale)
+
+	if(n<200){
+		for (var i=0;i<=n;i++){
+			if ((tail && (i>=hFill || i <= lFill)) || (!tail && i<=hFill && i >=lFill)){
+				ctx.fillStyle = fillColor;
+			} else {ctx.fillStyle = "white";}
+			ctx.fillRect(lMargin+(i)*barWidth,chartHeight+tMargin,barWidth,-jStat.binomial.pdf(i,n,p)/maxDensity*chartHeight)
+			ctx.strokeRect(lMargin+(i)*barWidth,chartHeight+tMargin,barWidth,-jStat.binomial.pdf(i,n,p)/maxDensity*chartHeight)
+			ctx.stroke();
+		}
+	} else {
+		ctx.fillStyle = fillColor;
+		var mu = n * p
+		var sigma = Math.sqrt(n*p*(1-p));	
+		var dmax = jStat.normal.pdf(mu,mu,sigma);
+		ctx.moveTo(lMargin+1,tMargin+chartHeight)
+		var filling=(tail?true: false)
+		var wasFilling=false;
+		for (var i=1; i<=chartWidth; i++){
+			var x = i/chartWidth * n;
+			wasFilling=filling;
+			xp=lMargin+i;
+			d = jStat.normal.pdf(x,mu,sigma);
+			dp= tMargin+chartHeight * (1-d/dmax)
+			filling = (tail && (x>=hFill || x <= lFill)) || (!tail && x<=hFill && x >=lFill)
+			if(filling==true&&wasFilling==false){
+				ctx.beginPath();
+				ctx.moveTo(xp,tMargin+chartHeight-1)
+			}
+			if(filling==true){
+				ctx.lineTo(xp,dp)
+			}	
+			if(filling==false&&wasFilling==true || (filling==true && i+1>=chartWidth)){
+				ctx.lineTo(xp,tMargin+chartHeight-1)
+				ctx.fill();
+				ctx.moveTo(xp,tMargin+chartHeight-1)
+			}
+		}
+		//Next Draw line
+		ctx.beginPath();
+		ctx.moveTo(lMargin+1,tMargin+chartHeight)
+		for (var i=1;i<=chartWidth;i++){
+			var x = i/chartWidth * n;
+			xp=lMargin+i;
+			d = jStat.normal.pdf(x,mu,sigma);
+			dp= tMargin+chartHeight * (1-d/dmax)
+			ctx.lineTo(xp,dp) 
+		}	
+		ctx.lineTo(lMargin+chartWidth,tMargin+chartHeight);
+		ctx.stroke();
+
+		//Horizontal Axis
+		ctx.beginPath();
+		ctx.strokeStyle = "black";
+		ctx.moveTo(lMargin+chartWidth,tMargin+chartHeight)
+		ctx.lineTo(lMargin+1,tMargin+chartHeight)
+		ctx.stroke();	
+	}
+	
+	ctx.textAlign = "center";
+//	ctx.font = "12px Courier sans-serif";
+	ctx.font = 12*scale+"px sans-serif";
+	
+	var y = tMargin+chartHeight + 15*scale
+	ctx.fillStyle = "black";
+	for (var i = 0;i<=n;i++) {
+		if(i % Math.max(1,Math.round(n/15)) == 0){
+			var x = lMargin+(i+.5)*barWidth
+			var xlab = (i/n).toFixed(2)
+			xlab = xlab.replace(/^0+/, '');
+			if(i==0) xlab=0
+			ctx.fillText(xlab, x, y);
+			ctx.fillText(i, x, y+20*scale);
+			ctx.beginPath()
+			ctx.moveTo(x,tMargin+chartHeight)
+			ctx.lineTo(x,tMargin+chartHeight+4*scale)
+			ctx.stroke()
+		}
+	}
+	ctx.fillText("P\u0302", 10*scale, y);
+	ctx.fillText("X", 10*scale, y+20*scale);
+	ctx.stroke();
+
+	
+}
+
+
+function refresh(){
+	setPrecision(document.getElementById('precision').value)
+	if (document.form1.which[0].checked) {
+		probability()
+	} else{
+		inverse()
+	}
+	
+} 
+
+function calcX(){
+	var n = parseFloat(document.getElementById("n").value)
+	document.getElementById("Xabove").value = Math.round(parseFloat(document.getElementById("above").value) * n)
+	document.getElementById("Xbelow").value = Math.round(parseFloat(document.getElementById("below").value) * n)
+	document.getElementById("Xll").value = Math.round(parseFloat(document.getElementById("ll").value) * n)
+	document.getElementById("Xul").value = Math.round(parseFloat(document.getElementById("ul").value) * n)
+	document.getElementById("Xoll").value = Math.round(parseFloat(document.getElementById("oll").value) * n)
+	document.getElementById("Xoul").value = Math.round(parseFloat(document.getElementById("oul").value) * n)
+}
+
+function calcP(){
+	var n = parseFloat(document.getElementById("n").value)
+	document.getElementById("above").value = (parseFloat(document.getElementById("Xabove").value) / n).toFixed(precision)
+	document.getElementById("below").value = (parseFloat(document.getElementById("Xbelow").value) / n).toFixed(precision)
+	document.getElementById("ll").value = (parseFloat(document.getElementById("Xll").value) / n).toFixed(precision)
+	document.getElementById("ul").value = (parseFloat(document.getElementById("Xul").value) / n).toFixed(precision)
+	document.getElementById("oll").value = (parseFloat(document.getElementById("Xoll").value) / n).toFixed(precision)
+	document.getElementById("oul").value = (parseFloat(document.getElementById("Xoul").value) / n).toFixed(precision)
+}
+
+function updateN(){
+	var n = parseFloat(document.getElementById("n").value)
+	document.getElementById('x').max=n
+	document.getElementById('pHat').step= (+1.0/n).toFixed(precision)
+//	alert (document.getElementById('pHat').step)	
+//	document.getElementById('showStep').innerHTML=(+1.0/n).toFixed(+precision)
+}
+
+function updateXandP(){
+	var n = parseFloat(document.getElementById("n").value)
+	if (document.getElementById("enterSuccesses").checked==false){
+//		alert("update X");
+		var pHat = +document.getElementById("pHat").value
+		var x=Math.round(n*pHat)
+		document.getElementById("x").value = Math.min(n,+x)
+	} else {
+//		alert("update P");
+		var x = parseFloat(document.getElementById("x").value)
+		var pHat = x/n
+		document.getElementById("pHat").value = +pHat.toFixed(precision)
+	}
+}
+
+function showOnly(which, element){
+	var prefix = ["above","below","between","tails"]
+	for(var i=0; i<prefix.length; i++){
+	console.log(prefix[i]+"Span"+(1+(which-1)*2))
+	console.log(prefix[i]+"Span"+(2+(which-1)*2))
+		document.getElementById(prefix[i]+"Span"+(1+(which-1)*2)).style.display=(element==prefix[i]?"inline":"none")
+		document.getElementById(prefix[i]+"Span"+(2+(which-1)*2)).style.display=(element==prefix[i]?"inline":"none")
+	}
+}
+
+</script>
+
+<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+<style>
+#belowSpan1, #belowSpan2, #betweenSpan1, #betweenSpan2, #tailsSpan1, #tailsSpan2{
+	display: none;
+	}
+</style>
+</head>
+
+<body onload="loadPrecision();loadColorChoice();linkMenu();init('normal');setColors();calcX();probability()">
+<div id="container">
+	<div id="title" onClick="setColors()">StatPowers</div>
+	<div id="menu"></div>
+	<div class="container">
+<h3>Sampling Distribution (Proportion)</h3>
+<div class="canvasdiv">
+<a class="downloadButton topright" href="" onClick="downloadCanvas(this,'histogram','histogram.png');"></a>
+<canvas id="normal" width="496" height="300" class='zoomable' >
+  <p>Your browser doesn't support canvas. Please update your browser.</p>
+</canvas>
+</div>
+
+<form name="form1">
+
+<div id="parameters"> <strong>Distribution Parameters:</strong><br/>
+  <table  border="0">
+    <tr>
+		<td><input checked type="radio" name="SuccOrProp" id="enterSuccesses" value="successes"  onclick="document.getElementById('x').disabled=this.selected;document.getElementById('pHat').disabled=!this.selected;" /><label for="enterSuccesses">Successes</label></td>
+		<td><input type="number" id="x" min="0" step="1" value ="15" max='50' class="smallNum" onchange="updateXandP();refresh()" /></td>
+	</tr>
+	<tr>
+		<td><input type="radio" name="SuccOrProp" id="enterProportion" value="proportion" onclick="document.getElementById('x').disabled=!this.selected;document.getElementById('pHat').disabled=this.selected;"/><label for="enterProportion">Sample Proportion</label></td>
+		<td><input id = "pHat" type="number" class="smallNum" step='0.01' min='0' max='1' value =".30" disabled onchange="updateXandP();refresh()"></td>
+	</tr>
+	<tr>
+		<td>Sample Size</td>
+		<td><input type="number" id="n"  min="1" step="1" value ="50" class="smallNum" onchange="updateN();updateXandP();calcX();refresh()" /></td>
+	</tr>
+  </table>
+</div>
+
+<div class='container'>
+	<h3>Choose Calculator Type</h3>
+	<div class="radio-toolbar">
+		<input type="radio" id="radio1" name="which" checked onClick="document.getElementById('apDiv2').style.display='block';document.getElementById('apDiv1').style.display='none';probability()">
+		<label for="radio1">Probability</label>
+		
+		<input type="radio" id="radio2" name="which" onClick="document.getElementById('apDiv1').style.display='block';document.getElementById('apDiv2').style.display='none';inverse()">
+		<label for="radio2">Percentiles</label>	
+	</div>
+
+	<div class="content">
+		<div id="apDiv1" style="display:none">
+		  <table  border="0">
+		  <tr>
+			<td>Probability</td>
+			<td> <input type="number" id="p2" min="0" max="1" value=".05" step=.01 class="mediumNumber" onchange="inverse()"/></td>
+			</tr>
+		  </table>
+
+		  <div class="results">
+			<strong>Results:</strong><br />
+			<table style="width:100%">
+			<tr>
+				<td> </td>
+				<td id="distributionTypeInv"> </td>
+				<td id="distributionTypeInvApprox"> </td>
+			</tr>
+			<tr>
+				<td>
+					<select id="area1" onChange="inverse()">
+						<option value="above">Above</option>
+						<option value="below">Below</option>
+						<option value="between">Between</option>
+						<option value="tails">Tails</option>
+					</select>
+				</td>
+				<td rowspan=4>
+					<span id="aboveX"></span>
+					<span id="belowX"></span>
+					<span  id="betweenX"></span>
+					<span id="outsideX"></span>
+				
+				</td>
+				<td rowspan=4>
+					<span id="aboveXapprox"></span>
+					<span id="belowXapprox"></span>
+					<span id="betweenXapprox" ></span>
+					<span id="outsideXapprox"></span>
+				
+				</td>
+			</tr>
+			</table>
+		   </div> 
+		</div>
+
+		<div id="apDiv2" style="display:block">
+		<table class="column">
+		<tr>
+		<th>
+		<select id="area" onChange="showOnly(1,this.value);probability()">
+		<option value="above">Above</option>
+		<option value="below">Below</option>
+		<option value="between">Between</option>
+		<option value="tails">Tails</option>
+		</select>
+		</th>
+		<td>
+			<span id='aboveSpan1'>P&#770; &ge;  <input name="above" type="number" id="above"  min="0" max="1" value=".5" step=.01 class="tinyNumber" onchange="calcX();probability();"/> </span>
+			<span id='belowSpan1'>P&#770; &le; <input name="below" type="number" id="below" min="0" max="1"  value=".5"  step=.01 class="tinyNumber" onchange="calcX();probability()" /></span>
+			<span id='betweenSpan1'><input name="ll" type="number" id="ll" min="0" max="1"  value=".4"  step=.01 class="tinyNumber" onchange="calcX();probability()" /> &le; P&#770; &le; <input name="ul" type="number" min="0" max="1"  id="ul"  step=.01 value=".6" class="tinyNumber" onchange="calcX();probability()" /></span>
+			<span id='tailsSpan1'>P&#770; &le; <input name="outsideLL" type="number" id="oll" min="0" max="1"  step=.01  value=".4" class="tinyNumber" onchange="calcX();probability()" /> or <input name="outsideUL" type="number" min="0" max="1"  id="oul" value=".6"  step=.01  class="tinyNumber" onchange="calcX();probability()" /> &le; P&#770;</span>
+		</td>
+		<td>
+			<span id='aboveSpan2'>X &ge; <input name="above" type="number" id="Xabove" min="0" step="1" value=".5" class="tinyNumber" onchange="calcP();probability();"/></span>
+			<span id='belowSpan2'>X &le; <input name="below" type="number" id="Xbelow" min="0" step="1" value=".5" class="tinyNumber" onchange="calcP();probability()" /></span>
+			<span id='betweenSpan2'><input name="ll" type="number" id="Xll" min="0" step="1" value="20" class="tinyNumber" onchange="calcP();probability();" /> &le; X &le; <input name="ul" type="number" id="Xul" min="0" step="1" value=".6" class="tinyNumber" onchange="calcP();probability();" /></span>
+			<span id='tailsSpan2'>X &le; <input name="outsideLL" type="number" id="Xoll"  min="0" step="1" value="20" class="tinyNumber" onchange="calcP();probability()" /> or <input name="outsideUL" type="number" min="0" step="1" id="Xoul" value=".6" class="tinyNumber" onchange="calcP();probability()" /> &le; X</span>
+		</td>
+		</tr>
+		</table>
+			<div class="results">
+				<strong>Results:</strong><br />
+				<span id="distributionType"></span><br>
+				&mu;<sub>P&#770;</sub> = <span id="meanSamp1"></span><br>
+				&sigma;<sub>P&#770;</sub> = <span id="sdSamp1"></span><br>	
+				Approximate (normal) probability: <strong><span  id="pApprox"  ></span></strong>	<br />
+				<br>
+				<span id="exactDistribution"></span><br>
+				Exact (binomial) probability: <strong><span id="p"></span></strong> <br />
+				<!--input name="draw" type="button"  value="Recalculate" onClick="probability()" /-->
+			</div>
+		</div>
+	</div>
+</div>
+</form>
+</div>
+</div>
+</body>
+</html>

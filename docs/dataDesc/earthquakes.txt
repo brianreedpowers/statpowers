@@ -1,0 +1,32 @@
+Earthquakes
+Description
+Select set of notable earthquakes from 1900 to 1999.
+
+Usage
+earthquakes
+Format
+A data frame with 123 rows and 7 variables.
+
+year
+Year the earthquake took place.
+
+month
+Month the earthquake took place.
+
+day
+Day the earthquake took place
+
+richter
+Magnitude of earthquake using the Richter Scale.
+
+area
+City or geographic location of earthquakes.
+
+region
+Country or countries if the earthquake occured on a border.
+
+deaths
+Approximate number of deaths caused by earthquake
+
+Source
+World Almanac and Book of Facts: 2011.

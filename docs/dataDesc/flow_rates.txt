@@ -1,0 +1,17 @@
+River Flow Data.
+Description
+We consider data on river flow rates collected by volunteers of the Pierce Conservation District.
+
+Usage
+flow_rates
+Format
+A data frame with 31 rows and 3 variables.
+
+site
+Location where measurments were taken.
+
+date
+Date measurements were taken.
+
+flow
+Flow rate of the river in cubic feet per second.

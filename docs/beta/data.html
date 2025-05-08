@@ -1,0 +1,1333 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>StatPowers: Introductory Statistics Resources</title>
+	<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+	<link rel="stylesheet" type="text/css" href="styles/datastyle.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<script type="text/javascript" src="js/jstat.js"></script>
+	<script type="text/javascript" src="js/commonFunctions.js"></script>
+	<script type="text/javascript" src="js/chartFunctions.js"></script>
+	<script type="text/javascript" src="js/seedrandom.min.js"></script>
+	<script src="js/papaparse.min.js"></script>
+	<script src="dir.php"></script>
+<script>
+var filterMethod = 'new'
+var inputType="local"
+var data;
+var filteredData;
+var vars=[]
+var types=[]
+var nTypes=[]
+var NA=[]
+var debug=false
+var dataSetName=""
+
+var sampleCSV="var 1,var 2,var 3,var 4\n5,red,6,a\n9,blue,4.34,a\n5,orange,3.12,b\n5,red,4.21,a\n6,orange,4.25,a\n7,red,7.65,b"
+var nNewVars=0
+var newVarValues = []
+var newVarTypes = []
+var newVarValid=[]
+
+
+function readTextFile(file){
+    var rawFile = new XMLHttpRequest();
+    rawFile.open("GET", file, false);
+    rawFile.onreadystatechange = function ()
+    {
+        if(rawFile.readyState === 4)
+        {
+            if(rawFile.status === 200 || rawFile.status == 0)
+            {
+                var allText = rawFile.responseText;
+                document.getElementById('dataDescText').innerHTML="<pre>"+allText+"</pre>"
+            }
+        }
+    }
+    rawFile.send(null);
+}
+
+function parseCSV(csvString){
+	//console.log("starting parse")
+	var results=Papa.parse(csvString);
+	data=results.data;
+	displayDataSummary();
+	nNewVars=0
+}
+
+function loadServerCSV(){
+	var fileName= document.getElementById('loadCSV').value
+	//console.log(fileName)
+	if(fileName!="" && files.indexOf(fileName)>-1){
+		parseFile('/csv/'+fileName+'.csv')
+		dataSetName=fileName;
+		document.getElementById('actions').innerHTML='Loading...'
+		document.getElementById('dataDescText').innerHTML=""
+		readTextFile('dataDesc/'+fileName+'.txt')
+	}
+}
+
+function parseFile(localFile){
+	Papa.parse(localFile,{
+		header: false,
+		download: true,
+		skipEmptyLines: true,
+		complete: function(results){
+//			console.log(results);
+			data=results.data;
+			nVarsOriginal=data[0].length
+//			console.log(data)
+			displayDataSummary();
+			nNewVars=0
+		}	
+	});
+}
+
+function parseLocalFile(){
+	if (!document.getElementById("files").files.length)
+	{
+		alert("Please choose a csv to load.");
+		return;
+	}
+	console.log(document.getElementById("files").files[0])
+	parseFile(document.getElementById("files").files[0])
+	dataSetName = document.getElementById("files").files[0].name.replace(".csv","")
+	if(debug) console.log(dataSetName)
+//	alert(document.getElementById("files").value)
+//	var config = buildConfig();
+
+	
+}
+
+function onlyUnique(value, index, self) { 
+    return self.indexOf(value) === index;
+}
+
+function transpose(a){
+  return a[0].map(function (_, c) { return a.map(function (r) { return r[c]; }); });
+  // or in more modern dialect
+  // return a[0].map((_, c) => a.map(r => r[c]));
+}
+
+var nVarsOriginal=-1
+var nVars = 0
+
+function refreshSummaryTable(){
+	var nRows = data.length
+	var nCols = data[0].length
+	nVars = nCols
+	if(nVarsOriginal==-1) nVarsOriginal=nVars
+	var nDisplay = Math.min(nRows-1,10)
+	var showDots = false
+	if (nRows>11){
+		showDots=true
+	}
+	vars = new Array(nCols)
+	types = new Array(nCols)
+	nTypes= new Array(nCols)
+	NA = new Array(nCols)
+
+	output = ""
+	output+="<thead><tr><th>Variable (Type)</th><th colspan="+nDisplay+">Data ("+(data.length-1)+" obs)</th></tr></thead>\n"
+	output+="<tbody>"
+	var nValues = 0
+	if(showDots) nDisplay=9
+	for(var i =0; i<nCols; i++){
+		var sample = ""
+		output +="<tr><th><input type='checkbox' id='selectVar_"+i+"' onClick='reviseAnalysisButtons();'><label for='selectVar_"+i+"'><span class='varName' id='varName"+i+"'>"+data[0][i]+"<span> "
+		types[i]="numeric"
+		nTypes[i]="discrete"
+		NA[i]=0
+		vars[i]=data[0][i]
+		for(var j=1; j<=nDisplay; j++){
+			sample += "<td>"+data[j][i]+"</td>"
+		}
+		
+		if(showDots) sample +="<td>...</td>"
+
+		for(var j=1; j<data.length; j++){
+			if(data[j][i]!="NA" && isNaN(data[j][i]) && (types[i]=="numeric" || types[i]=="numeric+")){
+				if(data[j][i].includes('+')){
+//					console.log(j+" " +i+' contains a +')
+					var newVal=data[j][i].replace('+','')
+//					console.log('newVal:'+newVal)
+					if(isNaN(newVal)){
+//						console.log('not a number')
+						types[i]="categorical"
+						break;
+					} else {
+						types[i]="numeric+"
+					}
+				} else {
+					types[i] = "categorical"
+					break;
+				}
+			}
+		}
+		for(var j=1; j<data.length; j++){
+			if(data[j][i]=="NA") {
+				NA[i]++
+			} else if(types[i]=="numeric" && data[j][i]!=Math.round(data[j][i],0)){
+				nTypes[i]="continuous"
+			}
+		}
+		output +=" <span class='varType'>("+types[i]+(NA[i]>0?','+NA[i]+' NA'+(NA[i]>1?'s':''):'')+")</span></label></th>"+sample+"</tr>"
+	}
+//	console.log(nTypes)
+	
+	output +="</tbody>"	
+	document.getElementById('summaryTable').innerHTML=output
+	
+	if(filterMethod=='old'){
+		output=""
+		for(var i=0; i<vars.length; i++){
+			output += "<option id='filterBy"+i+"'>"+vars[i]+"</option>"
+		}		
+		document.getElementById('filterBy').innerHTML=output
+	} }
+
+
+function displayDataSummary(){
+	//var transposeData = transpose(data)
+	output="<div style='max-height: 400px; overflow:auto;'>"
+	output+="<table id='summaryTable'>\n"
+	output += "</table></div>"
+	output +="<div id='newVarPanel'>"
+	output +="New Variables <button type='button' value='+' onClick='addNewVar()'>+</button><br>"
+	output +="<div id='newVarList'></div>"
+	output +="</div>"
+	output += "<div id='filters'>"
+	output += "<input type='checkbox' id='naToggle' checked>"
+	output += "<label for='naToggle'>Ignore NAs</label><br>"
+	output += "<input type='checkbox' id='sampleToggle' onClick='showSampleSize(this.checked);'>"
+	output += "<label for='sampleToggle'>Random Sample</label> <span id='sampleOptions' style='display:none;'> size <input type='number' class='smallNumber' min=1 step=1 value=1 id='sampleSize'> Seed:<input type='number' class='smallNumber' min=0 placeholder='optional' id='sampleSeed'></span><br>"
+//	output += "<input type='checkbox' id='filterToggle' onClick='showFilters(this.checked);'>"
+//	output += "<label for='filterToggle'>Filter Data</label>"
+//	output += "<span id='filterByDiv' style='display:none;'> by <select id='filterBy' multiple onChange='rebuildVarFilters()'>"
+//	output +="</select></span>"
+	output += "Data filters: <button type='button' value= '+' onClick='addNewFilter()'>+</button><br>"
+	output += "<div id='varFilters'></div>"
+	output += "</div>"
+	output += "<div id='analysisButtons'></div>"
+
+	document.getElementById("actions").innerHTML=output;
+	refreshSummaryTable()
+	rebuildVarFilters()
+	reviseAnalysisButtons()
+}
+
+function showSampleSize(show){
+	document.getElementById('sampleOptions').style.display=(show?"inline":"none")
+}
+function showFilters(show){
+	document.getElementById('filterByDiv').style.display=(show?"inline":"none")
+	if(!show){
+		document.getElementById('filterBy').value=null
+		rebuildVarFilters()
+	}
+}
+
+function addNewVar(){
+	var newVarDiv =  document.createElement("DIV");
+	newVarDiv.id = "newVar"+nNewVars
+	newVarDiv.innerHTML=/*"<input type='checkbox' disabled id='selectNewVar_"+nNewVars+"' onClick='reviseAnalysisButtons();'>"+*/"<input type='text' placeHolder='variable name' id='newVarName"+nNewVars+"' class='varName' onChange='validateNewVar("+nNewVars+");'><input type='text' class='varDef' id='newVarDef"+nNewVars+"' placeholder='definition' onChange='validateNewVar("+nNewVars+");'><button type='button' value='X' onClick='removeNewVar("+nNewVars+");'>X</button>"
+	document.getElementById('newVarPanel').appendChild(newVarDiv)
+	newVarValues[nNewVars]=[]
+	nNewVars++
+}
+
+function removeNewVar(newVarIndex){
+	document.getElementById('newVar'+newVarIndex).remove()
+	newVarValues[newVarIndex]=[]
+	newVarValid[newVarIndex]=false
+	appendData()
+	rebuildVarFilters()
+	reviseAnalysisButtons()
+}
+
+function isValidVarDef(validateDefString){
+	//console.log("validating "+validateDefString)
+	var varDefValid=true
+	if(debug)console.log(validateDefString +" " +varDefValid)
+	
+	//remove single quoted substrings
+	var pts = validateDefString.split("'")
+	validateDefString=''
+	for(var i=0; i<pts.length; i+=2) validateDefString += pts[i]
+	
+	for(var i=0; i<vars.length; i++){
+		validateDefString=validateDefString.replace(new RegExp(vars[i], 'g'),'')
+	}
+	for(var i=0; i<okStrs.length; i++){
+		validateDefString=validateDefString.replace(new RegExp(okStrs[i], 'g'),'')
+	}
+	for(var i=0; i<validateDefString.length; i++){
+		if(okChars.includes(validateDefString.charAt(i))){
+			validateDefString= setCharAt(validateDefString,i," ")
+		}
+	}
+//	console.log(validateDefString)
+	if(validateDefString.trim() !=""){
+		varDefValid=false
+	}
+	if(debug)console.log(validateDefString +" " +varDefValid)
+	return varDefValid
+}
+
+var okChars="0123456789<=>.+-/*()&|_;, #v%'!"
+var okStrs=["log","exp","sin","cos","pow","sqrt","max","min","round"]
+var okStrsRep=["Math.log","Math.exp","Math.sin","Math.cos", "Math.pow","Math.sqrt","Math.max","Math.min","Math.round"]
+var nFilters = 0
+var filterVarNums = {}
+var indexSelected = []
+var selectedRows=[]
+
+function validateNewVar(newVarIndex){
+	var varValid=true
+	var varDefValid=true
+	var newVarName= document.getElementById('newVarName'+newVarIndex).value
+	if(newVarName == "") varValid=false
+	for(var i=0; i<nVarsOriginal; i++){
+		if(newVarName == vars[i]) varValid=false
+	}
+	for(var i=0; i<nNewVars; i++){
+		if(exists('newVarName'+i) && i!=newVarIndex && newVarName==document.getElementById('newVarName'+i).value){
+			varValid=false
+		}
+	}
+	
+	var defString = document.getElementById('newVarDef'+newVarIndex).value
+	
+	
+	//replace variable names  with v0, v1 etc
+	//One day I should ensure that there's not problems with variable names containing other variable names
+	//in the mean time though, we'll just start from the end and go backwards.
+	if(defString!=null){
+		for(var i=vars.length-1; i>=0; i--){	
+			defString=defString.replace(new RegExp(vars[i], 'g'), "#v"+i+"#")
+		}	
+	}
+	if(debug) console.log(defString)
+//	varDefValid = isValidVarDef(defString)
+	var varParts = defString.split(";")
+	if(debug)console.log(varParts)
+	for(var i=0; i<varParts.length; i++){
+		var partSplit = varParts[i].split(":")
+		if(debug)console.log(partSplit)
+		if (!isValidVarDef(partSplit[0])) varDefValid=false
+	}
+	/*
+	var validateDefString = document.getElementById('newVarDef'+newVarIndex).value
+//	console.log(validateDefString)
+	for(var i=0; i<vars.length; i++){
+		validateDefString=validateDefString.replace(new RegExp(vars[i], 'g'),'')
+	}
+	for(var i=0; i<okStrs.length; i++){
+		validateDefString=validateDefString.replace(new RegExp(okStrs[i], 'g'),'')
+	}
+	for(var i=0; i<validateDefString.length; i++){
+		if(okChars.includes(validateDefString.charAt(i))){
+			validateDefString= setCharAt(validateDefString,i," ")
+		}
+	}
+	console.log(validateDefString)
+	if(validateDefString.trim() !=""){
+		varDefValid=false
+		varValid=false
+	}*/
+	if(!varDefValid) varValid=false
+	newVarValid[newVarIndex]=varValid
+
+	if(varDefValid){
+		if(debug)console.log(newVarIndex+ " is valid; now evaluating")
+		types[nVars+newVarIndex]="numeric"
+		nTypes[nVars+newVarIndex]="continuous" //Placeholder to make sure that it stays defined
+		for(var i=0; i<okStrs.length; i++){
+			defString=defString.replace(new RegExp(okStrs[i], 'g'),okStrsRep[i])
+		}
+		//var varDefSplitLabel = defString.split(";")
+		for(var j=1; j<data.length; j++){
+			var varDefSplit = defString.split(";")
+			var trueValue=false
+			for(var k=0; k<varDefSplit.length; k++){
+				if(varDefSplit[k]=="")break;
+				var defParts = varDefSplit[k].split(":")
+				var casebased=defParts.length>1||varDefSplit.length>1
+				
+				if(debug)console.log("Case-Based definition:"+casebased)
+				var categoryLabel = defParts[defParts.length-1]
+				var varDefinition=defParts[0]
+//				console.log(defParts)
+				var isNA=false
+			//	console.log("var def:"+varDefinition)
+				evaluatedCategory = categoryLabel
+				for(var i=0; i<vars.length; i++){
+					var vi = "#v"+i+"#"
+					if(varDefinition.includes(vi) && data[j][i]=="NA"){
+						isNA=true
+						break
+					}
+					
+					var replaceString = vi
+					for(var lagCheck=2; lagCheck>=1; lagCheck--){
+						replaceString= vi
+						for(var kk=0; kk<lagCheck; kk++) replaceString+= "_"
+						if(varDefinition.includes(replaceString)){
+							if(j<=lagCheck || data[j-lagCheck][i]=="NA") {
+								isNA=true;
+								break;
+							} else {
+								varDefinition=varDefinition.replace(new RegExp(replaceString, 'g'),data[j-lagCheck][i])
+							}
+						}
+						if(evaluatedCategory.includes(replaceString)){
+							if(j<=lagCheck || data[j-lagCheck][i]=="NA") {
+								isNA=true;
+								break;
+							} else {
+								evaluatedCategory=evaluatedCategory.replace(new RegExp(replaceString, 'g'),data[j-lagCheck][i])
+							}
+						}
+					}
+					if(debug)console.log('replacing ' + vi + " with "+ data[j][i])
+					if(types[i+1]=='categorical' && !casebased){
+						varDefinition=varDefinition.replace(new RegExp(vi, 'g'),data[j][i])
+					} else {
+						varDefinition=varDefinition.replace(new RegExp(vi, 'g'),"'"+data[j][i]+"'")					
+					}
+					evaluatedCategory=evaluatedCategory.replace(new RegExp(vi, 'g'),data[j][i])
+					if(debug) console.log(varDefinition)
+				}
+				if(debug)console.log("Evaluate: "+varDefinition)
+				var evaluation = ''
+				try {
+					evaluation = eval(varDefinition); 
+					evaluatedCategory = eval(evaluatedCategory)
+				} catch (e) {
+					if (e instanceof SyntaxError) {
+						if(debug)console.log("Evaluate: "+varDefinition)
+					}
+				}
+				if(varDefinition=="") evaluation=true
+	//			console.log(evaluation)
+				if(isNumeric(evaluation)){
+					newVarValues[newVarIndex][j]=fixed(evaluation)
+					trueValue=true
+					break
+				} else if (typeof evaluation ==="boolean" && evaluation){
+					types[nVars+newVarIndex]="categorical"
+					newVarValues[newVarIndex][j]=(evaluatedCategory?evaluatedCategory:categoryLabel)
+					trueValue=true
+					break;
+				} else {
+					newVarValues[newVarIndex][j]=(evaluatedCategory?evaluatedCategory:varDefinition)
+				}
+			}
+			if(isNA){
+				newVarValues[newVarIndex][j]="NA"
+				
+			} else if(!trueValue){
+				types[nVars+newVarIndex]="categorical"
+				if(casebased)newVarValues[newVarIndex][j]="other"
+			}
+		}
+	//	console.log(newVarValues[newVarIndex])
+	}
+//	console.log(newVarValid[newVarIndex])
+
+
+//	document.getElementById('selectNewVar_'+newVarIndex).disabled=!varValid
+//	if(!varValid) document.getElementById('selectNewVar_'+newVarIndex).checked = false
+	appendData()
+	rebuildVarFilters()
+	reviseAnalysisButtons()
+}
+
+//Data[row][varIndex]
+
+function appendData(){
+//	console.log(nVarsOriginal)
+	//Clear appended Data
+	for(var j=0; j<data.length; j++){
+		data[j]=data[j].slice(0,nVarsOriginal)
+	}
+	for(var i=0; i<nNewVars; i++){
+		if(newVarValid[i]){
+			data[0].push(document.getElementById('newVarName'+i).value)
+			for(j=1; j<data.length; j++){
+				data[j].push(newVarValues[i][j])
+			}
+		}
+	}
+	refreshSummaryTable()
+}
+
+function setCharAt(str,index,chr) {
+    if(index > str.length-1) return str;
+    return str.substring(0,index) + chr + str.substring(index+1);
+}
+
+function addNewFilter(){
+	nFilters++
+	var newFilter = document.createElement("div")
+	newFilter.id="filter"+nFilters
+	newFilter.className = "filterOptions"
+	var divContent = "<select id='fs_"+nFilters+"' onChange='refreshFilterOptions("+nFilters+")'>"
+	divContent += "<option selected disabled>select variable</option>"
+	for(var i=0; i<vars.length; i++){
+		divContent += "<option id='f"+nFilters+"_filterBy"+i+"' value="+i+">"+vars[i]+"</option>"
+	}		
+	divContent+="</select>"
+	divContent+="<button type='button' value='X' onClick='removeFilter("+nFilters+")' style='float:right;'>X</button>"
+	divContent+="<div id='f"+nFilters+"_options'></div>"
+	newFilter.innerHTML=divContent
+	document.getElementById('varFilters').appendChild(newFilter)
+	filterVarNums[nFilters]=-1
+}
+
+function removeFilter(filterID){
+	var element = document.getElementById("filter"+filterID);
+	element.parentNode.removeChild(element);
+}
+
+function refreshFilterOptions(filterID){
+	var i = +document.getElementById('fs_'+filterID).value
+	if(filterVarNums[filterID]==i){
+		//recover previous settings
+	}
+	filterVarNums[filterID]=i
+	var filterString=""
+
+	if(types[i]=="numeric"){
+		filterString+="<textarea id='filterValues"+i+"' placeholder='all values' class='filterText'>"+(exists('filterValues'+i)?document.getElementById('filterValues'+i).value:'')+"</textarea>"
+	} else {
+		var values = getUniqueValues(arrayColumn(data.slice(1),i))
+		filterString+= "<select id='filterValues"+i+"' multiple class='filterSelect'>"
+		for(var j=0; j<values.length; j++){
+			var selected=" selected"
+			if(exists('filterVal'+i+'_'+j)) selected=(document.getElementById('filterVal'+i+'_'+j).selected?" selected":"")
+			filterString +="<option value="+j+" id='filterVal"+i+"_"+values[j]+"'"+selected+">"+values[j]+"</option>"
+		}
+		filterString+="</select>"			
+	}	
+	document.getElementById('f'+filterID+"_options").innerHTML=filterString
+
+	
+}
+
+function rebuildVarFilters(){
+	if(filterMethod=='old'){
+		var filterString=(document.getElementById('filterToggle').selected?"":"<i>none</i>")
+		for(var i=0; i<nVars; i++){
+			if(document.getElementById('filterBy'+i).selected){
+				if(filterString=="<i>none</i>")filterString=""
+				filterString+="<div id='filterOptions"+i+"' class='filterOptions'>"
+				filterString+="<strong>"+data[0][i]+"</strong><br>"
+				if(types[i]=="numeric"){
+					filterString+="<textarea id='filterValues"+i+"' placeholder='all values'>"+(exists('filterValues'+i)?document.getElementById('filterValues'+i).value:'')+"</textarea>"
+				} else {
+					var values = getUniqueValues(arrayColumn(data.slice(1),i))
+					filterString+= "<select id='filterValues"+i+"' multiple>"
+					for(var j=0; j<values.length; j++){
+						var selected=" selected"
+						if(exists('filterVal'+i+'_'+j)) selected=(document.getElementById('filterVal'+i+'_'+j).selected?" selected":"")
+						filterString +="<option value="+j+" id='filterVal"+i+"_"+values[j]+"'"+selected+">"+values[j]+"</option>"
+					}
+					filterString+="</select>"			
+				}
+				filterString+="</div>"
+			}
+		}
+		document.getElementById('varFilters').innerHTML=filterString
+	} else {
+	
+	
+	
+	
+	}
+}
+
+function updateGroupFilter(){
+	var groupByVar=+document.getElementById('groupBy').value
+	var filterSelect=""
+	if(groupByVar!=-1){
+		var values = getUniqueValues(arrayColumn(data.slice(1),groupByVar))
+//		console.log(values)
+		//filterSelect+= " select groups:<select id='filter'  multiple style='vertical-align: top;'>"
+		//for(var i=0; i<values.length; i++){
+		//	filterSelect +="<option value="+i+" id='grp"+i+"'>"+values[i]+"</option>"
+		//}
+		//filterSelect+="</select>"
+		
+	}
+	document.getElementById('groupFilter').innerHTML=filterSelect
+}
+
+function reviseAnalysisButtons(){
+	rebuildVarFilters()
+	var analysisButtons=""
+	var nChecked = 0
+	var checkedVars = []
+	indexSelected=[]
+//	var checkedNewVars = []
+	for(var i=0; i<nVars; i++){
+		checkedVars[i]=document.getElementById('selectVar_'+i).checked
+		nChecked += (checkedVars[i]?1:0)		
+		if(checkedVars[i]) indexSelected.push(i)
+	}
+	for(var i=0; i<nNewVars; i++){
+		checkedVars[nVars+i]=(exists("selectNewVar_"+i) && document.getElementById('selectNewVar_'+i).checked) 
+		nChecked += (checkedVars[nVars+i]?1:0)
+		if(checkedVars[nVars+i]) indexSelected.push(nVars+i)
+	}
+	
+	if(nChecked==0){
+		analysisButtons = "<i>Select Variables Above</i>"
+	} else {
+		if(nChecked==1){
+			if(types[indexSelected]=="numeric"){
+				analysisButtons +="<button type='button' value='1 Var Quantitative Analysis' onClick='analyze(\"1VQUANT\",["+indexSelected+"]);'>1 Var Quantitative Analysis</button>"
+				analysisButtons +=" / <button type='button' value='Survival Analysis' onClick='analyze(\"SURVIVAL\",["+indexSelected+"]);'>Survival Analysis</button>"
+
+				analysisButtons +=" group by: <select id='groupBy' >"
+				//onChange='updateGroupFilter()'>"
+				analysisButtons +="<option value=-1>none</option>"
+				for(var i=0; i<nVars; i++){
+					if((types[i]=="categorical" || types[i]=="numeric" && nTypes[i]=="discrete")&& i!=indexSelected) analysisButtons +="<option value="+i+">"+vars[i]+"</option>"
+				}
+				analysisButtons +="				</select> <span id='groupFilter'></span><br>"
+				analysisButtons +="<button type='button' value='Time Series Analysis' onClick='analyze(\"TS\",["+indexSelected[0]+"]);'>Time Series Analysis</button>"
+			} else {
+				analysisButtons +="<button type='button' value='1 Var Qualitative Analysis' onClick='analyze(\"1VQUAL\",["+indexSelected[0]+"]);'>1 Var Qualitative Analysis</button><br>"
+				analysisButtons +="<button type='button' value='Time Series Analysis' onClick='analyze(\"TS\",["+indexSelected[0]+"]);'>Time Series Analysis</button><br>"
+				if(types[indexSelected]=='numeric+') {
+					analysisButtons +="<button type='button' value='Survival Analysis' onClick='analyze(\"SURVIVAL\",["+indexSelected+"]);'>Survival Analysis</button>"
+				analysisButtons +=" group by: <select id='groupBy' >"
+				//onChange='updateGroupFilter()'>"
+				analysisButtons +="<option value=-1>none</option>"
+				for(var i=0; i<nVars; i++){
+					if((types[i]=="categorical" || types[i]=="numeric" && nTypes[i]=="discrete")&& i!=indexSelected) analysisButtons +="<option value="+i+">"+vars[i]+"</option>"
+				}
+				analysisButtons +="				</select> <span id='groupFilter'></span><br>"					
+				}
+			}
+		} else if(nChecked==2 && types[indexSelected[0]]=="numeric" && types[indexSelected[1]]=="numeric"){
+			analysisButtons +="<button type='button' id='pairedButton' value='Paired Variable Analysis' onClick='analyze(\"PAIRED\",["+indexSelected[0]+","+indexSelected[1]+"]);'>Paired Variable Analysis</button>"
+			analysisButtons +=" responseVar: <select id='pairedResponseVar'></select>"
+			analysisButtons +="<br><button type='button' value='Multivariable Analysis' onClick='analyze(\"MULTIVAR\",["+indexSelected[0]+","+indexSelected[1]+"]);'>Multivariable Analysis</button>"
+			analysisButtons +=" responseVar: <select id='multiResponseVar'></select>"
+			analysisButtons +="<br><button type='button' value='Survival Analysis' onClick='analyze(\"SURVIVAL\",["
+			for(var i=0; i<indexSelected.length; i++) analysisButtons += (i>0?",":"")+indexSelected[i]
+			analysisButtons +="]);'>Survival Analysis</button>"
+		} else if(nChecked==2 && types[indexSelected[0]]=="categorical" && types[indexSelected[1]]=="categorical"){
+			analysisButtons +="<button type='button' value='Contingency Table' onClick='analyze(\"CONTABLE\",["+indexSelected[0]+","+indexSelected[1]+"]);'>Contingency Table</button>"
+			analysisButtons +="<br><button type='button' value='Multivariable Analysis' onClick='analyze(\"MULTIVAR\",["+indexSelected[0]+","+indexSelected[1]+"]);'>Multivariable Analysis</button>"
+			analysisButtons +=" responseVar: <select id='multiResponseVar'></select>"
+		} else{
+			analysisButtons +="<button type='button' value='Multivariable Analysis' onClick='analyze(\"MULTIVAR\",["
+			for(var i=0; i<indexSelected.length; i++) analysisButtons += (i>0?",":"")+indexSelected[i]
+			analysisButtons +="]);'>Multivariable Analysis</button>"
+			analysisButtons +=" responseVar: <select id='multiResponseVar'></select>"
+			analysisButtons +="<br><button type='button' value='Survival Analysis' onClick='analyze(\"SURVIVAL\",["
+			for(var i=0; i<indexSelected.length; i++) analysisButtons += (i>0?",":"")+indexSelected[i]
+			analysisButtons +="]);'>Survival Analysis</button>"
+		}
+		if(nChecked==2 || nChecked==3){
+			var nNumeric=0
+			for(var k=0; k<3; k++) if(types[indexSelected[k]]=="numeric") nNumeric++
+			if(nNumeric>=2){
+				analysisButtons +="<br><button type='button' value='Spatial Analysis' onClick='analyze(\"SPATIAL\",["
+				for(var i=0; i<indexSelected.length; i++) analysisButtons += (i>0?",":"")+indexSelected[i]
+				analysisButtons +="]);'>Spatial Analysis</button> "
+				analysisButtons +=" x: <select id='spatialX' onChange='refreshYchoices()'></select> y:<select id='spatialY'></select>"
+			}
+		}
+		analysisButtons += "<br><button type='button' value='Download as CSV' onClick = 'downloadCSV(["
+		for(var i=0; i<indexSelected.length; i++) analysisButtons += (i>0?",":"")+indexSelected[i]
+		analysisButtons += "])'>Download as CSV</button>"
+	}
+	
+	document.getElementById('analysisButtons').innerHTML=analysisButtons
+	if(exists('spatialX')) refreshXchoices();
+	if(exists('pairedResponseVar')) refreshPRVchoices();
+	if(exists('multiResponseVar')) refreshMRVchoices();
+}
+
+function refreshXchoices(){
+	var optionString = ""
+	for(var i=0; i<indexSelected.length; i++){
+		var sel= (document.getElementById('spatialX').value == indexSelected[i] ? " selected":"")
+		if(types[indexSelected[i]] =="numeric") optionString += "<option value="+indexSelected[i]+sel+">"+data[0][indexSelected[i]]+"</option>"
+	}
+	if(exists('spatialX')) document.getElementById('spatialX').innerHTML=optionString
+	refreshYchoices();
+}
+
+function refreshPRVchoices(){
+	var optionString = ""
+	var varnum=1
+	for(var i=0; i<indexSelected.length; i++){
+		var sel= (document.getElementById('spatialX').value == indexSelected[i] ? " selected":"")
+		if(types[indexSelected[i]] =="numeric"){
+			optionString += "<option value="+varnum+sel+">"+data[0][indexSelected[i]]+"</option>"
+			varnum++
+		}
+	}
+	if(exists('pairedResponseVar')) document.getElementById('pairedResponseVar').innerHTML=optionString
+}
+
+function refreshMRVchoices(){
+	var optionString = ""
+	var varnum=1
+	for(var i=0; i<indexSelected.length; i++){
+		var sel= (document.getElementById('multiResponseVar').value == indexSelected[i] ? " selected":"")
+		optionString += "<option value="+varnum+sel+">"+data[0][indexSelected[i]]+"</option>"
+		varnum++
+	}
+	if(exists('multiResponseVar')) document.getElementById('multiResponseVar').innerHTML=optionString
+}
+
+function refreshYchoices(){
+	var optionString = ""
+	for(var i=0; i<indexSelected.length; i++){
+		var sel= (document.getElementById('spatialY').value == indexSelected[i] ? " selected":"")
+		if(types[indexSelected[i]] =="numeric" && indexSelected[i]!=document.getElementById('spatialX').value) optionString += "<option value="+indexSelected[i]+sel+">"+data[0][indexSelected[i]]+"</option>"
+	}
+	if(exists('spatialY'))document.getElementById('spatialY').innerHTML=optionString
+}
+
+function makeDataString(dataArray, delim=';', correctSpaces=true, skipNA=true){
+	var dataString =""
+	for(var j=0; j<dataArray[0].length; j++){
+		for(var i=0; i<dataArray.length; i++){
+			if(!skipNA || skipNA && dataArray[i][j]!="NA") dataString +=(i>0?delim:"")+dataArray[i][j]
+		}
+		dataString +=(j<dataArray[0].length-1?"\n":"")
+	}
+	if(correctSpaces) dataString = dataString.replace(/ /g,"_")
+	return dataString
+}
+
+function makeDataStringColumns(varNums, delim=';', correctSpaces=true, skipNA=true){
+	var dataString =""
+	for(var j=1; j<filteredData.length; j++){
+		var rowString=""
+		var isNA=false
+		for(var i=0; i<varNums.length; i++){
+			if(skipNA && filteredData[j][varNums[i]]=="NA") isNA=true
+		//	if(!skipNA || skipNA && filteredData[j][varNums[i]]!="NA")
+			rowString +=(i>0?delim:"")+filteredData[j][varNums[i]]
+		}
+		if(isNA==false){
+			dataString += rowString + (j<filteredData.length-1?"\n":"")	
+		}
+	}
+	if(correctSpaces) dataString = dataString.replace(/ /g,"_")
+	return dataString
+}
+
+function getUniqueValues(dataArray){
+	return dataArray.filter(onlyUnique)
+}
+
+function groupVar(varIndex, grpIndex){
+	var varColumn = arrayColumn(filteredData.slice(1),varIndex)
+	var grpColumn = arrayColumn(filteredData.slice(1),grpIndex)
+	console.log(varColumn)
+	console.log(grpColumn)
+	var groups=getUniqueValues(grpColumn)
+	//sort groups in order
+	groups = sortArray(groups)
+	console.log(groups)
+	
+	var dataArray=[]
+	for(var i=0; i<groups.length; i++){
+		//if(groups[i]!="NA"){
+				console.log("|"+groups[i] + "|") 
+		
+			var colArray = []
+			for(var j=0; j< varColumn.length; j++){
+				if(/*selectedRows[j] && */grpColumn[j]==groups[i]) colArray.push(varColumn[j])
+			}
+			dataArray.push(colArray)
+		//}
+	}
+	return dataArray
+}
+
+function determineSelectedRows(){
+	selectedRows=[]
+	cleanNumericalFilters()
+	//all rows are true to begin with
+//	console.log(data)
+	for(var i=1; i<data.length; i++){
+		selectedRows[i-1]=true // starts at zero!
+		for(var j=0; j<vars.length; j++){
+			if(exists('filterValues'+j)){
+				var keepRow = checkFilter(j,data[i][j])
+				if(!keepRow){
+					selectedRows[i-1]=false
+					j=vars.length
+				}
+			}
+		}
+	}
+//	console.log(selectedRows)
+}
+
+function cleanNumericalFilters(){
+	var okChars="0123456789<=>.&|-!()"
+//	console.log(types)
+	for(var i=0; i<vars.length;i++){
+		if(types[i]=="numeric" && exists('filterValues'+i)){
+//			console.log("Cleaning filter "+i)
+			var filterStr = document.getElementById('filterValues'+i).value;
+			var newFilterStr=""
+			for(var k=0; k<filterStr.length; k++){
+				var ch=filterStr.charAt(k)
+				if(okChars.indexOf(ch)>-1) newFilterStr+=ch
+				if(ch=="\n") newFilterStr+="||"
+			}
+			document.getElementById('filterValues'+i).value=newFilterStr;
+		}
+	}
+}
+
+function checkFilter(varNum, value){
+	if(types[varNum]=="categorical"){
+		return (document.getElementById('filterVal'+varNum+"_"+value).selected)
+	} else {
+		var filters = document.getElementById('filterValues'+varNum).value
+		filters = filters.replace(/\|\|/g,"||"+value)
+		filters = filters.replace(/&&/g,"&&"+value)
+		filters = filters.replace(/\(/g,"("+value)
+		var evalStr = ((filters[0]!="(")?value:"") + filters
+		//console.log(evalStr)
+		//console.log(eval(evalStr))
+		return eval(evalStr)
+	}
+}
+
+function filterData(){
+	filteredData=[]
+	filteredData[0]=data[0]
+	var order=[]
+	var randSample=false
+	var sampleSize=0
+	var samplesCollected=0
+	for(var i=0; i<selectedRows.length; i++){
+		order[i]=i
+	}
+	if(document.getElementById('sampleToggle').checked){
+		randSample=true
+		sampleSize=+document.getElementById('sampleSize').value
+		order=shuffle(order)
+	}
+	for(var i=0; i<selectedRows.length; i++){
+		if(selectedRows[order[i]]) {
+			filteredData.push(data[order[i]+1])
+			samplesCollected++
+		}
+		if(randSample && samplesCollected>=sampleSize) break
+	}
+//	console.log(filteredData)
+}
+
+function shuffle(array) {
+  var currentIndex = array.length,  randomIndex;
+	var seed = document.getElementById('sampleSeed').value
+	var myRng = (seed==''? new Math.seedrandom():new Math.seedrandom(seed))
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(myRng.quick() * currentIndex);
+    currentIndex--;
+
+    // And swap it with the current element.
+    [array[currentIndex], array[randomIndex]] = [
+      array[randomIndex], array[currentIndex]];
+  }
+
+  return array;
+}
+
+function downloadCSV(varArray){
+	determineSelectedRows()
+	filterData()
+	console.log(filteredData)
+	var outputData = ""
+	for(var j = 0; j<filteredData.length; j++){
+		if(j>0) 	outputData +="\n"
+		for(var i = 0; i<varArray.length; i++){
+			if(i>0) outputData +=","
+			outputData += filteredData[j][varArray[i]]
+		}
+	}
+	console.log(outputData)
+	download(outputData, "data_download.csv", "text/plain;charset=utf-8");
+}
+				
+function download(data, filename, type) {
+	var file = new Blob([data], {type: type});
+	if (window.navigator.msSaveOrOpenBlob) // IE10+
+		window.navigator.msSaveOrOpenBlob(file, filename);
+	else { // Others
+		var a = document.createElement("a"),
+				url = URL.createObjectURL(file);
+		a.href = url;
+		a.download = filename;
+		document.body.appendChild(a);
+		a.click();
+		setTimeout(function() {
+			document.body.removeChild(a);
+			window.URL.revokeObjectURL(url);  
+		}, 0); 
+	}
+}
+
+function analyze(analysisType, varArray){
+	determineSelectedRows()
+	filterData()
+	var groupBy = (exists('groupBy')?document.getElementById('groupBy').value:null)
+	switch(analysisType){
+		case "1VQUANT":
+			if(groupBy==-1){
+				var pageTitle = dataSetName+": "+vars[varArray[0]]
+				openData("quant1var.html",["varName1","name1","data1"],[vars[varArray[0]],dataSetName,makeDataStringColumns(varArray,';',true)],pageTitle,true)
+			} else {
+				var groups=getUniqueValues(arrayColumn(filteredData.slice(1),groupBy))
+				groups = sortArray(groups)
+				var dataArray = groupVar(varArray[0],groupBy)
+			//	console.log(dataArray)
+				var targets = []
+				var dataStringArray=[]
+				var selectedGroups = 0
+				var dataIndex=0
+				for(var i=0; i<groups.length; i++){
+					if(groups[i]!="NA"){
+						dataIndex++
+						selectedGroups++
+						targets.push("name"+(dataIndex))
+						targets.push("data"+(dataIndex))
+						dataStringArray.push(groups[i])
+						dataStringArray.push(makeDataString([dataArray[i]],';',true))
+					}
+				}
+				var pageTitle = dataSetName+": "+vars[varArray[0]] +" by "+vars[groupBy]
+				if(debug) console.log("popup Title: "+pageTitle)
+				if(debug)console.log(dataStringArray)
+				if(selectedGroups==1){
+					openData("quant1var.html",targets,dataStringArray,pageTitle,true)
+				} else if (selectedGroups==2){
+					targets.push("nIndepSamplesSelect")
+					dataStringArray.push(2)
+					openData("quant1var.html",targets,dataStringArray,pageTitle,true)
+				} else if (selectedGroups<=12){
+					targets.push("nIndepSamplesSelect")
+					dataStringArray.push(selectedGroups)
+					targets.push("varName1")
+					dataStringArray.push(vars[varArray[0]])
+					openData("quant1var.html",targets,dataStringArray,pageTitle,true)
+				} else {
+					alert("More than 12 groups...sorry.")
+				}
+			}
+			break;
+		case "TS":
+			openData("timeSeries.html",["name1","data1"],[vars[varArray[0]],makeDataString([arrayColumn(filteredData.slice(1),varArray[0])],';',true)],vars[varArray[0]],true)
+			break;
+		case "1VQUAL":
+			openData("descriptiveStatsQualitative.html",["name1","data1"],[vars[varArray[0]],makeDataStringColumns(varArray,';',true)],vars[varArray[0]],true)
+			break;
+		case "PAIRED":
+			openData("dependentSamples.html",["name1","name2","data1","selectResponse"],[vars[varArray[0]],vars[varArray[1]],makeDataStringColumns(varArray), document.getElementById('pairedResponseVar').value],vars[varArray[0]] + " + "+vars[varArray[1]],true)
+			break;
+		case "CONTABLE":
+			var targets=["name1","name2","data1"]
+			var dataStrings=[vars[varArray[0]],vars[varArray[1]], makeDataStringColumns(varArray,'\t')]
+			openData("contingencyTable.html",targets,dataStrings,vars[varArray[0]] + " + "+vars[varArray[1]],true)		
+			break;
+		case "MULTIVAR":
+			var pageTitle = "Multiple Variable Analysis"
+			if(vars.length==2){
+				pageTitle = vars[varArray[0]] + " + "+vars[varArray[1]]
+			}
+			var targets=["nCovars"]
+			var dataStrings=[varArray.length-1]
+			var dataArray=[]
+			for(var i=0; i<varArray.length; i++){
+				targets.push("name"+(i+1))
+				dataStrings.push(vars[varArray[i]])
+			//	dataArray.push(arrayColumn(filteredData.slice(1),[varArray[i]]))
+			}
+			
+			targets.push("data1")
+			targets.push("ChooseResponse")
+			dataStrings.push(makeDataStringColumns(varArray))
+			dataStrings.push(document.getElementById('multiResponseVar').value)
+			openData("multipleRegression.html",targets,dataStrings,pageTitle,true)	
+			break;
+		case "SURVIVAL":
+			if(varArray.length==1){
+				console.log(groupBy)
+				if(groupBy==-1 || groupBy==null){
+					openData("survival.html",["nSamples","name1","data1"],["1",vars[varArray[0]],makeDataStringColumns(varArray,';',true)],vars[varArray[0]],true)			
+				} else {
+					var groups=getUniqueValues(arrayColumn(filteredData.slice(1),groupBy))
+					groups = sortArray(groups)
+					var dataArray = groupVar(varArray[0],groupBy)
+					var targets = ["nSamples"]
+					var dataStringArray=[groups.length]
+					var selectedGroups = 0
+					for(var i=0; i<groups.length; i++){
+						if(groups[i]!="NA"){
+							selectedGroups++
+							targets.push("name"+(i+1))
+							targets.push("data"+(i+1))
+							dataStringArray.push(groups[i])
+							dataStringArray.push(makeDataString([dataArray[i]],';',true))
+						}
+					}				
+					var pageTitle = vars[varArray[0]] +" by "+vars[groupBy]
+					if(selectedGroups<=3){
+						openData("survival.html",targets,dataStringArray,pageTitle,true)
+					} else {
+						alert("More than 3 groups...sorry.")
+					}
+				}
+			}else {
+				var pageTitle = "Survival Analysis"
+				var targets=["forceDataEntryMethod","nCovars"]
+				var dataStrings=[2,varArray.length-1]
+				var dataArray=[]
+				for(var i=0; i<varArray.length; i++){
+					targets.push("variableName"+(i+1))
+					dataStrings.push(vars[varArray[i]])
+				}
+				targets.push("dataGrid")
+				dataStrings.push(makeDataStringColumns(varArray))
+				openData("survival.html",targets,dataStrings,pageTitle,true)	
+			}
+			break;
+		case "SPATIAL":
+			if(varArray.length==2){
+				openData("spatial.html",["data0"],[makeDataStringColumns([varArray[document.getElementById('spatialX').value],varArray[document.getElementById('spatialY').value]])],'Spatial Analysis',true)
+			} else if (varArray.length==3){
+				console.log(varArray)
+				console.log(indexSelected)
+				var valueIndex = indexSelected[2]
+				var xIndex = document.getElementById('spatialX').value
+				var yIndex = document.getElementById('spatialY').value
+				if(xIndex!=indexSelected[0] && yIndex!=indexSelected[0]) valueIndex=indexSelected[0]
+				if(xIndex!=indexSelected[1] && yIndex!=indexSelected[1]) valueIndex=indexSelected[1]
+				openData("spatial.html",["data1","name1"],[makeDataStringColumns([xIndex,yIndex,valueIndex]),vars[valueIndex]],'Spatial Analysis',true)			
+			}
+			
+		
+		default:
+	}
+}
+
+/*function refreshAnalysisButtons(){
+	var buttonOptions = ""
+	var numericalSelected=0
+	var categoricalSelected=0
+	for(var i=0; i<nCols; i++){
+		if(document.getElementById('selectVar_'+i).checked){
+			nSelected++
+			if(types[i]=='numeric') numericalSelected++
+			if(types[i]=='categorical') categoricalSelected++
+			varNumsSelected.push(i)
+		}
+	}	
+	buttonOptions = "<input type='button' onClick='generateAnalysis()' value='Analyze Data'>"
+	document.getElementById('analysisButtons').innerHTML=buttonOptions
+}*/
+
+function arrayColumn(arr, n,useSelectedRows) {
+	if(!useSelectedRows){
+		return arr.map(x=> x[n]);
+	}else{
+		var fullArray=arr.map(x=> x[n]);
+		returnArray=[]
+		for(var i=0; i<arr.length; i++){
+			if(selectedRows[i]) returnArray.push(fullArray[i])
+		}
+		return returnArray
+	}
+}
+
+var varNumsSelected=[]
+
+function parseData(setNum){
+	return cleanData(arrayColumn(data, varNumsSelected[setNum-1]))
+}
+
+function cleanData(inputData, numerical=true){
+	var outputData = new Array()
+	for(var i=0; i<inputData.length; i++){
+		if(numerical) outputData.push(+inputData[i])
+	}
+	outputData.sort(function(a, b){return a-b})
+	return outputData
+}
+
+function getVarName(i){
+	return document.getElementById('varName'+i).innerHTML
+}
+
+function refresh(){
+}
+
+function refreshFileList(){
+	dataListString=""
+	for(var i=0; i<files.length; i++){
+		dataListString+="<option value='"+files[i]+"'>"
+	}
+	document.getElementById('filelist').innerHTML=dataListString
+}
+
+function minDesc(){
+	document.getElementById('minDesc').classList.toggle('hidden')
+	document.getElementById('maxDesc').classList.toggle('hidden')
+	document.getElementById('dataDescPlaceholder').classList.toggle('hidden')
+	document.getElementById('dataDescText').classList.add('hidden')
+}
+
+function maxDesc(){
+	document.getElementById('minDesc').classList.toggle('hidden')
+	document.getElementById('maxDesc').classList.toggle('hidden')
+	document.getElementById('dataDescPlaceholder').classList.toggle('hidden')
+	document.getElementById('dataDescText').classList.remove('hidden')
+}
+
+function checkURLforData(){
+	if(getQueryVariable('d')==null) return false;
+	var dataset=getQueryVariable('d')
+	parseFile('csv/'+dataset+'.csv')
+	document.getElementById('actions').innerHTML='Loading...'
+	document.getElementById('dataDescText').innerHTML=""
+	readTextFile('dataDesc/'+dataset+'.txt')
+	dataSetName=dataset
+}
+
+</script>
+
+
+
+
+<style>
+
+#filters{
+	border: 1px solid black;
+}
+
+#varFilters, #filterBy{
+	vertical-align:top;
+}
+
+.filterOptions{
+   display: table-cell;
+    margin: 0em;
+    padding: .1em;
+    height: auto;
+    vertical-align:top;
+	border:1px solid #404040;
+	background-color: #e0e0e0;
+ 	}
+.filterOptions select{
+	min-width:3em;
+}
+.filterOptions textarea{
+	resize:none;
+}
+
+.filterText, .filterSelect{
+	min-width:13em;
+	width:13em;
+	height:7em;
+}
+
+table {
+  white-space: nowrap;
+  margin: 0;
+  border: none;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  border: 0px solid black;
+}
+table td,
+table th {
+  border: 0px solid black;
+  padding: 0.2rem .2rem;
+}
+table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  width: 25vw;
+  background-color: #ddd;
+  text-align: left;
+  
+  -webkit-box-shadow: 0px 4px 3px -2px #999;  /* Safari 3-4, iOS 4.0.2 - 4.2, Android 2.3+ */
+  -moz-box-shadow:    0px 4px 3px -2px #999;  /* Firefox 3.5 - 3.6 */
+  box-shadow:         0px 4px 3px -2px #999;  /* Opera 10.5, IE 9, Firefox 4+, Chrome 6+, iOS 5 */
+  
+}
+table td {
+  background: #fff;
+  padding: 4px 5px;
+  text-align: left;
+  border-right: 1px solid #BBB;
+  border-bottom: 1px solid #BBB;
+}
+
+table tbody th {
+  background-color: #ddd;
+  font-weight: 100;
+  font-style: italic;
+  text-align: left;
+  position: sticky;
+}
+
+table thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+table tbody th {
+  position: sticky;
+  left: 0;
+  background-color: #ddd;
+  z-index: 1;
+}
+
+
+
+.varName{font-face:bold;}
+.varType{font-style:italic;}
+.varHead{background-color:#DDD;}
+
+body {
+	min-width: 400px;
+	height: 100%;
+}
+
+html {
+	height: 100%;
+}
+
+
+.left {
+        width: 600px;
+        float: left;
+		height:100%;
+}
+
+.right {
+        width: auto;
+        overflow-x: hidden;
+		overflow-y: auto;
+		height:100%;
+}
+
+.col-container{
+        height: 100%;
+        overflow: hidden;
+	}
+
+#analysisPanels{width:100%;}
+
+datalist {
+  background-color: red;
+  font-family: sans-serif;
+  font-size: 0.8rem;
+}
+
+datalist option {
+  background-color: #bbb;
+  padding: 4px;
+  margin-bottom: 1px;
+}
+
+table {
+}
+#actions{
+	margin-right:auto;
+	margin-left:auto;
+	max-width:100%;
+}
+
+.varName{
+	width: 30%;
+}
+.varDef{
+	width:62%;
+	}
+
+#dataDesc {
+	max-height: 300px;
+	overflow: auto;
+	padding: 2px;
+	background-color: #EEF;
+	min-height:1.7em;
+	border:black solid .01em;
+	border-radius:.2em;
+	box-shadow: 3px 3px 5px -2px rgba(0,0,0,.5) inset;	
+}
+
+pre {
+    white-space: pre-wrap;
+	margin:0px 0px 5px 5px;
+}
+
+.rightJustify{
+	float:right;
+}
+
+.hidden{
+	display:none;
+	}
+
+</style>
+
+
+</head>
+
+
+
+<body onload="loadPrecision();loadColorChoice();linkMenu();setColors();parseCSV(sampleCSV);checkURLforData()">
+	<div id="container">
+		<div id="title" onClick="setColors()">StatPowers</div>
+		<div id="menu"></div>
+		<div id='content' class='fill whitebg col-container' style='position:absolute;left:0;right:0;width:100%;'>
+			<div>
+				<div id="loadDat">
+					<input type='text' name='loadCSV' id='loadCSV' placeholder="load data from server" list='filelist' onClick="this.value='';">
+					<datalist id='filelist'></datalist><button type=button value='load' onClick='loadServerCSV();'>load</button>
+					| 
+					<input type="file" id="files" onChange="parseLocalFile();"> 
+				</div>
+				<a name='minDesc' id='minDesc' onClick='minDesc()' class='fauxButton rightJustify ' >&#x1f5d5;</a>
+				<a name='maxDesc' id='maxDesc' onClick='maxDesc()' class='fauxButton rightJustify hidden'>&#x1f5d6;</a>
+				<div id='dataDesc'>
+					<i id='dataDescPlaceholder' class='hidden'>Expand to see datafile details</i>
+					<pre id='dataDescText'>sample data - use options above to load new data</pre>
+				</div>
+				<div id="actions" style='background-color:white;'>
+				
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
+<script>
+refreshFileList()
+</script>

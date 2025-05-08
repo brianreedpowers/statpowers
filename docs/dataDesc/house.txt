@@ -1,0 +1,47 @@
+United States House of Representatives historical make-up
+Description
+The make-up of the United States House of Representatives every two years since 1789. The last Congress included is the 112th Congress, which completed its term in 2013.
+
+Usage
+house
+Format
+A data frame with 112 observations on the following 12 variables.
+
+congress
+The number of that year's Congress
+
+year_start
+Starting year
+
+year_end
+Ending year
+
+seats
+Total number of seats
+
+p1
+Name of the first political party
+
+np1
+Number of seats held by the first political party
+
+p2
+Name of the second political party
+
+np2
+Number of seats held by the second political party
+
+other
+Other
+
+vac
+Vacancy
+
+del
+Delegate
+
+res
+Resident commissioner
+
+Source
+Party Divisions of the House of Representatives, 1789 to Present. https://history.house.gov/Institution/Party-Divisions/Party-Divisions.

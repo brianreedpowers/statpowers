@@ -1,0 +1,956 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Descriptive Statistics</title>
+		<script type="text/javascript" src="js/jstat.js"></script>
+		<script type="text/javascript" src="js/commonFunctions.js"></script>
+		<script type="text/javascript" src="js/chartFunctions.js"></script>
+		<script type="text/javascript" src="js/jscolor.js"></script>
+		<script language="javascript">
+			var nSets = 1
+			var nSamples = 1
+			var qualitative = true
+			var labelOrder=new Array();
+			var labelColors=new Array();
+			var propSuccessSelected=""
+			var hypSuccessSelected=""
+			var sorting=true
+
+			function parseQualitativeData(setNum){
+				var data = document.getElementById("data"+setNum).value.trim().split(/[\s,;\t\n]+/)
+				data.sort()
+				return data
+			}			
+
+			function ciProp(){
+				var data = parseQualitativeData(1)
+				var n=data.length
+				var x = 0
+				var outputString=""
+				var alpha = 1-parseFloat(document.getElementById("cLevel").value)
+				
+				for(var i=0; i<n; i++){
+					if(data[i]==document.getElementById("propSuccess").value) x++;
+				}
+				var pHat = x/n;
+				outputString += "Successes (x) = " + x + "</br>\n"
+				outputString += "Sample size (n) = " + n + "</br>\n"
+				outputString += "Sample Proportion (p&#770;) = " + +pHat.toFixed(precision) + "</br>\n"
+				
+				var UBapprox = jStat.normal.inv(1-alpha/2,pHat,Math.sqrt(pHat*(1-pHat)/n))
+				var LBapprox = jStat.normal.inv(alpha/2,pHat,Math.sqrt(pHat*(1-pHat)/n))
+				//	window.alert(UBapprox+","+LBapprox)
+				outputString += "<b>"+fixed((1-alpha)*100)+"% confidence interval for p</b><br>"
+				outputString +="<table>"
+				outputString += "<tr><td>Approximate (normal): </td><td>("+(LBapprox.toFixed(precision)) + ", " + +(UBapprox.toFixed(precision)) + ")</td></tr>"
+				
+				var LBexact = 1-jStat.ibetainv(1-alpha/2,n-x+1,x)
+				var UBexact = 1-jStat.ibetainv(alpha/2,n-x,x+1)
+				if (x==0) LBexact = 0
+				if (x==n) UBexact = 1
+				outputString += "<tr><td>Exact (Clopper-Pearson): </td><td>("
+				outputString += +(LBexact.toFixed(precision)) + ", " + +(UBexact.toFixed(precision)) + ")</td></tr>"
+
+				var z = jStat.normal.inv(1-alpha/2,0,1)
+				var middleWilson = (x + Math.pow(z,2)/2)/(n + Math.pow(z,2))
+				var marginWilson = z/(n + Math.pow(z,2)) * Math.sqrt(x*(n-x)/n + Math.pow(z,2)/4)
+				var UBWilson = middleWilson + marginWilson
+				var LBWilson = middleWilson - marginWilson
+				outputString += "<tr><td>Wilson Score: </td><td>("
+				outputString += +(LBWilson.toFixed(precision)) + ", " + +(UBWilson.toFixed(precision)) + ")<span id='ciPropWilson'></span></td></tr>"
+
+				var nTilde = n + Math.pow(z,2)
+				var pTilde = (1/nTilde)*(x + Math.pow(z,2)/2)
+				var UBAgrestiCoull = pTilde + z * Math.sqrt(pTilde / nTilde * (1-pTilde))
+				var LBAgrestiCoull = pTilde - z * Math.sqrt(pTilde / nTilde * (1-pTilde))
+				outputString += "<tr><td>Agresti-Coull: </td><td>("
+				outputString += +(LBAgrestiCoull.toFixed(precision)) + ", " + +(UBAgrestiCoull.toFixed(precision)) + ")<span id='ciAgrestiCoull'>"+(exists('ciAgrestiCoull')?document.getElementById('ciAgrestiCoull').innerHTML:"")+"</span></td></tr>"
+				outputString +="</table>"
+
+
+
+				document.getElementById("ciPropOutput").innerHTML=outputString
+			}
+			
+			function hypProp(){
+				var data = parseQualitativeData(1)
+				var n=data.length
+				var outputString=""
+				var x = 0
+				var testType = document.getElementById("hyppropIneq").selectedIndex;
+				var findCritical = (document.getElementById("sigLevel").value != "")
+				var alpha = parseFloat(document.getElementById("sigLevel").value)
+				var p0=parseFloat(document.getElementById("p0").value)
+				
+				for(var i=0; i<n; i++){
+					if(data[i]==document.getElementById("propSuccess").value) x++;
+				}
+				var pHat = x/n;
+				outputString += "Successes (x) = " + x + "</br>\n"
+				outputString += "Sample size (n) = " + n + "</br>\n"
+				outputString += "Sample Proportion (p&#770;) = " + +pHat.toFixed(precision) + "</br>\n"
+				var z= (pHat-p0)/Math.sqrt((p0*(1-p0)/n))
+				
+				var ineqStr = "&lt;"
+				if(testType==1) {ineqStr = "&gt;"} else if (testType==2) {ineqStr = "&ne;"}
+				outputString += "H<sub>0</sub>: p = "+p0 + "</br>\n"
+				outputString += "H<sub>1</sub>: p "+ineqStr+" "+p0 + "</br>\n"
+				outputString += "Z stat: "+z.toFixed(precision)+"</br>\n"
+				if(findCritical){
+					if(testType==0){
+						criticalT = jStat.normal.inv(alpha,0,1)
+						outputString += "Rejection region: Z<"
+						}else if(testType==1) {
+						criticalT = jStat.normal.inv(1-alpha,0,1)
+						outputString += "Rejection region: Z>"
+						}else if(testType==2) {
+						criticalT = jStat.normal.inv(1-alpha/2,0,1)
+						outputString += "Rejection region: |Z|>"
+					}
+					outputString += +criticalT.toFixed(precision) +"</br>\n"
+				}
+				var pValue=0
+				if(testType==0){
+					pValue = jStat.normal.cdf(z,0,1)
+					}else if(testType==1) {
+					pValue = 1-jStat.normal.cdf(z,0,1)
+					}else if(testType==2) {
+					if (z<0) z=-z
+					pValue = 2*jStat.normal.cdf(-z,0,1)
+				}
+				outputString += "Approximate (normal) <i>p</i>-value: "+ +pValue.toFixed(precision) +"</br>\n"
+				
+				var pValue=0
+				if(testType==0){
+					pValue = jStat.binomial.cdf(x,n,p0)
+					}else if(testType==1) {
+					pValue = 1-jStat.binomial.cdf(x-1,n,p0)
+					}else if(testType==2) {
+					if(x<n*p0) pValue = 2*jStat.binomial.cdf(x,n,p0)
+					else pValue = Math.min(1,2*(1-jStat.binomial.cdf(x-1,n,p0)))
+				}
+				outputString += "Exact (binomial) <i>p</i>-value: "+ +pValue.toFixed(precision) +"</br>\n"
+				
+
+				document.getElementById("hypPropOutput").innerHTML=outputString
+			}
+			
+			function sample(){
+				var data = parseQualitativeData(1)
+				var sampleSize = parseFloat(document.getElementById("sampleN").value)
+				var nSamples = parseFloat(document.getElementById("nSamples").value)
+				var sampleText = ""
+				var sampleMeans = ""
+				for(var i=0; i<nSamples; i++){
+					var x=0
+					data = shuffle(data)
+//					var sum=0;
+					for(var j=0; j<sampleSize; j++){
+						var k=j;
+						if (document.getElementById('withReplacement').selected==true){
+							data = shuffle(data);
+							k=0;
+						}
+						if(data[k]==labels[document.getElementById('sampleValue').value]) x++
+						sampleText += data[k] + " "
+//						sum += +parseFloat(data[k]);
+					}
+					sampleText += "\n"
+					sampleMeans += fixed(x/sampleSize)+"\n"
+				}
+				document.getElementById("samples").innerHTML=sampleText
+				document.getElementById("sampleMeans").innerHTML=sampleMeans
+			}
+			
+			function recalcSampleStat(){
+				var allSampleData = document.getElementById("samples").innerHTML
+				var samples = allSampleData.split("\n");
+//				var sampleStatID=document.getElementById("sampleStat").value;
+				var sampleStatistics="";
+				
+				for(var i=0; i<samples.length; i++){
+					var sampleData = samples[i].trim().split(" ");
+					if(sampleData.length==1 && sampleData[0]=='') break;
+					var data=[]
+					for(var k=0; k<sampleData.length; k++) 
+						data.push(sampleData[k]);
+					var x=0
+//					data = shuffle(data)
+//					var sum=0;
+					for(var k=0; k<data.length; k++){
+						if(data[k]==labels[document.getElementById('sampleValue').value]) x++
+//						sampleText += data[k] + " "
+//						sum += +parseFloat(data[k]);
+					}
+
+
+					sampleStatistics += (i>0?"\n":"") + fixed(x/data.length)
+				}
+				document.getElementById("sampleMeans").innerHTML=sampleStatistics				
+			
+			
+			}
+
+			function ordinal(){
+				if(!sorting) return false;
+				cleanQualitativeDataInput(1)
+				data=parseQualitativeData(1)
+				
+				//removes labels that do not appear in the data
+				for(var i=0; i<labelOrder.length; i++){
+					if(data.indexOf(labelOrder[i])==-1){
+						labelOrder.splice(i,1);
+						labelColors.splice(i,1);
+						i--;
+					}
+				}
+//				alert("label order: "+labelOrder.toString());
+				
+				var currentLabel=""
+				var labels = new Array()
+				var n = data.length
+				var nextColor = (labelOrder.length==0?0:(labelColors[labelOrder.length-1]%colors.length+1)%colors.length)
+				//alert(nextColor);
+				//adds labels that Do appear in the data
+				for(var i=0; i<n; i++){
+					if(currentLabel != data[i]){
+						currentLabel = data[i]
+						labels.push(data[i]);
+						if(labelOrder.indexOf(data[i])==-1){
+							labelOrder.push(data[i]);
+							labelColors.push(nextColor);
+							nextColor=(nextColor+1)%colors.length
+						}
+					}
+				}
+//				alert("label order: "+labelOrder.toString());
+				var outputString=""
+				var index=1;
+				for(var i=0; i<labelOrder.length; i++){
+					if(labels.indexOf(labelOrder[i])>-1){
+					outputString+="<li id='item-"+index+"'>"+index+". "+labelOrder[i]
+					outputString+="<select id='color"+index+"' style='float:right;background-color:"+colors[labelColors[i]] + ";' onMouseOver='sorting=false;' onMouseLeave='sorting=true;' onChange='reviseColors();'>"
+					for(var j=0; j<colors.length; j++){
+						outputString+="<option style=\"color:"+colorsFont[j]+"; background-color:"+colors[j]+";\" value='"+(j)+"' "+(labelColors[i]==j?" selected":"")+">"+colors[j]+"</option>"
+					}
+					outputString+="</select>"
+					outputString+="</li>\n";
+						index++;
+					} else {
+						
+					}
+				}
+				document.getElementById("list-1").innerHTML=outputString;
+			}
+			
+			function reviseColors(){
+				for(var i=0; i<labelOrder.length; i++){
+					labelColors[i]=document.getElementById('color'+(i+1)).value;
+					document.getElementById('color'+(i+1)).style.color=colors[document.getElementById('color'+(i+1)).value];
+				}
+				piechart()
+				barchart()
+			}
+			
+			function refresh(){
+				setPrecision(document.getElementById('precision').value)
+				cleanQualitativeDataInput(1)
+				ordinal();
+				stats()
+				updateSamplingValues()
+				updateNames(1)
+				barchart()
+				piechart()
+				ciProp()
+				hypProp()
+				buildInputs()
+				goodnessOfFitTest()
+			} 
+			
+			function updateSamplingValues(){
+				var optionString=""
+				for(var i=0; i<labels.length; i++){
+					optionString+="<option value="+i+">"+labels[i]+"</option>"
+				}
+				document.getElementById('sampleValue').innerHTML=optionString
+			}
+			
+				var labels = new Array()
+				var frequencies = new Array()
+
+			function stats(){
+				data=parseQualitativeData(1)
+				var n=data.length
+				if (data[0]=='') n=0;
+				labels = []
+				frequencies = []
+				var nBars = 0
+				var currentLabel = ""
+				var maxFreq = 0
+				for(var i=0; i<n; i++){
+					if(currentLabel != data[i]){
+						nBars++;
+						currentLabel = data[i]
+						labels.push(data[i]);
+						frequencies.push(0);
+					}
+					frequencies[nBars-1]++;
+					maxFreq = Math.max(maxFreq,frequencies[nBars-1])
+				}			
+				var mode=""
+				var modes=0;
+				for(var i=0; i<nBars; i++){
+					if(frequencies[i]==maxFreq){
+						modes++;
+						mode+= (modes>1?", ":"") + labels[i];
+					}
+				}
+				if (modes==labels.length) mode="none";
+				document.getElementById("stat_n1").innerHTML=n;
+				document.getElementById("stat_mode1").innerHTML=mode;	
+				
+				var total=0, labelI=0, median=""
+//				console.log(labelOrder)
+				do{
+//					console.log("label "+labelI+":"+labelOrder[labelI])
+					for(var i=0; i<labels.length; i++){
+//						console.log(labels[i] + " "+frequencies[i])
+						if(labels[i]==labelOrder[labelI]){
+							total+=frequencies[i]
+							median=labelOrder[labelI]
+							break;
+						}
+					}
+//					console.log(total)
+					labelI++
+				}while(total<n/2 & labelI<frequencies.length)
+				document.getElementById('stat_median1').innerHTML=median;
+				
+				var props = []
+				var variability = 1
+				for(var j=0; j<frequencies.length; j++){
+					props[j]=frequencies[j]/n
+					variability -= props[j]*props[j]
+				}
+				var IQV = (frequencies.length==1?0:(frequencies.length/(frequencies.length-1)*variability))
+				
+				document.getElementById("stat_var1").innerHTML=fixed(variability);	
+				document.getElementById("stat_iqv1").innerHTML=fixed(IQV);	
+				document.getElementById("stat_cnv1").innerHTML=fixed(1-Math.pow(1-IQV,.5));	
+
+				propSummary="<tr><th>Value</th><th>Frequency</th><th>Sample Proportion</th></tr>"
+				for(var i=0; i<labelOrder.length; i++){
+					var freq=0;
+					for(var j=0; j<labels.length; j++){
+						if(labels[j]==labelOrder[i]){freq=frequencies[j]; break;}
+					}
+					propSummary+="<tr><td>"+labelOrder[i]+"</td><td>"+freq+"</td><td>"+fixed(freq/n)+"</td></tr>"
+				}
+				document.getElementById("proportionSummary").innerHTML=propSummary
+			}
+			
+			
+			function reorder(ordering){
+//				alert(ordering + " " +labelOrder.toString());
+				var oldColors = labelColors.slice(0)
+//				alert(oldColors.toString())
+				var newOrder = new Array();
+				var indices=ordering.split(":");
+				for(var i =0; i<indices.length; i++){
+					newOrder.push(labelOrder[indices[i]-1])
+				}
+//				alert("new order: "+newOrder.toString());
+				for(var i =0; i<indices.length; i++){
+					labelOrder[i]=newOrder[i]
+//					alert("label color "+i+" gets value "+oldColors[newOrder[i]]);
+					labelColors[i]=oldColors[indices[i]-1]
+				}
+//				alert(labelColors.toString())
+				ordinal();
+				stats();
+				buildSelects();
+				piechart();
+				barchart();
+			}
+			
+			function buildSelects(){
+				var options="";
+				for(var i=0; i<labelOrder.length; i++){
+					var selected=(propSuccessSelected==labelOrder[i]?" selected":"");
+					options+="<option value='"+labelOrder[i]+"'"+selected+">"+labelOrder[i]+"</option>\n";
+				}
+				document.getElementById("propSuccess").innerHTML=options
+				var options="";
+				for(var i=0; i<labelOrder.length; i++){
+					var selected=(hypSuccessSelected==labelOrder[i]?" selected":"");
+					options+="<option value='"+labelOrder[i]+"'"+selected+">"+labelOrder[i]+"</option>\n";
+				}
+				document.getElementById("propHSuccess").innerHTML=options
+			}
+	
+			function cleanQualitativeDataInput(nSets){
+				for(var set=1; set<=nSets; set++){
+					var data = document.getElementById("data"+set).value.trim().split(/[\s,;\t\n]+/)
+					var n=data.length
+					var myArray = [];
+					for (var i = 0; i<n; i++){
+						var index = data[i].indexOf("*")
+						if(index>=0){
+							var nTimes = parseInt(data[i].substring(0,index))
+							var datum = data[i].substring(index+1)
+							for(var j=0; j<nTimes; j++){
+								myArray.push(datum)
+							}
+						} else {
+							myArray.push(data[i])
+						}
+					}
+					myArray.sort()
+					data = myArray
+					n=data.length
+					var dataInput = ""
+					for( var i=0; i<n; i++){
+						if(data[i]!='')
+							dataInput += data[i] + " "
+					}
+					document.getElementById("data"+set).value=dataInput
+				}	
+			}	
+
+
+function buildInputs(){
+	var outputString= "<table>\n"
+	outputString += "<tr> <td>Outcome</td><td>Observed</td><td>Expected</td></tr>\n"
+	var n = labels.length
+	outputString +="<input type='hidden' id='n' value="+n+">"
+	for (var i = 0; i<n; i++){
+		var element = document.getElementById("e_"+i)
+		var e=""
+		if (typeof(element) != 'undefined' && element != null){
+			var e=document.getElementById("e_"+i).value
+		} 
+		if(document.getElementById('uniform').checked==true) e=1/n
+		outputString += "<tr> <td>"+labels[i]+"<input type='hidden' id='x_"+i+"' value='"+labels[i]+"'></td><td>"+frequencies[i]+"<input type='hidden' id='o_"+i+"' value='"+frequencies[i]+"'></td><td><input id='e_"+i+"' type='number' min='0' value='"+e+"' class='mediumNumber' onChange='goodnessOfFitTest();'></td></td></tr>\n"
+	}
+		
+	outputString+="</table>"
+	document.getElementById("distribution").innerHTML=outputString
+//	distributionGood()
+	
+}		
+
+function nameSamplePropsWindow(){
+	return "Sample Proportions ("+ document.getElementById('sampleValue')[document.getElementById('sampleValue').selectedIndex].text+")"
+}
+
+
+					
+		</script>
+		<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	</head>
+	
+	<body onload="loadPrecision();loadColorChoice();linkMenu();setColors();parseDataFromURL(1);cleanQualitativeDataInput(1);ordinal();stats();updateSamplingValues()">
+		<div id="container">
+			<div id="title" onClick="setColors();reviseColors();">StatPowers</div>
+			<div id="menu"></div>
+			<form name="form1">
+				<div class="container" >
+					<input type="checkbox" checked name="headerDataEntry" id="headerDataEntry" class="css-checkbox">
+					<label for="headerDataEntry" class="css-label">Data Entry</label>
+					<div class="content css-content">
+						<div class='helpDiv minimized'>
+							<a name='' onclick='toggle(this);' class='expander'>?</a>
+							<a name='' onclick='toggle(this);' class='collapser'>&#10006;</a>
+							<span>
+							Enter data separated by comma, semicolon, space, tab or newlines<br>
+							Repeated values: 4*R (this becomes R R R R)<br>
+							</span>
+						</div>
+						<span style="color:red">Variable Name:</span> <input type="text" id="name1" value="Data Set" size="25" maxlength="25" onchange="refresh()" />  <input type="checkbox" checked style="display:none;" id="ordinal" onClick="refresh();document.getElementById('ordinalblock').style.display=(this.checked?'block':'none');">
+					<!--label for="ordinal" >Ordinal Data</label--> <br/>
+						<div>
+							<textarea name="data1" id="data1" rows=6 cols=60></textarea>
+						</div>
+						
+						<button TYPE=button VALUE="Calculate Now" onClick="refresh()"/>Calculate Now</button>
+						&nbsp;&nbsp;&nbsp;
+						<button TYPE=reset VALUE="Clear All" onClick="document.getElementById('name1').value='';document.getElementById('data1').innerHTML='';document.getElementById('dataLink').innerHTML='';"/>Clear All</button>
+						&nbsp;&nbsp;&nbsp;
+						<button TYPE=button VALUE="Share Data" onClick="makeURL()"/>Share Data</button>
+						<div id="dataLink" ></div><iframe id="frmFile" style="display: none;"></iframe>
+					</div>
+				</div>
+				<div class="container" id="ordinalblock"">
+					<input type="checkbox" name="headerDataOrdering" id="headerDataOrdering" class="css-checkbox">
+					<label for="headerDataOrdering" class="css-label">Data Ordering</label>
+					<div class="content css-content">
+					Click and drag data labels to define the ordering.
+ <div class="sortablecontainer" style="width:100%">
+   <div>
+      <ul id="list-1" class="sortable">
+	</ul>
+      <button id="sbtn-1" type="button" style="display:none;">Serialize</button>
+   </div>
+</div>
+<script>
+////----------------------------------------Pure JS Sortable Lists
+// A Pen By Rainner Lins
+// https://codepen.io/rainner/pen/YGrzpv
+(function( name, factory ) {
+   
+   if( typeof window === "object" ) {
+      
+      // add to window 
+      window[ name ] = factory();
+      
+      // add jquery plugin, if available  
+      if( typeof jQuery === "object" ) {
+         jQuery.fn[ name ] = function( options ) {
+            return this.each( function() {
+               new window[ name ]( this, options );
+            });
+         };
+      }
+   }
+    
+})( "Sortable", function() {
+   
+   var _w = window,
+       _b = document.body,
+       _d = document.getElementById("list-1");
+   
+   // get position of mouse/touch in relation to viewport 
+   var getPoint = function( e )
+   {
+      var scrollX = Math.max( 0, _w.pageXOffset || _d.scrollLeft || _b.scrollLeft || 0 ) - ( _d.clientLeft || 0 ), 
+          scrollY = Math.max( 0, _w.pageYOffset || _d.scrollTop || _b.scrollTop || 0 ) - ( _d.clientTop || 0 ), 
+          pointX  = e ? ( Math.max( 0, e.pageX || e.clientX || 0 ) - scrollX ) : 0,
+          pointY  = e ? ( Math.max( 0, e.pageY || e.clientY || 0 ) - scrollY ) : 0; 
+      
+      return { x: pointX, y: pointY }; 
+   }; 
+   
+   // class constructor
+   var Factory = function( container, options )
+   {
+      if( container && container instanceof Element )
+      {
+         this._container = container; 
+         this._options   = options || {}; /* nothing atm */
+         this._clickItem = null;
+         this._dragItem  = null;
+         this._hovItem   = null;
+         this._sortLists = [];
+         this._click     = {};
+         this._dragging  = false;
+         
+         this._container.setAttribute( "data-is-sortable", 1 );
+         this._container.style["position"] = "static";
+         
+         window.addEventListener( "mousedown", this._onPress.bind( this ), true );
+         window.addEventListener( "touchstart", this._onPress.bind( this ), true );
+         window.addEventListener( "mouseup", this._onRelease.bind( this ), true ); 
+         window.addEventListener( "touchend", this._onRelease.bind( this ), true ); 
+         window.addEventListener( "mousemove", this._onMove.bind( this ), true );
+         window.addEventListener( "touchmove", this._onMove.bind( this ), true );
+      }
+   };
+   
+   // class prototype
+   Factory.prototype = {
+      constructor: Factory,
+      
+      // serialize order into array list 
+      toArray: function( attr )
+      {
+         attr = attr || "id";
+         
+         var data = [], 
+             item = null, 
+             uniq = ""; 
+         
+         for( var i = 0; i < this._container.children.length; ++i )
+         {
+            item = this._container.children[ i ], 
+            uniq = item.getAttribute( attr ) || "";
+            uniq = uniq.replace( /[^0-9]+/gi, "" );
+            data.push( uniq );
+         }
+         return data;
+      }, 
+      
+      // serialize order array into a string 
+      toString: function( attr, delimiter )
+      {
+         delimiter = delimiter || ":"; 
+         return this.toArray( attr ).join( delimiter );
+      }, 
+      
+      // checks if mouse x/y is on top of an item 
+      _isOnTop: function( item, x, y )
+      {
+         var box = item.getBoundingClientRect(),
+             isx = ( x > box.left && x < ( box.left + box.width ) ), 
+             isy = ( y > box.top && y < ( box.top + box.height ) ); 
+         return ( isx && isy );
+      },
+      
+      // manipulate the className of an item (for browsers that lack classList support)
+      _itemClass: function( item, task, cls )
+      {
+         var list  = item.className.split( /\s+/ ), 
+             index = list.indexOf( cls );
+         
+         if( task === "add" && index == -1 )
+         { 
+            list.push( cls ); 
+            item.className = list.join( " " ); 
+         }
+         else if( task === "remove" && index != -1 )
+         {
+            list.splice( index, 1 ); 
+            item.className = list.join( " " ); 
+         }
+      }, 
+      
+      // swap position of two item in sortable list container 
+      _swapItems: function( item1, item2 )
+      {
+         var parent1 = item1.parentNode, 
+             parent2 = item2.parentNode;
+         
+         if( parent1 !== parent2 ) 
+         {
+            // move to new list 
+            parent2.insertBefore( item1, item2 );
+         }
+         else { 
+            // sort is same list 
+            var temp = document.createElement( "div" ); 
+            parent1.insertBefore( temp, item1 );
+            parent2.insertBefore( item1, item2 );
+            parent1.insertBefore( item2, temp );
+            parent1.removeChild( temp );
+         }
+
+ 
+      },
+      
+      // update item position 
+      _moveItem: function( item, x, y )
+      {
+         item.style["-webkit-transform"] = "translateX( "+ x +"px ) translateY( "+ y +"px )";
+         item.style["-moz-transform"] = "translateX( "+ x +"px ) translateY( "+ y +"px )";
+         item.style["-ms-transform"] = "translateX( "+ x +"px ) translateY( "+ y +"px )";
+         item.style["transform"] = "translateX( "+ x +"px ) translateY( "+ y +"px )";
+      },
+      
+      // make a temp fake item for dragging and add to container 
+      _makeDragItem: function( item )
+      {
+         this._trashDragItem(); 
+         this._sortLists = document.querySelectorAll( "[data-is-sortable]" );
+         
+         this._clickItem = item; 
+         this._itemClass( this._clickItem, "add", "active" ); 
+
+         this._dragItem = document.createElement( item.tagName );
+         this._dragItem.className = "dragging"; 
+         this._dragItem.innerHTML = item.innerHTML; 
+         this._dragItem.style["position"] = "absolute";
+         this._dragItem.style["z-index"] = "999";
+         this._dragItem.style["left"] = ( item.offsetLeft || 0 ) + "px";
+         this._dragItem.style["top"] = ( item.offsetTop || 0 ) + "px";
+         this._dragItem.style["width"] = ( item.offsetWidth || 0 ) + "px";
+         
+         this._container.appendChild( this._dragItem ); 
+      }, 
+      
+      // remove drag item that was added to container 
+      _trashDragItem: function()
+      {
+         if( this._dragItem && this._clickItem )
+         {
+            this._itemClass( this._clickItem, "remove", "active" ); 
+            this._clickItem = null; 
+            
+            this._container.removeChild( this._dragItem ); 
+            this._dragItem = null; 
+         }
+      }, 
+      
+      // on item press/drag 
+      _onPress: function( e )
+      {
+         if( e && e.target && e.target.parentNode === this._container )
+         {
+            e.preventDefault();
+            
+            this._dragging = true;
+            this._click = getPoint( e ); 
+            this._makeDragItem( e.target ); 
+            this._onMove( e );
+         }
+      },
+      
+      // on item release/drop 
+      _onRelease: function( e )
+      {
+         this._dragging = false;
+         this._trashDragItem(); 
+		 reorder(this.toString());
+      },
+      
+      // on item drag/move
+      _onMove: function( e )
+      {
+         if( this._dragItem && this._dragging ) 
+         {
+            e.preventDefault();
+            
+            var point     = getPoint( e ); 
+            var container = this._container;
+
+            // drag fake item 
+            this._moveItem( this._dragItem, ( point.x - this._click.x ), ( point.y - this._click.y ) ); 
+            
+            // keep an eye for other sortable lists and switch over to it on hover 
+            for( var a = 0; a < this._sortLists.length; ++a )
+            {
+               var subContainer = this._sortLists[ a ]; 
+               
+               if( this._isOnTop( subContainer, point.x, point.y ) ) 
+               {
+                  container = subContainer;
+               }
+            }
+            
+            // container is empty, move clicked item over to it on hover 
+            if( this._isOnTop( container, point.x, point.y ) && container.children.length === 0 ) 
+            {
+               container.appendChild( this._clickItem ); 
+               return; 
+            }
+            
+            // check if current drag item is over another item and swap places 
+            for( var b = 0; b < container.children.length; ++b )
+            {
+               var subItem = container.children[ b ]; 
+               
+               if( subItem === this._clickItem || subItem === this._dragItem )
+               {
+                  continue; 
+               }
+               if( this._isOnTop( subItem, point.x, point.y ) ) 
+               {
+                  this._hovItem = subItem; 
+                  this._swapItems( this._clickItem, subItem ); 
+               }
+            }
+         }
+      },
+      
+   };
+
+   // export
+   return Factory;
+});
+
+
+// helper init function 
+function initSortable( list, sbtn )
+{
+   var listObj  = document.getElementById( list ),
+       sbtnObj  = document.getElementById( sbtn ),
+       sortable = new Sortable( listObj ); 
+   
+   sbtnObj.addEventListener( "click", function( e )
+   {
+      e.preventDefault(); 
+      reorder( sortable.toString() ); 
+   });
+}	
+//-----
+	initSortable( "list-1","sbtn-1");
+</script>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerSummaryStats" class="css-checkbox">
+					<label for="headerSummaryStats" class="css-label">Summary Statistics</label>
+					<div class="content css-content">
+						<div id="output" class='results'>
+							<table>
+								<tr class='tableHeader'>		<td>Statistic</td><td class="Name1" id="statsName1">Data Set</td> </tr>
+								<tr><td>Sample Size (n) = </td><td id="stat_n1"></td></tr>
+								<tr><td>Mode  = </td><td id="stat_mode1"></td></tr>
+								<tr><td>Median<sup>*</sup>  = </td><td id="stat_median1"></td></tr>
+								<tr><td>Unalikeability  = </td><td id="stat_var1"></td></tr>
+								<tr><td>IQV  = </td><td id="stat_iqv1"></td></tr>
+								<tr><td>CNV  = </td><td id="stat_cnv1"></td></tr>
+								</tr>
+							</table>
+							<table id="proportionSummary" class='thinlines'></table>
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<h3>Charts</h3>
+					<div>
+						<input type="checkbox" id="headerBarChart" class="css-checkbox">
+						<label for="headerBarChart" class="css-label sub">Bar Chart</label>
+						<div class="content css-content">
+							<div class='options'>
+								<input type="checkbox" id="propBars" onClick="refresh();">
+								<label for="propBars" >Proportions</label>
+
+								<input type="checkbox" id="pareto" onClick="refresh();">
+								<label for="pareto" >Pareto Chart</label>
+								
+								<input type="checkbox" id="colorfulBars" onClick="refresh();">
+								<label for="colorfulBars" >Vary Colors</label>
+							</div>
+							<div class="canvasdiv">
+							<canvas id="barchart" width="480" height="300" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'barchart','barchart.png');"></a>
+							</div>
+						</div>
+					</div>
+					<div>
+						<input type="checkbox" id="headerPieChart" class="css-checkbox">
+						<label for="headerPieChart" class="css-label sub">Pie Chart</label>
+						<div class="content css-content">
+							<div class='options'>
+								<input type="checkbox" checked id="orderSlicesFreq" onClick="refresh();">
+								<label for="orderSlicesFreq" >Order By Frequency</label>
+						
+						<!--input type="checkbox" id="colorfulBars" onClick="refresh();">
+						<label for="colorfulBars" >Vary Colors</label-->
+							</div>
+							<div class="canvasdiv">
+							<canvas id="piechart" width="480" height="450" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'piechart','piechart.png');"></a>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerSampling" class="css-checkbox">
+					<label for="headerSampling" class="css-label">Sampling</label>
+					<div class="content css-content">
+						<div class='options'>
+						Sample Size: <input  type="number" id="sampleN" value="5" class="tinyNumber" min="1" step="1" onChange="stats();if(parseInt(document.getElementById('sampleN').value) > parseInt(document.getElementById('stat_n1').innerHTML)){document.getElementById('withReplacement').selected=true}"  />
+						Number of Samples: <input type="number" id="nSamples" class="tinyNumber" min="1" step="1" maxlength="4"  value="1" /> <br/>
+						<select id="samplingReplacement"  onChange="stats();if(parseInt(document.getElementById('sampleN').value) > parseInt(document.getElementById('stat_n1').innerHTML)){document.getElementById('withReplacement').selected=true}">
+							<option value="without replacement" selected>Without replacement</option>
+							<option value="with replacement" id='withReplacement'>With replacement</option>
+						</select>		
+						<button TYPE=button VALUE="Sample" onClick="sample()"/>Sample</button><br/>
+						</div>
+						<div class='results'>
+						<table>
+							<tr><td width=65%>Samples</td><td width=30%>Proportion: <select id="sampleValue" onChange="recalcSampleStat();"></select>
+							</td></tr>
+							<tr><td style="vertical-align:top;"><textarea onMousemove="getElementById('sampleMeans').style.height=this.style.height;" name="samples" id="samples" rows=10 style="white-space: pre; width:100%;" class="mediumTextArea" readonly></textarea></td>
+							<td style="vertical-align:top;"><textarea  onMousemove="getElementById('samples').style.height=this.style.height;" name="sampleMeans" id="sampleMeans" rows=10 style="white-space: pre; width:100%;" class="mediumTextArea" readonly></textarea></td></tr>
+							<tr><td></td><td><button type='button' value='analyze' class='analyzeButton' onClick='openData("descriptiveStats.html","data1","sampleMeans",nameSamplePropsWindow());'>analyze</button></td></tr>
+						</table>
+						</div>
+
+					</div>
+				</div>
+				<div class="container">
+					<div>
+						<input type="checkbox" id="headerCIProp" class="css-checkbox">
+						<label for="headerCIProp" class="css-label">Proportion Interval Estimation</label>
+						<div class="css-content">
+							<div  class="content">
+								
+								<div id="ciPropStats" style="display:block;" class='options'>
+									<div id="commonCI" class="content">
+										Confidence Level
+										<input type="number" id="cLevel" value="0.95" placeholder="e.g. 0.95" class="smallNumber" min="0" max=".9999" step=".01" onchange="ciProp();" />
+									</div>
+								
+								
+									<table  border="0">
+										<tr>
+											<td>Consider a success: X</td>
+											<td> =
+											<select id="propSuccess" onchange="propSuccessSelected=this.value;ciProp();">
+											</select></td>	
+										</tr>
+									</table>	
+								</div>
+								<div id="ciPropOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<div>
+						<input type="checkbox" id="headerHypProp" class="css-checkbox">
+						<label for="headerHypProp" class="css-label">Hypothesis Test for Proportion</label>
+						<div class="css-content">
+						<div id="commonHYP" class="content">
+							Significance Level (&alpha;, e.g. 0.05, optional)
+							<input type="number" id="sigLevel" value="0.05" class="smallNumber" min="0" max="1" step=".01" onchange="hypMean();hypVar();hypProp();" />
+						</div>
+							<div  class="content">
+								<div id="hypPropStats" style="display:block;">
+									<table  border="0">
+										<tr>
+											<td>Consider a success: X </td>
+											<td> =
+											<select id="propHSuccess" onchange="hypSuccessSelected=this.value;hypProp();"></td>
+										</tr>
+									</table>	
+								</div>
+								<table  border="0">
+									<tr><td>H<sub>0</sub>: p </td><td>=</td><td> <input type="number" id="p0" value=".5" class="smallNumber" min="0" max="1" step="0.01" onchange="hypProp();" /></td></tr>
+									<tr><td>H<sub>1</sub>: p </td>
+										<td><select id="hyppropIneq" onchange="hypProp();">
+											<option value="l">&lt;</option>
+											<option value="g">&gt;</option>
+											<option value="ne" selected>&ne;</option>
+										</select></td>
+									<td id="p1">.5</td></tr>
+								</table>
+								<div id="hypPropOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class='container'>
+					<div>
+						<input type="checkbox" id="headerGoF" class="css-checkbox">
+						<label for="headerGoF" class="css-label">Goodness of Fit Test</label>
+						<div class='css-content'>
+							<div class="content">
+								<div id="parameters">  
+									<input type='checkbox' id='uniform' onChange='buildInputs();goodnessOfFitTest()'>Equally Likely
+									<div id="distribution">
+									</div>
+								</div>
+								<button name="test" type="button"  value="Run Test" onClick="goodnessOfFitTest();">Run Test</button>
+								<div class="results" id="chiSqTest"></div>
+							</div>
+						</div>
+					</div>
+				</div>				
+			</form>
+		</div>
+	</body>
+</html>		
+<script>
+pairScrollers('samples','sampleMeans')
+</script>	

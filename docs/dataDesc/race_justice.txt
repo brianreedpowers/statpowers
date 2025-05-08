@@ -1,0 +1,26 @@
+Yahoo! News Race and Justice poll results.
+Description
+Results from a Yahoo! News poll conducted by YouGov on May 29-39, 2020. In total 1060 U.S. adults were asked a series of questions regarding race and justice in the wake of the killing of George Floyd by a police officer. Results in this data set are percentages for the question, "Do you think Blacks and Whites receive equal treatment from the police?" For this particular question there were 1059 respondents.
+
+Usage
+race_justice
+Format
+A data frame with 4 rows and 5 variables.
+
+race
+Race of respondent.
+
+yes
+Number of respondents who answered "yes".
+
+no
+Number of respondents who answered "no".
+
+not_sure
+Number of respondents who answered "not sure".
+
+unweighted_n
+Sample size for each race.
+
+Source
+Yahoo! News Race and Justice - May 31, 2020

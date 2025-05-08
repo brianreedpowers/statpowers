@@ -1,0 +1,17 @@
+Bladder Cancer Recurrences
+Description
+Data on recurrences of bladder cancer, used by many people to demonstrate methodology for recurrent event modelling.
+
+bladder
+
+id:	Patient id
+rx:	Treatment 1=placebo 2=thiotepa
+number:	Initial number of tumours (8=8 or more)
+size:	size (cm) of largest initial tumour
+stop:	recurrence or censoring time
+enum:	which recurrence (up to 4)
+
+Source
+Andrews DF, Hertzberg AM (1985), DATA: A Collection of Problems from Many Fields for the Student and Research Worker, New York: Springer-Verlag.
+
+LJ Wei, DY Lin, L Weissfeld (1989), Regression analysis of multivariate incomplete failure time data by modeling marginal distributions. Journal of the American Statistical Association, 84.

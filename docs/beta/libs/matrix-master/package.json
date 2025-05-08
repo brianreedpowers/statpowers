@@ -1,0 +1,67 @@
+{
+  "name": "ml-matrix",
+  "version": "5.1.1",
+  "description": "Matrix manipulation and computation library",
+  "main": "matrix.js",
+  "module": "src/index.js",
+  "files": [
+    "matrix.js",
+    "src"
+  ],
+  "scripts": {
+    "compile": "rollup -c",
+    "eslint": "eslint benchmark src testUtils.js",
+    "eslint-fix": "npm run eslint -- --fix",
+    "prepublishOnly": "npm run compile",
+    "test": "run-s test-coverage eslint",
+    "test-only": "jest",
+    "test-coverage": "jest --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mljs/matrix.git"
+  },
+  "keywords": [
+    "matrix",
+    "decomposition",
+    "SVD",
+    "singular",
+    "value",
+    "EVD",
+    "eigenvalue",
+    "LU",
+    "Qr",
+    "Cholesky",
+    "data",
+    "mining",
+    "datamining",
+    "machine",
+    "learning"
+  ],
+  "author": "Michaël Zasso",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mljs/matrix/issues"
+  },
+  "homepage": "https://github.com/mljs/matrix",
+  "devDependencies": {
+    "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
+    "benchmark": "^2.1.0",
+    "csv-parse": "^2.2.0",
+    "eslint": "^4.5.0",
+    "eslint-config-cheminfo": "^1.5.2",
+    "eslint-plugin-import": "^2.11.0",
+    "eslint-plugin-jest": "^21.15.1",
+    "jest": "^22.4.3",
+    "jest-matcher-deep-close-to": "^1.0.2",
+    "mathjs": "^4.2.1",
+    "npm-run-all": "^4.0.1",
+    "numeric": "^1.2.6",
+    "pretty-hrtime": "^1.0.0",
+    "rollup": "^0.59.2"
+  },
+  "dependencies": {
+    "ml-array-max": "^1.0.1",
+    "ml-array-rescale": "^1.1.0"
+  }
+}

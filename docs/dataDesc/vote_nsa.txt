@@ -1,0 +1,29 @@
+Predicting who would vote for NSA Mass Surveillance
+Description
+In 2013, the House of Representatives voted to not stop the National Security Agency's (NSA's) mass surveillance of phone behaviors. We look at two predictors for how a representative voted: their party and how much money they have received from the private defense industry.
+
+Usage
+vote_nsa
+Format
+A data frame with 434 observations on the following 5 variables.
+
+name
+Name of the Congressional representative.
+
+party
+The party of the representative: D for Democrat and R for Republican.
+
+state
+State for the representative.
+
+money
+Money received from the defense industry for their campaigns.
+
+phone_spy_vote
+Voting to rein in the phone dragnet or continue allowing mass surveillance.
+
+Source
+MapLight. Available at http://s3.documentcloud.org/documents/741074/amash-amendment-vote-maplight.pdf.
+
+References
+Kravets, D., 2020. Lawmakers Who Upheld NSA Phone Spying Received Double The Defense Industry Cash. WIRED. Available at https://www.wired.com/2013/07/money-nsa-vote/.

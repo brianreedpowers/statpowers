@@ -1,0 +1,426 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Distribution: Binomial</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<script type="text/javascript" src="js/commonFunctions.js"></script>
+	<script type="text/javascript" src="js/chartFunctions.js?v=1.1"></script>
+	<script type="text/javascript" src="js/jstat.js"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+	<script language="javascript">
+var a=0
+var b=0
+var c=0
+var probType = 1; //Above
+
+let distribution = getUrlParameter('f');
+if(distribution=="")distribution="binomial"
+
+function fixLB(){
+	document.getElementById('param1').value = Math.min(+document.getElementById('param1').value,+document.getElementById('param2').value-.0001)
+}
+function fixUB(){
+	document.getElementById('param2').value = Math.max(+document.getElementById('param2').value,+document.getElementById('param1').value+.0001)
+}
+
+function initDiscreteParams(){
+	var params = "<table  border='0'><tr><td>"
+	if(distribution=="binomial"){
+		params+="Trials (n)</td><td><input type='number' id='param1'  min='1' value='10' step='1' class='mediumNumber'  onchange='refresh();' /></td></tr><tr><td>Probability of success (p)</td><td><input type='number' id='param2'  min='0' value='0.5' step='0.01' max='1' class='mediumNumber'  onchange='refresh();' />"
+		document.title="Distribution: Binomial"
+		document.getElementById("pageTitle").innerHTML="Binomial Distribution Calculator"
+	} else if (distribution=='uniform'){
+		params+="Lower Bound (a)</td><td><input type='number' id='param1' min='0' value='0' class='mediumNumber' onchange='fixLB();refresh()' /></td>    </tr>    <tr>      <td>Upper Bound (b)</td>      <td><input type='number' id='param2'  value='10' min='0' class='mediumNumber'  onchange='refresh()' />"
+		document.title="Distribution: Discrete Uniform"
+		document.getElementById("pageTitle").innerHTML="Discrete Uniform Distribution Calculator"
+	} else if (distribution=='Poisson'){
+		params+="Mean (&lambda;)</td><td><input type='number' id='param1'  value='10'  min=.001 class='mediumNumber' onchange='refresh()' /><input type='number' id='param2' min=.001 value='10' class='mediumNumber'  onchange='fixUB();refresh()' style='display:none'/>"
+		document.title="Distribution: Poisson"
+		document.getElementById("pageTitle").innerHTML="Poisson Distribution Calculator"
+	} else if (distribution=='geometric'){
+		params+="X=<select id='geomType' onchange='refresh()'><option value='1'>Trials until (and including)</option><option value='2' selected>Failures prior to</option></select></td><td><i>1<sup>st</sup></i> success</td>    </tr>    <tr><td>Probability of success (p)</td><td><input type='number' id='param1'  min='0' value='0.5' max='1' step='.01' class='mediumNumber' onchange='refresh()' /><input type='number' id='param2'  value='10' class='mediumNumber'  onchange='refresh()' style='display:none'/>"
+		document.title="Distribution: Geometric"
+		document.getElementById("pageTitle").innerHTML="Geometric Distribution Calculator"
+	} else if (distribution=='hypergeometric'){
+		params+="Population size (N)</td><td><input type='number' id='param1'  value='100' class='mediumNumber' min='1' step='1' onchange='refresh()' /></td>    </tr>    <tr>      <td>Successes in Population (K)</td>      <td><input type='number' id='param2'  value='20' class='mediumNumber'  onchange='refresh()' /></td>    </tr>    <tr>      <td>Sample size (n)</td>      <td><input type='number' id='param3'  value='10' class='mediumNumber'  onchange='refresh()' />"
+		document.title="Distribution: Hypergeometric"
+		document.getElementById("pageTitle").innerHTML="Hypergeometric Distribution Calculator"
+	} else if(distribution=="negativebinomial"){
+		params+="X=<select id='negBinType' onchange='refresh()'><option value='1'>Trials until (and including)</option><option value='2' selected>Failures prior to</option></select></td><td><i>r<sup>th</sup></i> success</td>    </tr>    <tr>      <td>Number of successes (r)</td><td><input type='number' id='param1'  min='1' value='10' step='1' class='mediumNumber'  onchange='refresh();' /></td></tr><tr><td>Probability of success (p)</td><td><input type='number' id='param2'  min='.0001' value='0.5' max='.9999'  step= '0.01' class='mediumNumber'  onchange='refresh();' />"
+		document.title="Distribution: Negative Binomial"
+		document.getElementById("pageTitle").innerHTML="Negative Binomial Distribution Calculator"
+	}
+
+	document.getElementById('distributionParams').innerHTML=params
+	setParams();
+}
+
+function setParams(){
+	a = parseFloat(document.getElementById('param1').value);
+	b = parseFloat(document.getElementById('param2').value);
+	if(distribution=='hypergeometric'){
+		c = parseFloat(document.getElementById('param3').value);
+	} if(distribution=='geometric'){
+		c = document.getElementById('geomType').value
+	}else if(distribution=='negativebinomial'){
+		c = document.getElementById('negBinType').value
+	}
+}	
+
+function cdf(x){
+	if(distribution=='binomial'){
+		return jStat.binomial.cdf( x,a,b)
+	} else if (distribution=='uniform'){
+		return Math.max(0,Math.min(1,(1+x-a)/(1+b-a)))
+	} else if (distribution=='Poisson'){
+		var sm=0
+		for(var i=0; i<=x; i++) sm+=pmf(i)
+		return sm
+	} else if (distribution=='geometric'){
+		var sum=0
+		for(var i=0; i<=x; i++){
+			sum += pmf(i)
+		}
+		return sum
+//		return jStat.hypgeom.cdf(x,a,1,c)
+//		if(x<1) return 0
+//		return 1-Math.pow(1-a,x)
+	} else if (distribution=='hypergeometric'){
+		return jStat.hypgeom.cdf(x,a,b,c)
+	} else if(distribution=='negativebinomial'){
+		var sum=0
+		for(var i=0; i<=x; i++){
+			sum += pmf(i)
+		}
+		return sum
+	}
+}
+
+function inv(p){
+	var Xbounds=bounds()
+	var i=+Xbounds[0];
+	while (cdf(i)<p){i++;}
+//	alert(i)
+	return(i)
+}
+
+function pmf(x){
+	if(distribution=='binomial'){
+		return jStat.binomial.pdf(x,a,b)
+	} else if (distribution=='uniform'){
+		return 1/(1+b-a)
+	} else if (distribution=='Poisson'){
+		return jStat.poisson.pdf(x,a)
+	} else if (distribution=='geometric'){
+		if(x < bounds()[0]) return 0;
+		return Math.pow(1-a,x+(c==2?0:-1))*a
+//		return Math.pow(a,1)*Math.pow(1-a,x+(c==1?0:1))
+//		if(x<1) return 0;
+//		return Math.pow(1-a,x-1)*a
+	} else if (distribution=='hypergeometric'){
+		return jStat.hypgeom.pdf(x,a,b,c)
+	} else if(distribution=='negativebinomial'){
+		return jStat.combination(x+a-1,x)*Math.pow(b,a)*Math.pow(1-b,x)
+	}
+}
+
+function maximumProbability(param1,param2){
+	if(distribution=='binomial'){
+//		console.log(Math.round(a*b))
+		return Math.max(pmf(Math.floor(a*b)),pmf(Math.min(a,Math.floor(a*b)+1)));
+	} else if (distribution=='uniform'){
+		return pmf(a)
+	} else if (distribution=='Poisson'){
+		return Math.max(pmf(Math.round(a)-1),pmf(Math.round(a)))	
+	} else if (distribution=='geometric'){
+		return pmf(bounds()[0])
+	} else if (distribution=='hypergeometric'){
+		return Math.max(pmf(Math.floor((c+1)*(b+1)/(a+2))),pmf(Math.ceil(c+1)*(b+1)/(a+2)-1))
+	} else if(distribution=='negativebinomial'){
+		if(a<=1) return pmf(0)
+		else return pmf(Math.floor((1-b)*(a-1)/(b)))
+	}
+}
+
+function bounds(){
+	var bounds = new Array();
+	if(distribution=='binomial'){
+		bounds[0]= 0;
+		bounds[1]= a;
+	} else if (distribution=='uniform'){
+		bounds[0]=a
+		bounds[1]=b
+	} else if (distribution=='Poisson'){
+		bounds[0] = 0 
+		bounds[1] = Math.max(20,Math.round(a*2.5))
+	} else if (distribution=='geometric'){
+		bounds[0] = (c==1?1:0)
+		bounds[1] = Math.round(Math.log(.005)/Math.log(1-a))-(c==1?0:1)
+	} else if (distribution=='hypergeometric'){
+		bounds[0] = Math.max(0, c-(a-b)) 
+		bounds[1] = Math.min(c, b)
+	} else if (distribution=='negativebinomial'){
+		bounds[0] = 0 
+		var i=+bounds[0];
+		while (cdf(i)<.995){i++;}		
+		bounds[1] = i+1
+	}
+	return bounds
+}
+
+function probability() {	
+	var pField = document.getElementById("prob")
+	var tail = false
+	var prob = 0
+	var Xbounds=bounds();
+	var xAdj=(distribution=='negativebinomial' && c=='1' ? a : 0)
+	if(document.getElementById("probType").value=="above") {
+		ll = parseFloat(document.getElementById("above").value)-xAdj
+		ul=Xbounds[1]
+		prob=1-cdf(ll-1)
+	} else if (document.getElementById("probType").value=="below"){
+		ul = parseFloat(document.getElementById("below").value)-xAdj
+		ll=Xbounds[0]
+		prob=cdf(ul)
+	} else if (document.getElementById("probType").value=="between"){
+		ll = parseFloat(document.getElementById("ll").value)-xAdj
+		ul = parseFloat(document.getElementById("ul").value)-xAdj
+		prob = cdf(ul)-cdf(ll-1)
+	} else if (document.getElementById("probType").value=="equal"){
+		ll = parseFloat(document.getElementById("equal").value)-xAdj
+		ul = ll
+		prob = pmf(ll)		
+	} else if (document.getElementById("probType").value=="tails"){
+		tail = true
+		ll = parseFloat(document.getElementById("oll").value)-xAdj
+		ul = parseFloat(document.getElementById("oul").value)-xAdj
+		prob = 1-(cdf(ul-1)-cdf(ll))
+	}
+//	ctx.fillStyle='white'
+//	ctx.fillRect(0,0,w,h)
+	drawProbabilityFunction(ll,ul,tail,"massfunction") //canvas, bounds, trials, probability, lower limit, upper limit, tail (outside or inside)
+	pField.innerHTML=fixed(prob)
+	var stats = distributionStats()
+	document.getElementById("EX").innerHTML = fixed(stats[0])
+	document.getElementById("VAR").innerHTML = fixed(stats[1])
+	document.getElementById("SD").innerHTML = fixed(stats[2])
+	document.getElementById('wikiLink').innerHTML="<i><a href="+getWikiLink()+">Wikipedia entry</a></i>"
+
+}
+
+function distributionStats(){
+	var stats=new Array()
+	if(distribution=='binomial'){
+		stats[0]=a*b
+		stats[1]=a*b*(1-b)
+	} else if (distribution=='uniform'){
+		stats[0]=(a+b)/2
+		stats[1]=(Math.pow(b-a+1,2)-1)/12
+	} else if (distribution=='Poisson'){
+		stats[0]=a
+		stats[1]=a
+	} else if (distribution=='geometric'){
+		stats[0]=1/a-(c==2?1:0)
+		stats[1]=(1-a)/Math.pow(a,2)
+	} else if (distribution=='hypergeometric'){
+		stats[0]=c*b/a
+		stats[1]=c*b/a * (a-b)/a * (a-c)/(a-1)
+	} else 	if(distribution=='negativebinomial'){
+//		console.log(c)
+		stats[0]=a*(1-b)/(b)+ (c=='1'?a:0)
+		stats[1]=a*(1-b)/Math.pow(b,2)
+	}
+	stats[2]=Math.sqrt(stats[1])
+	return stats
+}
+
+function refresh(){
+	setPrecision(document.getElementById('precision').value)
+	setParams();
+	refreshPMFdisplay()
+	probability();
+} 
+
+function sampleOne(){
+	var xAdj=(distribution=='negativebinomial' && c=='1' ? a : 0)
+	return +(inv(Math.random()))+xAdj
+}
+/*
+function sample(){
+	var sampleSize = parseFloat(document.getElementById("sampleN").value)
+	var nSamples = parseFloat(document.getElementById("nSamples").value)
+	var sampleText = ""
+	var sampleMeans = ""
+	var xAdj=(distribution=='negativebinomial' && c=='1' ? a : 0)
+	for(var i=0; i<nSamples; i++){
+		var sum=0;
+		for(var j=0; j<sampleSize; j++){
+			var randomNumber = +(inv(Math.random()))+xAdj
+//			if(randomNumber<0) sampleText+="-"
+			sampleText += randomNumber + " "
+			sum += +parseFloat(randomNumber);
+		}
+		sampleText += "\n"
+		var mean= +fixed(sum/sampleSize)
+		sampleMeans += mean + "\n"
+	}
+	document.getElementById("samples").innerHTML=sampleText
+	document.getElementById("sampleMeans").innerHTML=sampleMeans
+}
+
+function nameSampleMeansWindow(){
+	return "Sample Means ("+document.getElementById('sampleN').value+")"
+}
+
+function nameSamplesWindow(){
+	return "Sample Data"
+}*/
+
+function refreshPMFdisplay(){
+	var pmfString = generatePMF(a,b,c)
+	document.getElementById('pmfDisplay').innerHTML=pmfString
+	MathJax.typeset()
+}
+
+function generatePMF(a,b,c){
+	var pmfString="\\(f(x)="
+	if(distribution=='binomial'){
+		pmfString +="{"+a+"\\choose x}"+b+"^{x}"+(1-b)+"^{"+a+"-x}"
+	} else if (distribution=='uniform'){
+		pmfString +="\\frac{1}{"+(b-a+1)+"}"
+	} else if (distribution=='Poisson'){
+		pmfString +="\\frac{"+a+"^xe^{-"+a+"}}{x!}"
+	} else if (distribution=='geometric'){
+		pmfString +=(1-a)+"^{x"+(c==2?'-1':'')+"}"+(a)
+	} else if (distribution=='hypergeometric'){
+		pmfString +="\\frac{{"+b+" \\choose x}{"+(a-b)+" \\choose "+c+"-x}}{{"+a+" \\choose "+c+"}}"
+	} else 	if(distribution=='negativebinomial'){
+		if(c==1){
+			pmfString +="{x-1 \\choose "+(a-1)+"}"+(1-b)+"^{x-"+a+"} "+b+"^{"+a+"}"
+		} else {
+			pmfString +="{x+"+(a-1)+" \\choose "+(a-1)+"}"+(1-b)+"^x "+b+"^{"+a+"}"
+		}
+	}
+	pmfString +="\\)"
+	return pmfString	
+}
+
+function getWikiLink(){
+	if(distribution=='binomial'){
+		return "https://en.wikipedia.org/wiki/Binomial_distribution"
+	} else if (distribution=='uniform'){
+		return "https://en.wikipedia.org/wiki/Discrete_uniform_distribution"
+	} else if (distribution=='Poisson'){
+		return "https://en.wikipedia.org/wiki/Poisson_distribution"
+	} else if (distribution=='geometric'){
+		return "https://en.wikipedia.org/wiki/Geometric_distribution"
+	} else if (distribution=='hypergeometric'){
+		return "https://en.wikipedia.org/wiki/Hypergeometric_distribution"
+	} else 	if(distribution=='negativebinomial'){
+		return "https://en.wikipedia.org/wiki/Negative_binomial_distribution"
+	}
+	return ""
+}
+
+
+</script>
+
+<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+
+</head>
+
+<body onload="init('massfunction');initDiscreteParams();loadPrecision();loadColorChoice();linkMenu();setColors();showHideProbs(true);probability();refreshPMFdisplay()">
+<div id="container">
+		<div id="title" onClick="setColors()">StatPowers</div>
+		<div id="menu"></div>
+		<div class='container'>
+<h3><span id="pageTitle">Binomial Distribution Calculator</span></h3>
+							<div class="canvasdiv">
+<canvas id="massfunction" width="496" height="300" class='zoomable'>
+  <p>Your browser doesn't support canvas. Please update your browser.</p>
+</canvas>
+		<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'massfunction','massfunction.png');"></a>
+							</div>
+
+<form name="form1">
+
+<div id="parameters"> <strong>Distribution Parameters:</strong><br/>
+	<div id="distributionParams">
+	</div>
+</div>
+
+<div class="container" >
+	<input type="checkbox" id="headerProps" class="css-checkbox">
+	<label for="headerProps" class="css-label">Distribution Properties</label>
+	<div  id="distributionProperties" class="content css-content">
+<!--div class="container"-->
+	<div class='results'>
+		<div id='pmfDisplay'></div>
+		Expected Value: <span id="EX">4</span><br/>
+		Variance: <span id="VAR">5</span><br/>
+		Standard Deviation: <span id="SD">2</span><br/>
+		<div id='wikiLink'></div>		
+		</div>
+	</div>
+</div>
+
+<div class="container"><h3>Probability Calculator</h3>
+
+	<div id="apDiv2" style="display:block" class='whitebg'>
+		<div>
+		<span><select id="probType" onchange="showHideProbs(true);probability();">
+				  <option value="equal">Equals</option>
+				  <option value="above" selected>Above</option>
+				  <option value="below">Below</option>
+				  <option value="between">Between</option>
+				  <option value="tails" >Tails</option>
+				</select>
+		</span>
+		<span>
+			<span id="prob_equal">
+				P(X =     
+				<input type="number" id="equal"  value="5" class="smallNumber" step="1" onchange="probability()"/>)
+			</span>
+			<span id="prob_above" style="display:none;">
+				P(X &ge;     
+				<input type="number" id="above"  value="5" class="smallNumber" step="1" onchange="probability()"/>)
+			</span>
+			<span id="prob_below" style="display:none;">
+				P(X &le; 
+				<input type="number" id="below"  value="5" class="smallNumber" step="1" onchange="probability()" />)
+			</span>
+			<span id="prob_between" style="display:none;">
+				P(
+				<input type="number" id="ll"  value="3" class="smallNumber" step="1" onchange="fixBounds('ll','ul',true);probability()" />
+				&le; X &le;
+				<input type="number" id="ul" value="7" class="smallNumber" step="1" onchange="fixBounds('ll','ul',false);probability()" />)
+			</span>
+			<span id="prob_tails" style="display:none;">
+				P(X &le;
+				<input type="number" id="oll"  value="3" class="smallNumber" step="1" onchange="fixBounds('oll','oul',true);probability()" />
+				or X &ge; 
+				<input type="number" id="oul" value="7" class="smallNumber" step="1" onchange="fixBounds('oll','oul',false);probability()" />)
+			</span>
+		</span>
+		</div>
+		<div class="results">
+			Probability: <strong><span id="prob"></span></strong>
+			<br />
+			<!--input name="draw" type="button"  value="Recalculate" onClick="probability()" /-->
+		</div>
+	</div>
+</div>
+<div class="container" id="sampling-container">
+
+</div>
+</form>
+</div>
+
+</div>
+</body>
+<script>
+buildPanel("sampling","Sampling")
+</script>
+</html>

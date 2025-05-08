@@ -1,0 +1,17 @@
+"Americans"
+1
+["eye_color"]
+[1]
+[0]
+[[0]]
+[0]
+[0]
+[0]
+[[]]
+[[[null,null,[null,null],[null,null],[null,null]]]]
+[5]
+[["brown","blue","hazel","green","other"]]
+[[[0.44999999999999996,0.27,0.18,0.09,0.01]]]
+[2]
+-1221004835
+[0]

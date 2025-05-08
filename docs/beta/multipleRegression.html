@@ -1,0 +1,3714 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Multiple Regression</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+		<link rel="stylesheet" type="text/css" href="styles/tln.min.css"/>
+		<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+		<style>
+		.corMatrix {border-spacing: 0px;}
+		.corMatrix td {border:1px #DDD solid; padding:3;}
+		.corMatrix th {padding:3}
+		
+		</style>
+		
+		<script type="text/javascript" src="js/jstat.js"></script>
+		<script type="text/javascript" src="js/commonFunctions.js"></script>
+		<script type="text/javascript" src="js/chartFunctions.js"></script>
+		<script type="text/javascript" src="js/jsregression.min.js"></script>
+		<script type="text/javascript" src="js/numeric-1.2.6.min.js"></script>
+		<script type="text/javascript" src="js/shapiro-wilk.js"></script>
+		<script type="text/javascript" src="js/tln.min.js"></script>
+		<script type="text/javascript" src="js/math.min.js"></script>
+		<script type="text/javascript" src="js/mlr.js"></script>
+		<script type="text/javascript" src="js/glm.js"></script>
+		<script language="javascript">
+			var debug=false
+			var debugPred=false
+			var timing=false
+			var nCovars = 2
+			var nVars = 3
+			var modelN=0
+			var responseVarNum = 1
+			var responseVarLevel = 0
+			var X = []
+			var XXTinv = []
+			var Y = []
+			var varMatrix = new Array
+			var dataMatrix = new Array
+			var modelY = new Array
+			var predictY = new Array
+			var yHat = new Array
+			var MSE = 0
+			var varNames = []
+			var modelVarNames = []
+			var modelVarIsFactor = []
+			var modelVarNamesVarNum = []
+			var modelVarNamesTransform = []
+			var modelVarNamesFactorValue = []
+			var scatterLabels=[]
+			var isFactor = []
+			var isInteger=[]
+			var levels = []
+			var coeff = new Array
+			var Resid = new Array
+			var residuals = new Array
+			var residualsInt = new Array
+			var residualsExt = new Array
+			var leverage = new Array
+			var nSamples=3
+			var nObs = 1
+			var modelSS
+			
+			var modelN=0
+			var baselineLevel = []
+			var varInModel=[]
+			var varLevelInModel=[]
+			var varTransformInModel=[]
+			var interactionsInModel=[]
+
+			var varCol = []
+			var lvlCol = []
+			var validRegression = false;
+			var nQuantPredictors = 0
+			var nQualPredictors = 0
+
+			var SPMmargins=[20,10,10,20]
+
+			
+			
+			//If debugging will output the data matrix to be viewed
+			function peekAtData(dataObject){
+				if(debug && exists('dataMatrix')){
+				stringOutput=""
+				for(var i=0; i<dataObject.length; i++)
+					stringOutput += JSON.stringify(dataObject[i])+"\n<br>"
+				document.getElementById('dataMatrix').innerHTML=stringOutput
+				}
+			}
+			
+			//returns TRUE if the response is an integer or categorical
+			function isLogistic(){
+				return (isFactor[responseVarNum] || isInteger[responseVarNum]);
+			}
+			
+			//returns an array with only the unique values
+			function onlyUnique(value, index, self) { 
+				return self.indexOf(value) === index;
+			}
+
+			//Creates a matrix of all variable data as entered (varMatrix)
+			function cleanData(set=1){
+				var startTime=new Date().getTime()
+				var data = document.getElementById("data"+set).value.trim().split(/[\n]+/)
+				if(debug)console.log(data)
+				var n=data.length
+				
+				var delimRegEx = "["
+				if(document.getElementById('delimSpace').checked) delimRegEx +="\\s"
+				if(document.getElementById('delimComma').checked) delimRegEx +=","
+				if(document.getElementById('delimSemicolon').checked) delimRegEx +=";"
+				if(document.getElementById('delimTab').checked) delimRegEx +="\\t"
+				delimRegEx += "]+"
+
+//				console.log(delimRegEx)
+				delimRegEx = new RegExp(delimRegEx)
+//				console.log(delimRegEx)
+
+				document.getElementById('nCovars').value = Math.max(data[0].trim().split(delimRegEx).length-1,1)
+				nCovars = Math.max(data[0].trim().split(delimRegEx).length-1,1)
+
+				if(n==1 && data[0]=="") n=0;
+				var myArray = [];
+				
+				//Make Var Matrix
+				varMatrix=new Array(nCovars+1)
+				for(var i=0; i<nCovars+1; i++){
+					varMatrix[i]=new Array(n)
+				}
+//				console.log("var Array is "+(nCovars+1)+" x "+n)
+
+
+				for (var i = 0; i<n; i++){				
+//					console.log("data: "+data[i])
+//					console.log("data: "+data[i].split(/[\s,;\t]+/))
+
+					var vars = data[i].trim().split(delimRegEx)
+					myArray.push(vars)
+
+					if(debug) console.log("There are "+vars.length+" vars: "+vars)
+					for(var j=0; j<vars.length; j++) {
+						varMatrix[j][i]=vars[j]
+					}
+//					console.log(varMatrix[0][0])
+				}
+				
+//				data = myArray
+				//peekAtData(data)
+//				n=data.length
+				var dataInput = ""
+				
+				for( var i=0; i<n; i++){
+					for(var k=0; k<varMatrix.length; k++){
+						if (k>0) dataInput += "\t"
+						dataInput += varMatrix[k][i] 
+					}
+					if(i<n-1) dataInput += "\n"
+				}
+				
+				document.getElementById("data"+set).value=dataInput
+				for(var k=1; k<=varMatrix.length; k++){
+					isFactor[k]=false;
+					isInteger[k]=true;
+					
+					for(var i=0; i<n; i++){
+						if (!isNumeric(varMatrix[k-1][i]) || isFloat(varMatrix[k-1][i])){
+							isInteger[k]=true
+							break;
+						}
+					}
+					if(n>0){
+						if(!isNumeric(varMatrix[k-1][0])) isFactor[k]=true;
+						if(!isNumeric(varMatrix[k-1][0]) || isInteger[k]){
+							levels[k-1] = varMatrix[k-1].filter( onlyUnique )
+							levels[k-1].sort();
+							if(baselineLevel[k-1]==null) baselineLevel[k-1]=0
+							//alert(data.filter( onlyUnique ));
+						}
+					}
+				}
+				if(timing) console.log("Data Cleaned: "+(new Date().getTime()-startTime))
+
+				createDataMatrix()
+			}
+			
+			function isCategorical(varNum){
+				//console.log(isFactor)	
+			}
+			
+			//and creates a numerical data matrix, with one column for every dummy variable, even the baselines (dataMatrix)
+			function createDataMatrix(){
+				var startTime = new Date().getTime()
+//				alert('creating data matrix')
+				dataMatrix=[]
+//				varMatrix=[]
+				var activeCol = 0
+				var regType=document.getElementById('regressionType').value
+				for(var i=1; i<= nCovars+1; i++){
+					varCol[i-1] = activeCol
+					var data=getColumn(i, false)
+					var n=data.length
+//					console.log("ResponseVarNum="+responseVarNum+", regType="+regType)
+					if(isFactor[i]==true || exists("v"+i+"d") && document.getElementById("v"+i+"d").checked || (responseVarNum==i && regType==2)){
+//						varMatrix.push(data)
+						for(var lvl=0; lvl<levels[i-1].length; lvl++){
+							var dummyColumn= []
+							for(var k=0; k<n; k++){
+								dummyColumn[k] = (data[k]===levels[i-1][lvl]?1:0)
+							}
+							dataMatrix.push(dummyColumn.map(i => +i))
+							activeCol++
+						}
+					}else{
+						dataMatrix.push(data.map(i => +i))
+						activeCol++
+//						varMatrix.push(data.map(i => +i))
+					}
+				}
+				//isCategorical(1)
+				//peekAtData(dataMatrix)
+				if(timing) console.log("DataMatrix created: "+(new Date().getTime()-startTime))
+			}
+			
+			//returns a vector for a variable and level (if it is a factor)
+			function getData(varIndex, level=0){
+				if(varIndex<0){return false;}
+				if(debug) console.log("var index "+varIndex+" level "+level+" in col "+(varCol[varIndex]+level));
+				if(debug) console.log(dataMatrix[varCol[varIndex]+level])
+				if(dataMatrix.length>0 && dataMatrix.length> +(varCol[varIndex]+level)){
+					return dataMatrix[+varCol[varIndex]+level].slice(0)
+				} else {
+					return false;
+				}
+			}
+		
+			//returns a column of the varMatrix, not the data matrix
+			function getColumn(set, forceNumeric=true){
+				if(varMatrix.length>=set){
+					return varMatrix[set-1].slice()
+				} else {
+					return false
+				}
+			}
+			
+			//subroutine - only called from sampleStates()
+			function computeStats(set, data){
+				var n=data.length
+				document.getElementById("stat_n"+set).innerHTML =  n  
+				if(!isFactor[set]){
+					data.sort(function(a, b){return a-b})
+					for(var i=0; i<n; i++) { data[i] = +data[i]; }
+					var fiveNumSummary = fiveNumSum(data)
+					document.getElementById("stat_xbar"+set).innerHTML = +(jStat.mean(data)).toFixed(precision)  
+					document.getElementById("stat_median"+set).innerHTML = +(fiveNumSummary[2]).toFixed(precision) 
+					dataMode = jStat.mode(data)
+					if(dataMode.length == n) {document.getElementById("stat_mode"+set).innerHTML = "none"}
+					else{ document.getElementById("stat_mode"+set).innerHTML = dataMode}
+					document.getElementById("stat_midrange"+set).innerHTML = +((jStat.max(data) + jStat.min(data))/2).toFixed(precision) 
+					document.getElementById("stat_min"+set).innerHTML = +(fiveNumSummary[0]).toFixed(precision) 
+					document.getElementById("stat_Q1"+set).innerHTML = +fiveNumSummary[1].toFixed(precision) 
+					document.getElementById("stat_Q3"+set).innerHTML = +fiveNumSummary[3].toFixed(precision) 
+					document.getElementById("stat_max"+set).innerHTML = +(fiveNumSummary[4]).toFixed(precision)  
+					document.getElementById("stat_range"+set).innerHTML = +jStat.range(data).toFixed(precision)  
+					document.getElementById("stat_IQR"+set).innerHTML = +(fiveNumSummary[3]-fiveNumSummary[1]).toFixed(precision) 
+					document.getElementById("stat_var"+set).innerHTML = +(jStat.variance(data,true)).toFixed(precision)  
+					document.getElementById("stat_s"+set).innerHTML = +(jStat.stdev(data,true)).toFixed(precision) 
+					if(exists("stat_sx"+set)) document.getElementById("stat_sx"+set).innerHTML = +(jStat.stdev(data,true)/Math.sqrt(n)).toFixed(precision) 
+					if(exists("stat_sigma"+set)) document.getElementById("stat_sigma"+set).innerHTML = +(jStat.stdev(data)).toFixed(precision) 	
+					document.getElementById("stat_skew"+set).innerHTML = +(jStat.skewness(data)).toFixed(precision)  
+					document.getElementById("stat_kurtosis"+set).innerHTML = +(jStat.kurtosis(data)+3).toFixed(precision) 		
+				} else {
+//					alert(set)
+//					alert(levels[set-1])
+//					alert(levels[set-1])
+					var mode = levels[set-1][0]
+					data = getColumn(set,false)
+					var freqs = []
+					var maxFreq = 0
+					var lvls= levels[set-1]
+					for(var k=0; k<lvls.length; k++){
+						freqs[k]=0
+						for(var j=0; j<data.length; j++){
+							if(data[j]==lvls[k]) freqs[k]++
+						}
+						if(freqs[k]>maxFreq) maxFreq = freqs[k]
+					}
+					var modes=""
+					var first = true
+					for(var k=0; k<lvls.length; k++){
+						if(freqs[k]==maxFreq){
+							modes += (first==true?"":", ")
+							modes += lvls[k]
+							first=false
+						}
+					}
+					document.getElementById("stat_mode"+set).innerHTML = modes
+				}
+			}
+		
+			//Copy the names of all variable columns into the summary stats locations
+			//And compute all sample stats
+			function sampleStats(nSets) {
+				var startTime = new Date().getTime();
+				if(varMatrix[0].length==0) return false;
+				for(var set=1; set<=nSets; set++){
+					var data = varMatrix[set-1].slice()
+					nObs=data.length
+					data.sort(function(a, b){return a-b})
+					computeStats(set,data)
+					var varName = document.getElementById("name"+set).value;
+					document.getElementById("statsName"+set).innerHTML = varName;
+				}
+				
+				
+				//Count how many variables are quantitative
+				var nQuantSets = 0
+				//alert(isFactor)
+				for(var i=1; i<=nSets; i++){
+					if(!isFactor[i]) nQuantSets++
+				}
+				//alert(nQuantSets)
+				
+				
+				//Create an empty correlation matrix with 1 fewer rows than the
+				//number of quantitative variables
+				var corMatrix = []
+				for(var i=0; i<nQuantSets; i++){
+					corMatrix[i]=Array(nQuantSets)
+					for(var j=0; j<=nQuantSets-1; j++){
+						corMatrix[i][j]=""
+					}
+				}
+				var j=1
+				var cmColVars=[], cmRowVars=[]
+				for(var i=1; i<=nSets; i++){
+					if(!isFactor[i]){
+						if(j<nQuantSets) {
+							corMatrix[j][0]=document.getElementById("name"+i).value
+							cmRowVars.push(i)
+						}
+						if(j>1){
+							corMatrix[0][j-1]=document.getElementById("name"+i).value
+							cmColVars.push(i)
+						}
+						j++
+					}
+				}
+
+				for(var cmRow=1; cmRow<corMatrix.length; cmRow++){
+					var dataA=getData(cmRowVars[cmRow-1]-1)
+					for(var cmCol=1; cmCol<corMatrix[cmRow].length; cmCol++){
+						var dataB=getData(cmColVars[cmCol-1]-1)
+						corMatrix[cmRow][cmCol]=fixed(jStat.corrcoeff(dataA,dataB))
+					}
+				}
+				
+				if(debug)console.log(JSON.stringify(corMatrix))
+				var outputCorMatrix = "<strong>Correlations</strong><br><table class='corMatrix'>"
+				for(var i=0; i<nQuantSets; i++){
+					outputCorMatrix += "<tr>"
+//					for(j=0; j<i; j++)
+//					outputCorMatrix+="<td></td>"
+					for(var j=0; j<nQuantSets; j++){
+						if(i==0){
+							if(j>0) {outputCorMatrix+="<th>"+corMatrix[j][i]+"</th>"
+							}else{
+							outputCorMatrix+="<th></th>"
+							}
+							
+						}else{
+							if(j==0){
+								outputCorMatrix+="<th>"+corMatrix[j][i]+"</th>"
+							} else{
+								if(i>=j)outputCorMatrix+="<td>"+corMatrix[j][i]+"</td>"
+							}
+						}
+					}
+					outputCorMatrix += "</tr>"
+				}
+				outputCorMatrix += "</table>"
+				document.getElementById("corMatrix").innerHTML=outputCorMatrix
+				if(timing) console.log("Sample Stats Calculated: "+(new Date().getTime()-startTime))
+			}
+			
+			//preps the data for creating a residual plot, and creates the residual plot
+			function prepDataForResidualPlot(){
+				var sel=document.getElementById("ResidVar")
+				var residXVar = sel.value
+				var residLabel = sel.options[sel.selectedIndex].text
+				var catX = residXVar.indexOf("c")==0
+//				console.log(residXVar + " " + catX)
+				if(catX) residXVar = parseInt(residXVar.replace("c",""))
+				var absResid = document.getElementById('residTransform').value=='abs'
+				var sqrtResid = document.getElementById('residTransform').value=='sqrt'
+				if(residXVar=="predicted"){
+				//	alert(yHat)
+				//	var responseVar =document.getElementById("ChooseResponse").value;
+					residualplot(yHat, residLabel, absResid,[],1,sqrtResid)
+				} else if(residXVar=='leverage'){
+					residualplot(leverage, "Leverage", absResid,[],1,sqrtResid)
+				} else if(residXVar=='order'){
+					var Xdata=[]
+					for(var i=1; i<= yHat.length; i++) Xdata.push(i)
+					residualplot(Xdata,residLabel, absResid,[],1,sqrtResid)
+				} else if(catX){
+					var	xVals=levels[residXVar-1]
+					var	Xdata=getColumn(residXVar)
+					for(var i=0; i<Xdata.length; i++){
+						for(var k=0; k<xVals.length; k++){
+							if(Xdata[i]==xVals[k]) Xdata[i]=k
+						}
+					}
+				//	console.log("xVals are "+xVals)
+					residualplot(Xdata,residLabel,absResid,xVals,1,sqrtResid)
+				}else{
+					var XVar = parseInt(document.getElementById("ResidVar").value)
+					var Xfull = numeric.transpose(window.X)
+					var Xdata = window.modelY
+					if(XVar > 0) Xdata = Xfull[XVar]
+					residualplot(Xdata,residLabel, absResid,[],1,sqrtResid)
+				}
+			}
+				
+			function minv(A){
+				return math.inv(A)
+			}
+						
+			function determineVarsInModel(){
+				var startTime = new Date().getTime()
+				//baselineLevel = []
+				varInModel=[]
+				varLevelInModel=[]
+				varTransformInModel=[]
+				for(var varNum=1; varNum<=nCovars+1; varNum++){
+					varLevelInModel[varNum]=[]
+					varTransformInModel[varNum]=[]
+					varInModel[varNum]=false
+					for(var k=0; k<=4; k++){
+						varTransformInModel[varNum][k]=false
+						if(exists('v'+varNum+"t"+k) && document.getElementById('v'+varNum+"t"+k).checked){
+							varInModel[varNum]=true
+							varTransformInModel[varNum][k]=true
+						}
+					}
+					if(exists("v"+varNum+"d") && document.getElementById("v"+varNum+"d").checked==true){
+						varInModel[varNum]=true
+						for(var j=0; j<levels[varNum-1].length; j++){
+							if(exists("v"+varNum+"_"+levels[varNum-1][j])){
+								if(document.getElementById("v"+varNum+"_"+levels[varNum-1][j]).checked==true){
+									varLevelInModel[varNum][j]= (baselineLevel[varNum-1]!=j)
+								} else {
+									varLevelInModel[varNum][j]=false
+								}
+							}
+						}						
+					}
+				}
+				
+				interactionsInModel=[]
+				if(document.getElementById('interactions').checked){
+					for(var i=1; i<=nCovars+1; i++){
+						interactionsInModel[i]=[]
+						if(varInModel[i]){
+							for(var j=1; j<i; j++){
+								if(exists("int_"+i+"."+j) && document.getElementById("int_"+i+"."+j).checked ? ' checked':'')
+									interactionsInModel[i][j]=true
+								
+							}
+						}
+					}
+				}
+//				console.log(varInModel)
+//				console.log(varLevelInModel)
+//				console.log(varTransformInModel)
+
+				if(timing) console.log("Determine Vars in Model: "+(new Date().getTime()-startTime))
+
+			}
+				
+			function transformName(varNum, transform){
+				var varName = document.getElementById("name"+varNum).value
+//				var varName = varNames[varNum]
+				if(transform==1) varName = varName+"²"
+				if(transform==2) varName = varName+"³"
+				if(transform==3) varName = "ln("+varName+")"
+				if(transform==4) varName = "\u221A<span style='text-decoration:overline'>"+varName+"</span>"			
+				return varName
+			}
+					
+			function linReg(){
+				var startTime = new Date().getTime()
+//				alert("starting lin reg")
+				if(debug)console.log("doing linear regression now")
+				var alpha = 1-parseFloat(document.getElementById("cLevel").value)
+				var equation =""
+				Y = []
+				var regType=document.getElementById('regressionType').value
+				determineVarsInModel()
+				if(regType==1){
+					Y = getColumn(responseVarNum)
+				} else {
+					updateResponseVarLevel()
+					if(debug)console.log(responseVarNum+" "+responseVarLevel)
+					Y = getData(responseVarNum-1, responseVarLevel)
+				}
+				
+				if(Y==false){
+					if(debug)console.log("Y false, ending regression fail")
+					validRegression=false
+					return false;
+				
+				}
+				var n = Y.length
+
+				for(var i=0; i<n; i++) { 
+					if(document.getElementById("responseTransform").value==0) {
+						Y[i] = +Math.log(Y[i]);		
+					} else {
+						Y[i] = +Math.pow(Y[i],+document.getElementById("responseTransform").value); 
+					} 
+				}
+//				peekAtData(dataMatrix)
+//				console.log(Y)
+				modelY = Y
+				varNames=[]
+				var yName = document.getElementById("name"+responseVarNum).value
+				if(document.getElementById("responseTransform").value==0) {yName = "ln("+yName+")"}
+				else if(document.getElementById("responseTransform").value==-.5) {yName = "1/&#8730;"+yName+""}
+				else if(document.getElementById("responseTransform").value==-1) {yName = "1/"+yName+""}
+				else if(document.getElementById("responseTransform").value==-2) {yName = "1/"+yName+"&sup2;"}
+				else if(document.getElementById("responseTransform").value==-3) {yName = "1/"+yName+"&sup3;"}
+				else if(document.getElementById("responseTransform").value==.5) {yName = "&#8730;"+yName+""}
+				else if(document.getElementById("responseTransform").value==2) {yName = ""+yName+"&sup2;"}
+				else if(document.getElementById("responseTransform").value==3) {yName = ""+yName+"&sup3;"}
+
+				varNames.push(yName)
+				var Ydevs=new Array(n)
+				
+				//Only for linear regression----------\\
+//				console.log(jStat.mean(Y))
+				for(var i=0; i<n; i++) { 
+					Ydevs[i]=+Y[i]-jStat.mean(Y)
+				}
+				//------------------------------------//
+//				alert("checkpoint 2")
+
+				
+				modelN=0 //counts the number of predictors (slope coefficients)
+				modelVarNames = []
+				modelVarIsFactor = []
+				modelVarNamesTransform=[]
+				modelVarNamesVarNum=[]
+				modelVarNamesFactorValue=[]
+				coeff=[]
+				modelVarNames[0]="Intercept"
+				modelVarIsFactor[0] = false
+				modelVarNamesVarNum[0]=0
+				modelVarNamesTransform[0]=0
+				nQuantPredictors = 0
+				nQualPredictors = 0
+				
+				X=[]
+				Ones = new Array(n)
+				for(var i =0; i< n; i++){Ones[i]=+1}
+				if(regType==1)	X.push(Ones)
+				for(var varNum=1; varNum<=nCovars+1; varNum++){
+					if(varInModel[varNum]){
+						data=getColumn(varNum)
+						var quantPredictorCounted=false
+						var qualPredictorCounted=false
+						for(var k=0; k<5; k++){
+							if(varTransformInModel[varNum][k]){
+								if(!quantPredictorCounted){
+									nQuantPredictors++
+									quantPredictorCounted=true
+								}
+								modelN++
+								var tData = new Array(n)
+								for(var j=0; j<n; j++) tData[j] = +transform(+data[j],k); 
+								X.push(tData)
+								modelVarNames.push(transformName(varNum,k))
+								modelVarIsFactor.push(false);
+								modelVarNamesVarNum.push(varNum)
+								modelVarNamesTransform.push(k)
+								modelVarNamesFactorValue.push(0)
+							}
+						}
+						for(var lvl=0; lvl<varLevelInModel[varNum].length; lvl++){
+							if(varLevelInModel[varNum][lvl]){
+								if(!qualPredictorCounted){
+									nQualPredictors++
+									qualPredictorCounted=true
+								}
+								var dummyX = getData(varNum-1, lvl)
+								X.push(dummyX)
+								modelVarNames.push(document.getElementById("name"+varNum).value+"<sub>"+levels[varNum-1][lvl]+"</sub>")
+								modelVarIsFactor.push(true)
+								modelVarNamesVarNum.push(varNum)
+								modelVarNamesTransform.push(0)
+								modelVarNamesFactorValue.push(levels[varNum-1][lvl])
+								modelN++
+							}
+						}
+					}
+				}
+				
+//				alert("checkpoint 3")
+				
+				for(var varNumA=2; varNumA<=nCovars+1; varNumA++){
+					var aData = getColumn(varNumA)
+					for(var varNumB=1; varNumB<varNumA; varNumB++){
+						var bData = getColumn(varNumB)
+						if(interactionInModel(varNumB,varNumA)){
+							var quantA=!isFactor[varNumA]
+							var quantB=!isFactor[varNumB]
+							if(quantA && quantB){
+								modelN++
+								var tData = new Array(n)
+								for(var i=0; i<n; i++) tData[i]=aData[i]*bData[i]
+								X.push(tData)
+								modelVarNames.push(getVarName(varNumB)+"&#215;"+getVarName(varNumA))
+								modelVarNamesVarNum.push(varNumB + "."+varNumA)
+								modelVarNamesTransform.push(0)
+								modelVarNamesFactorValue.push(0)
+							}else{
+								if(debug)console.log("Interaction of "+varNumA+" and "+varNumB)
+								var nLevelsA = (quantA?1:levels[varNumA-1].length)
+								var nLevelsB = (quantB?1:levels[varNumB-1].length)
+								if(debug)console.log("var"+varNumA+" has "+nLevelsA+" levels, var"+varNumB+" has "+nLevelsB+" levels")
+								for(var a=0; a<nLevelsA; a++){
+									if(quantA || varLevelInModel[varNumA][a]){
+										aData = getData(varNumA-1,a)
+										for(var b=0; b<nLevelsB; b++){
+											if(quantB || varLevelInModel[varNumB][b]){
+												bData = getData(varNumB-1,b)
+												modelN++
+												var tData = new Array(n)
+												for(var i=0; i<n; i++) tData[i]=aData[i]*bData[i]
+												X.push(tData)
+												var nameA = getVarName(varNumA) + (quantA?"":"<sub>"+levels[varNumA-1][a]+"</sub>")
+												var nameB = getVarName(varNumB) + (quantB?"":"<sub>"+levels[varNumB-1][b]+"</sub>")
+												modelVarNames.push(nameA + "&#215;" + nameB)
+												modelVarNamesVarNum.push(varNumB + "."+varNumA)
+												modelVarNamesTransform.push(0)
+												modelVarNamesFactorValue.push((quantB?"_":levels[varNumB-1][b])+"."+(quantA?"_":levels[varNumA-1][a]))
+											}
+										}	
+									}
+								}
+							}
+						}
+					}
+				}
+
+//				alert("checkpoint 4")
+
+				if(debug)console.log(modelVarNames)
+				if(debug)console.log(modelVarNamesVarNum)
+				if(debug)console.log(modelVarNamesFactorValue)
+				
+				if(modelVarNames.length==1){
+					validRegression=false
+					document.getElementById("linRegOutput").innerHTML="<strong>Error in Regression Options</strong><br>Select at least one predictor variable."
+					return;
+				}
+				
+			//	alert("checkpoint 5")
+
+				
+				X = numeric.transpose(X)
+				peekAtData(X)
+				var outputString ="<strong>Regression Statistics</strong><br>\n"
+				outputString +="Equation: <span id='equation'></span><br>\n"
+				var totalDF = n-1
+				var betweenDF = modelN
+				var withinDF = totalDF-betweenDF
+				var logisticReg = (document.getElementById('regressionType').value==2)
+				document.getElementById('residContainer').style.display=logisticReg?"none":"block";
+
+				if(regType==1){
+					equation +="<span class='hat'>"+yName+"</span> = "	
+
+					var startTimer =  new Date().getTime()
+					var Xt = numeric.transpose(X)
+					var XtX = numeric.dot(Xt,X)
+					if(debug)console.log(XtX)
+//					var XXTinv = pinv(XtX)
+					XXTinv = pinv(numeric.dot(numeric.transpose(X),X))
+					
+					
+					if(timing) console.log("pinv: " + (new Date().getTime() - startTimer))
+					
+//					var startTimer =  new Date().getTime()
+//					var XXTinvM = minv(math.multiply(math.transpose(math.matrix(X)),math.matrix(X)))
+//					if(timing) console.log("minv: "+(new Date().getTime() - startTimer))
+					
+					if(debug)console.log(XXTinv)
+					if(XXTinv==false){
+						document.getElementById("linRegOutput").innerHTML="Linear Dependence Among Predictors - check inputs"
+						validRegression=false;
+						return false;
+					}
+					validRegression=true;
+
+
+				//	var startTimer =  new Date().getTime()
+				//	var A = math.qr(X)
+				//	if(timing) console.log("qr: " + (new Date().getTime() - startTimer))
+
+					var startTimer =  new Date().getTime()
+					
+//					H = math.multiply(math.multiply(math.matrix(X), math.matrix(XXTinv)),math.matrix(Xt))
+//					H = numeric.dot(numeric.dot(X, XXTinv),Xt)
+					var XXtinvXt = numeric.dot( XXTinv,Xt)
+					var H = numeric.dot(X,XXtinvXt)
+				
+					leverage = []
+					for (var i=0; i<H.length; i++){
+						leverage[i]=H[i][i]
+					}
+//					console.log(leverage)
+				
+					
+					if(timing) console.log("H: " + (new Date().getTime() - startTimer))
+					var startTimer =  new Date().getTime()
+
+					yHat = numeric.dot(H,Y)
+					if(timing) console.log("yHat: " + (new Date().getTime() - startTimer))
+					var startTimer =  new Date().getTime()
+
+					Resid = numeric.sub(Y,yHat)
+					
+					residuals = Resid.slice()
+
+					if(timing) console.log("residuals: " + (new Date().getTime() - startTimer))
+
+					if(debug) console.log("residuals : "+ residuals);
+					var startTimer =  new Date().getTime()
+//					var b = numeric.dot(XXtinvXt,Y)
+					var b = numeric.dot(XXTinv,numeric.dot(numeric.transpose(X),Y) )	
+					
+					var totalSS = jStat.sumsqrd(Ydevs)
+					var withinSS = jStat.sumsqrd(residuals)
+					var wSS = 0
+					for(var i = 0; i<residuals.length; i++){
+						wSS += residuals[i]*residuals[i]
+					}
+					//console.log(wSS + " " +withinSS)
+					var betweenSS = totalSS- withinSS
+					var betweenMS = betweenSS/betweenDF
+					var withinMS = withinSS/withinDF //MSerror
+					MSE = withinMS
+					
+					modelSS = [betweenSS, betweenDF, withinSS, withinDF]
+					
+					var F = betweenMS/withinMS
+					var sigF = 1-jStat.centralF.cdf(F,betweenDF,withinDF)
+					var Rsq = betweenSS/totalSS
+					var R = Math.sqrt(Rsq)
+					var AdjRsq = 1-(1-Rsq)*(n-1)/(n-modelN-1)
+					var stdError = Math.sqrt(withinMS)
+					
+					cooksD = []; residualsInt=[]; residualsExt=[]
+					var sdres = jStat.stdev(residuals,true)
+//					console.log(sdres)
+					for(var i=0; i<residuals.length; i++){
+//						console.log(residuals[i]+","+Math.round(1000000*residuals[i]/sdres)+","+leverage[i])
+						cooksD[i]=residuals[i]*residuals[i]/(2*stdError*stdError) * (leverage[i]/(Math.pow(1-leverage[i],2)))
+						residualsInt[i] = residuals[i]/(stdError*Math.sqrt(1-leverage[i]))
+						if(Math.round(1000000*residuals[i]/sdres)==0){
+							cooksD[i]=0
+							residualsInt[i]=0
+						}
+						residualsExt[i]=residualsInt[i]*Math.sqrt((n-modelN-2)/(n-modelN-1-residualsInt[i]*residualsInt[i]))
+					}
+//					console.log(residualsInt)
+					
+					var bStdError = new Array(b.length)
+					var SSCPinv = pinv(XtX)
+					for(var i=0; i<b.length; i++){
+						bStdError[i]= Math.sqrt(withinMS*SSCPinv[i][i])
+					}
+					
+					
+					outputString +="Multiple R : "+R.toFixed(precision) + "<br>\n"
+					outputString +="R Squared : "+Rsq.toFixed(precision) + "<br>\n"
+					if( n > 2 ){ 
+						outputString +="Adjusted R Squared : "+ AdjRsq.toFixed(precision) + "<br>\n"
+						outputString +="Standard Error : " + stdError.toFixed(precision) + "<br>\n"
+					}
+					outputString += "Observations : " + n + "<br>\n"
+					outputString += "<br>\n"
+					
+					outputString += "<strong>ANOVA Output</strong><br>\n"
+					outputString +="<div class='overflowX'>"
+					outputString += "<table class='anova'>\n"
+					outputString += "<tr><th></th><th>df</th><th>SS</th><th>MS</th><th>F</th><th>Sig. F</th></tr>"
+					outputString += "<tr><td>Regression</td><td>"+betweenDF+"</td><td>"+betweenSS.toFixed(precision)+"</td><td>"+betweenMS.toFixed(precision)+"</td><td>"+F.toFixed(precision)+"</td><td>"+sigF.toFixed(precision)+"</td></tr>"
+					outputString += "<tr><td>Residual</td><td>"+withinDF+"</td><td>"+withinSS.toFixed(precision)+"</td><td>"+withinMS.toFixed(precision)+"</td><td></td><td></td></tr>"
+					outputString += "<tr><td>Total</td><td>"+totalDF+"</td><td>"+totalSS.toFixed(precision)+"</td><td></td><td></td><td></td></tr>"
+					outputString +="</table>"
+					outputString +="</div>"
+					outputString +="<br>\n"	
+										
+					outputString += "<strong>Regression Output</strong><br>\n"
+					outputString +="<div class='overflowX'>"
+					outputString += "<table class='anova'>\n"
+					outputString += "<tr><th></th><th>Coefficient</th><th>Std. Error</th><th>t Stat</th><th><i>p</i>-value</th><th>lower "+fixed((1-alpha)*100)+"%</th><th>upper "+fixed((1-alpha)*100)+"%</th></tr>"
+					
+					for(var i=0; i<modelVarNames.length; i++){
+						coeff[i]=b[i]
+						if (i>0){ 
+							equation+=" + "+b[i].toFixed(precision) + "<i>"+modelVarNames[i]+"</i>"
+						} else {
+							equation+=b[0].toFixed(precision)
+						}
+						var t = b[i]/bStdError[i]
+						var pVal = 2*jStat.studentt.cdf(-Math.abs(t),n-modelN-1)
+						var CI = [b[i]-jStat.studentt.inv(1-alpha/2,n-modelN-1)*bStdError[i] , b[i]+jStat.studentt.inv(1-alpha/2,n-modelN-1)*bStdError[i]]
+						
+						outputString += "<tr><td>"+modelVarNames[i]+"</td><td id='b"+i+"'>"+b[i].toFixed(precision)+"</td><td>"+bStdError[i].toFixed(precision)+"</td><td>"+t.toFixed(precision)+"</td><td>"+pVal.toFixed(precision)+"</td><td>"+CI[0].toFixed(precision)+"</td><td>"+CI[1].toFixed(precision)+"</td></tr>"
+					}
+					outputString +="</table>"
+					outputString +="</div>"
+					
+					if(timing) console.log("write output: " + (new Date().getTime() - startTimer))
+
+					
+				} else if (regType==2){
+					responseVarNum=+document.getElementById('ChooseResponse').value
+					equation +="<span class='hat'>log-odds</span>("+yName+"="+levels[responseVarNum-1][responseVarLevel]+") = "	
+					Xtrain2 = new Array(X.length)
+					var nVars = X[0].length
+					for(var i=0; i<Xtrain2.length; i++){
+						Xtrain2[i]=new Array(nVars+1)
+						for(var j=0; j<nVars;j++) Xtrain2[i][j]=X[i][j]
+						Xtrain2[i][nVars]=1
+					}					
+					
+					var glm_model = GLM(GLM.families.Binomial());
+					
+//					peekAtData(Xtrain2)
+					glm_model.fit(Y,X)
+					if(!glm_model.weights) {
+						validRegression=false;
+						outputString="Error in Matrix Decomposition; Fit did not converge."
+					} else {
+						validRegression=true;
+//						console.log("trained")
+						coeff=glm_model.weights
+						predictY=glm_model.predict(X)
+//						console.log("predictY="+predictY)
+						var dev = 0.0; 
+						for (var i = 0; i < predictY.length; i++) {
+							var one = Y[i] == 1 ? 1 : 0; 
+							dev += one * Math.log(predictY[i] + 1e-200) + (1 - one) * Math.log(1 - predictY[i] + 1e-200);
+						}
+						dev *= -2.0
+						
+						ones = new Array(predictY.length)
+						for(var i=0; i<ones.length; i++)
+							ones[i]=new Array(0)
+						null_model=GLM(GLM.families.Binomial());
+						null_model.fit(Y,ones)
+						nullpredictY=null_model.predict(ones)
+
+						var nulldev = 0.0; 
+						for (var i = 0; i < predictY.length; i++) {
+							var one = Y[i] == 1 ? 1 : 0; 
+							nulldev += one * Math.log(nullpredictY[i] + 1e-200) + (1 - one) * Math.log(1 - nullpredictY[i] + 1e-200);
+						}
+						nulldev *= -2.0
+						Hessian = new Array(coeff.length)
+						for(var row=0; row<Hessian.length; row++){
+							Hessian[row]=new Array(coeff.length)
+							for(var col=0; col<Hessian.length; col++){
+								Hessian[row][col]=0
+								for(var j=0; j<predictY.length; j++){
+									var h = predictY[j]
+									Hessian[row][col] += Xtrain2[j][row] * Xtrain2[j][col]*h*(1-h)
+								}
+							}
+						}
+						HessianInv = pinv(Hessian)
+						var stdError = new Array(coeff.length)
+						var pVals = new Array(coeff.length)
+						for(var i=0; i<stdError.length; i++){
+							stdError[i]=Math.sqrt(HessianInv[i][i])
+							pVals[i]=2*jStat.normal.cdf(-Math.abs(coeff[i]),0,stdError[i])
+						}
+
+						var threshold = +document.getElementById('predictYesLevel').value;
+						var truePos=0, falseNeg=0, falsePos=0, trueNeg=0
+						for(var i=0; i<predictY.length; i++){
+							if(predictY[i]>=threshold && Y[i]==1) truePos++
+							if(predictY[i]>=threshold && Y[i]==0) falsePos++
+							if(predictY[i]<threshold && Y[i]==1) falseNeg++
+							if(predictY[i]<threshold && Y[i]==0) trueNeg++
+						}
+						
+						var logitPrecision = truePos / (truePos + falsePos)
+						var recall = truePos/(truePos+falseNeg)
+
+						outputString += "Null deviance: "+nulldev.toFixed(precision) +" on "+totalDF +" degrees of freedom<br>\n"
+						outputString += "Residual deviance: "+dev.toFixed(precision) +" on "+withinDF +" degrees of freedom<br>\n"
+						outputString += "AIC: "+ (dev + 2*(1+modelN)).toFixed(precision) + "<br>\n"
+						outputString += "<br>\n"
+						outputString += "<b>Confusion Matrix</b>:<br>\n"
+						outputString += "<table class='anova collapse'>\n"
+						outputString += "<tr><th></th><th>Predicted 1</th><th>Predicted 0</th><th></tr>\n"
+						outputString += "<tr><th>Actual 1</th><td class='blackBorder'>"+truePos+"</td><td class='blackBorder'>"+falseNeg+"</td><td>TPR:"+(recall).toFixed(precision)+"</td></tr>\n"
+						outputString += "<tr><th>Actual 0</th><td class='blackBorder'>"+falsePos+"</td><td class='blackBorder'>"+trueNeg+"</td><td>TNR:"+(trueNeg/(trueNeg+falsePos)).toFixed(precision)+"</td></tr>\n"
+						outputString += "<tr><th></th><td>Precision: " + (logitPrecision).toFixed(precision)+"</td><td></td><td>Accuracy: " +((truePos + trueNeg)/n).toFixed(precision)+"</td></tr>\n"
+						outputString += "</table>\n"
+						outputString += "<br>\n"
+						outputString += "F Score: "+(2*logitPrecision*recall/(logitPrecision+recall)).toFixed(precision) + "<br>\n"
+						outputString += "<strong>Regression Output</strong><br>\n"
+						outputString +="<div class='overflowX'>"
+						outputString += "<table class='anova'>\n"
+						outputString += "<tr><th></th><th>Coefficient</th><th>Std. Error</th><th>z Stat</th><th><i>p</i>-value</th><th>lower "+fixed((1-alpha)*100)+"%</th><th>upper "+fixed((1-alpha)*100)+"%</th></tr>"
+
+						equation+=coeff[modelN].toFixed(precision)
+
+						for(var j=0; j<modelVarNames.length; j++){
+							var i=j-1
+							if(i==-1) i=modelN;
+							if (i<modelN){ 
+								equation+=" + "+coeff[i].toFixed(precision) + "<i>"+modelVarNames[j]+"</i>"
+							} 						
+							var CI = [coeff[i]-jStat.normal.inv(1-alpha/2,0,1)*stdError[i] , coeff[i]+jStat.normal.inv(1-alpha/2,0,1)*stdError[i]]
+							outputString += "<tr><td>"+modelVarNames[j]+"</td><td id='b"+i+"'>"+coeff[i].toFixed(precision)+"</td><td>"+stdError[i].toFixed(precision)+"</td><td>"+(coeff[i]/stdError[i]).toFixed(precision)+"</td><td>"+pVals[i].toFixed(precision)+"</td><td>"+ CI[0].toFixed(precision)+"</td><td>"+CI[1].toFixed(precision) +"</td></tr>"
+						}
+						outputString +="</table>"
+						outputString +="</div>"
+					}
+				
+				}
+				if(timing) console.log("Linear Regression Performed: "+(new Date().getTime()-startTime))
+				document.getElementById("linRegOutput").innerHTML=outputString;
+				if(validRegression) document.getElementById("equation").innerHTML=equation
+				if(validRegression) buildPrediction(true)
+
+			}
+
+			function buildPrediction(calc=false){
+				var startTime = new Date().getTime()
+				var logisticReg = (document.getElementById('regressionType').value==2)
+				var predictionStringHTML="<strong>Prediction</strong><div class='options'><table class='collapse'>"
+				for(var i=1; i<=nCovars+1; i++){
+					if(i!=+document.getElementById('ChooseResponse').value){
+						if(isFactor[i] || exists("v"+i+"d") && document.getElementById('v'+i+'d').checked==true){
+							predictionStringHTML+= "<tr><td>" + document.getElementById('name'+i).value + "</td><td><select id=\"predictX"+i+"\" onChange='calcPrediction();'>"
+							for(var k=0; k<levels[i-1].length; k++)
+								predictionStringHTML +="<option value=\""+levels[i-1][k]+"\">"+levels[i-1][k]+"</option>"
+							predictionStringHTML+="</select></td></tr>"
+						} else {
+							predictionStringHTML+= "<tr><td>"+ document.getElementById('name'+i).value + "</td><td><input type=\"number\" id=\"predictX"+i+"\" value="+(exists('predictX'+i)?document.getElementById('predictX'+i).value:0)+"  class='mediumNumber' onchange=\"calcPrediction();\" /></td></tr>"
+						}
+					}
+				}
+				predictionStringHTML+="</table></div><div class='results'><table class='collapse'>"
+				predictionStringHTML+="<tr class='rTop rRow'><td>"
+				if(logisticReg){
+					predictionStringHTML+="<span class='hat'>log-odds</span>("+document.getElementById('name'+document.getElementById('ChooseResponse').value).value+"=1)=</td><td><span id='predictY'></span></td></tr>"				
+					predictionStringHTML+="<tr class='rBot rRow'><td><span class='hat'>prob</span>("+document.getElementById('name'+document.getElementById('ChooseResponse').value).value+"=1)=</td><td><span id='predictProbY'></span>"				
+				
+				} else {
+					predictionStringHTML+="<span class='hat'>"+document.getElementById('name'+document.getElementById('ChooseResponse').value).value+"</span>=</td><td><span id='predictY'></span></td></tr>"
+					predictionStringHTML+="<tr class='rRow'><td><span id='predIntLevel'>"+(100*document.getElementById('cLevel').value)+"</span>% Prediction Interval: </td><td>(<span id='PI'></span>)</td></tr>"
+					predictionStringHTML+="<tr class='rBot rRow'><td><span id='confIntLevel'>"+(100*document.getElementById('cLevel').value)+"</span>% Confidence Interval: </td><td>(<span id='CI'></span>)</td></tr>"
+				}
+				predictionStringHTML+="</td></tr></table></div>"
+				
+				
+				document.getElementById('prediction').innerHTML=predictionStringHTML
+				if(timing) console.log("Build Prediction: "+(new Date().getTime()-startTime))
+				if(calc) calcPrediction()
+			}
+			
+			function calcXh(newX){
+				var startTime = new Date().getTime()
+				if(debug)console.log("newX = "+newX)
+				if(debug)console.log("modelVarNamesVarNum="+modelVarNamesVarNum)
+				if(debug)console.log("modelVarNamesFactorValue="+modelVarNamesFactorValue)
+				if(debug)console.log("modelVarNamesTransform="+modelVarNamesTransform)
+				if(debug)console.log("modelVarIsFactor="+modelVarIsFactor)
+				
+				var Xh=[]
+				if(document.getElementById('regressionType').value==1) Xh.push(1) 
+//				console.log(modelVarNamesFactorValue)
+				for(var i=1; i<modelVarNames.length; i++){
+					if(debug)console.log("var "+i+": "+modelVarNamesVarNum[i])
+					var varNums 	= [modelVarNamesVarNum[i]]
+//					var varIsFactors=[modelVarIsFactor[i]]
+					var varFactorValues=[modelVarNamesFactorValue[i-1]]
+					var x=1
+					if(typeof(modelVarNamesVarNum[i])=="string"){
+						varNums = modelVarNamesVarNum[i].split('.')
+//						varIsFactors = modelVarIsFactor[i].split('.')
+						if(debug) console.log(modelVarNamesFactorValue[i-1])
+						if(typeof(modelVarNamesFactorValue[i-1])=="string")
+						varFactorValues = modelVarNamesFactorValue[i-1].split('.')
+					}
+					for(var j=0; j<varNums.length; j++){
+//						varNums[j] = +varNums[j]
+						if(isFactor[+varNums[j]] || exists("v"+varNums[j]+"d") && document.getElementById("v"+varNums[j]+"d").checked){
+							x *= (newX[+varNums[j]] == varFactorValues[j] ? 1 : 0)
+						}else {
+							var t=modelVarNamesTransform[i]
+							x *= transform(+newX[+varNums[j]],t)
+						}
+					}
+	//				}
+					Xh.push(x)			
+				}
+				if(document.getElementById('regressionType').value==2) Xh.push(1) 
+				if(debug)console.log("Xh="+Xh)
+				//if(debug)console.log(numeric.dot(Xh,coeff))
+				if(timing) console.log("Xh calculated: "+(new Date().getTime()-startTime))
+				return Xh
+			}
+			
+			function calcYFromX(x){
+				var Xh = calcXh(x)
+				//console.log(Xh)
+				return numeric.dot(Xh,coeff)
+			}
+			
+			function calcPrediction(){
+				var newX = []
+				for(var i=1; i<=nCovars+1; i++){
+					newX[i]=(exists('predictX'+i) ? document.getElementById('predictX'+i).value : 0)
+				}
+				if(debug || debugPred)console.log(newX)
+//				var Xh = calcXh(newX)
+//				if(debug || debugPred)console.log(coeff)
+//				if(debug || debugPred)console.log(Xh)
+//				var y=calcYHAT(newX)
+//				var y =numeric.dot(Xh,coeff)
+				if(debug) console.log(newX + " -> " + calcYFromX(newX))
+				var y = calcYFromX(newX)
+
+				if(document.getElementById('regressionType').value==2) document.getElementById('predictProbY').innerHTML = fixed(Math.exp(y)/(1+Math.exp(y))) 
+		/*	
+				var y=coeff[0]
+				var logisticReg = (document.getElementById('regressionType').value==2)
+				if(logisticReg){
+					y=coeff[modelN]
+					for(var i=1; i<modelVarNames.length; i++){
+						if(typeof(modelVarNamesVarNum[i])=="string"){
+							console.log("var "+i+" is interaction")
+						
+						}else if(!modelVarIsFactor[i]){
+							var xVal = parseFloat(document.getElementById('predictX'+modelVarNamesVarNum[i]).value)
+							if(modelVarNamesTransform[i]==1) xVal = Math.pow(xVal,2)//squared
+							if(modelVarNamesTransform[i]==2) xVal = Math.pow(xVal,3)//cubed
+							if(modelVarNamesTransform[i]==3) xVal = Math.log(xVal)//ln
+							if(modelVarNamesTransform[i]==4) xVal = Math.sqrt(xVal)//sqrt
+							y += coeff[i-1]* xVal
+						}else{
+							var xVal = parseInt(document.getElementById('predictX'+modelVarNamesVarNum[i]).value)
+							if(parseInt(modelVarNamesFactorValue[i])==xVal) y+=coeff[i]
+						}
+					}
+					document.getElementById('predictProbY').innerHTML = fixed(Math.exp(y)/(1+Math.exp(y)))
+				} else {
+					//console.log(modelVarNamesFactorValue)
+					for(i=1; i<modelVarNames.length; i++){
+						if(typeof(modelVarNamesVarNum[i])=="string"){
+							console.log("var "+i+" is interaction: "+modelVarNamesVarNum[i])
+							var varNums=modelVarNamesVarNum[i].split('.')
+
+							var quantA=!isFactor[varNums[1]]
+							var quantB=!isFactor[varNums[0]]
+							if(quantA && quantB){
+								y+=coeff[i] * parseFloat(document.getElementById('predictX'+varNums[0]).value) * parseFloat(document.getElementById('predictX'+varNums[1]).value)
+							}else{
+								var nLevelsA = (quantA?1:levels[varNums[1]-1].length)
+								var nLevelsB = (quantB?1:levels[varNums[0]-1].length)
+								var varLevels = modelVarNamesFactorValue[i].split(".")
+								var xValA=0, xValB =0
+								if(quantA){
+									xValA=parseFloat(document.getElementById('predictX'+varNums[1]).value)
+								} else {
+									xValA=(varLevels[1]==document.getElementById('predictX'varNums[1]).value ? 1:0)
+								}
+								if(quantB){
+									xValB=parseFloat(document.getElementById('predictX'+varNums[0]).value)
+								} else {
+									xValB=(varLevels[0]==document.getElementById('predictX'varNums[0]).value ? 1:0)
+								}
+								y+=coeff[i]*xValA * xValB
+							}
+						
+						}else if(!modelVarIsFactor[i]){
+							var xVal = parseFloat(document.getElementById('predictX'+modelVarNamesVarNum[i]).value)
+							if(modelVarNamesTransform[i]==1) xVal = Math.pow(xVal,2)//squared
+							if(modelVarNamesTransform[i]==2) xVal = Math.pow(xVal,3)//cubed
+							if(modelVarNamesTransform[i]==3) xVal = Math.log(xVal)//ln
+							if(modelVarNamesTransform[i]==4) xVal = Math.sqrt(xVal)//sqrt
+							y += coeff[i]* xVal
+						}else{
+							//console.log(modelVarNamesFactorValue[i])
+							var xVal = document.getElementById('predictX'+modelVarNamesVarNum[i]).value
+					//		console.log(xVal +" =? " + modelVarNamesFactorValue[i-1])
+							if(modelVarNamesFactorValue[i-1]==xVal) y+=coeff[i]
+						}
+					}
+				}*/
+				document.getElementById('predictY').innerHTML = fixed(y)
+			///	console.log("Regression Type: "+document.getElementById('regressionType').value)
+				if(document.getElementById('regressionType').value==1){
+					if(debug)console.log(XXTinv)
+					var Xh = calcXh(newX)
+					if(debug)console.log(numeric.dot(Xh, XXTinv))
+					var xXXTinvx = numeric.dot(numeric.dot(Xh, XXTinv),Xh)
+					if(debug)console.log(xXXTinvx)
+					
+					var n=getData(0,0).length
+					var alpha = 1-parseFloat(document.getElementById("cLevel").value)
+					var tstar = jStat.studentt.inv(1-alpha/2,n-modelN-1)
+					var cInt = ""
+					var pInt = ""
+					for(var i=0; i<=1; i++){
+						cInt += fixed( y + (i*2-1)*tstar * Math.sqrt(MSE * xXXTinvx)) + (i==0?", ":"")
+						pInt += fixed( y + (i*2-1)*tstar * Math.sqrt(MSE * (xXXTinvx+1))) + (i==0?", ":"")
+	//					console.log(i+": cint="+cInt)
+	//					console.log(i+": pint="+pInt)
+					}
+				
+					document.getElementById('CI').innerHTML=cInt
+					document.getElementById('PI').innerHTML=pInt
+				}
+			}
+			
+			function calcYHAT(x){
+				if(debug)console.log("predict, x="+x)
+				var logisticReg = (document.getElementById('regressionType').value==2)
+				var YHAT=coeff[(logisticReg?modelN:0)]
+				if(debug)console.log("y-hat: "+YHAT)
+				for(i=1; i<modelVarNames.length; i++){
+					if(typeof(modelVarNamesVarNum[i])=="string"){
+						if(debug)console.log("var "+i+" is interaction: "+modelVarNamesVarNum[i])
+						var varNums=modelVarNamesVarNum[i].split('.')
+						var quantA=!isFactor[varNums[1]]
+						var quantB=!isFactor[varNums[0]]
+						if(quantA && quantB){
+							YHAT+=coeff[i] * parseFloat(x[varNums[0]]) * parseFloat(x[varNums[1]])
+						}else{
+							var nLevelsA = (quantA?1:levels[varNums[1]-1].length)
+							var nLevelsB = (quantB?1:levels[varNums[0]-1].length)
+							var varLevels = modelVarNamesFactorValue[i-1].split(".")
+							var xValA=0, xValB =0
+							if(quantA){
+								xValA=parseFloat(x[varNums[1]])
+							} else {
+								xValA=(varLevels[1]==x[varNums[1]] ? 1:0)
+							}
+							if(quantB){
+								xValB=parseFloat(x[varNums[0]])
+							} else {
+								xValB=(varLevels[0]==x[varNums[0]] ? 1:0)
+							}
+							YHAT+=coeff[i]*xValA * xValB
+						}
+					
+					}else if(!modelVarIsFactor[i]){
+//						if(modelVarNamesTransform[i]==1) xVal = Math.pow(xVal,2)//squared
+//						if(modelVarNamesTransform[i]==2) xVal = Math.pow(xVal,3)//cubed
+//						if(modelVarNamesTransform[i]==3) xVal = Math.log(xVal)//ln
+//						if(modelVarNamesTransform[i]==4) xVal = Math.sqrt(xVal)//sqrt
+						if(debug)console.log(i+": x="+x[modelVarNamesVarNum[i]]+" t="+modelVarNamesTransform[i])
+						YHAT += coeff[i]* transform(parseFloat(x[modelVarNamesVarNum[i]]),modelVarNamesTransform[i])
+					}else{
+						if(debug)console.log(i+": x="+x[modelVarNamesVarNum[i]])
+						if(modelVarNamesFactorValue[i-1]==x[modelVarNamesVarNum[i]]) YHAT+=coeff[i]
+					}
+				if(debug)console.log("y-hat: "+YHAT)
+				}
+				return YHAT
+			}
+			
+			function prepDataAndCreateScatterplot(){
+				var startTime = new Date().getTime()
+				var Xfull = numeric.transpose(window.X)
+				//alert(document.getElementById("showScatterPlotMatrix").checked)
+				if(!document.getElementById("showScatterPlotMatrix").checked){
+					var xVals=[]
+					var lineYCoords=[]
+					var logisticReg = (document.getElementById('regressionType').value==2)
+	
+					var YVar = parseInt(document.getElementById("ScatterVar1").value)
+					var XVar = document.getElementById("ScatterVar2").value
+					var catX = XVar.indexOf("c")>-1
+					XVar = parseInt(XVar.replace("c",""))
+					
+					//alert(YVar + " "+XVar + " " +varNames.length)
+					if(logisticReg){
+						yHat = []
+						for(var i=0; i<predictY.length; i++){
+							yHat[i]=Math.log(predictY[i]/(1-predictY[i]))
+						}
+						if(debug)console.log("predict Y" + predictY)
+						if(debug)console.log("yHat: "+yHat)
+					}
+					var Xdata = (XVar==0?window.modelY:(XVar==-1?yHat:Xfull[XVar+(logisticReg?-1:0)]))
+					var Ydata = (YVar==0?window.modelY:(YVar==-1?yHat:Xfull[YVar+(logisticReg?-1:0)]))
+					
+					
+					var xLabel = document.getElementById("ScatterVar2").options[document.getElementById("ScatterVar2").selectedIndex].text
+					var yLabel = document.getElementById("ScatterVar1").options[document.getElementById("ScatterVar1").selectedIndex].text
+					
+//					console.log(Xdata)
+//					console.log(Ydata)
+					//alert(document.getElementById('regressionType').value + " " +logisticReg)
+					//if(logisticReg){
+					//	Ydata = window.modelY
+					//	Xdata = predictY
+					//	for(var i=0; i<Xdata.length; i++){
+					//		Xdata[i]=Math.log(Xdata[i]/(1-Xdata[i]))
+					//	}
+					//}	
+					//return false;
+					
+					if(catX){
+						xVals=levels[XVar-1]
+						Xdata=getColumn(XVar)
+						
+						for(var i=0; i<Xdata.length; i++){
+							for(var k=0; k<xVals.length; k++){
+								if(Xdata[i]==xVals[k]) Xdata[i]=k
+							}
+						}
+					
+					}else{
+						var isInt=true
+						var xRange=[jStat.min(Xdata),jStat.max(Xdata)]
+						for(var i=0; i<Xdata.length; i++){
+							if(Xdata[i]!=Math.round(Xdata[i])) {
+								isInt=false
+								break;
+							}
+							xRange[0]=Math.min(xRange[0],Xdata[i])
+							xRange[1]=Math.max(xRange[1],Xdata[i])
+						}
+//console.log(xRange)
+						if(isInt){
+							for(var k=xRange[0]; k<= xRange[1]; k+=Math.max(1,Math.round(xRange[1]-xRange[0])/100)) xVals.push(k)
+							xVals.push(xRange[1])
+						}
+						
+					}
+					if(debug)console.log(Xdata)
+					if(debug)console.log(jStat.min(Xdata))
+					if(debug)console.log(jStat.max(Xdata))
+	//				console.log(xVals)
+					var groupByVarNum = -1
+					if(exists('groupColor')) groupByVarNum = +document.getElementById('groupColor').value
+					if(debug)console.log(groupByVarNum)
+					var group = []
+					var legend=[]
+					if(groupByVarNum!=-1){
+						legend=levels[groupByVarNum-1]
+						for(var j=1; j<levels[groupByVarNum-1].length; j++){
+							var indicator = getData(groupByVarNum-1, j)
+							if(j==1) {
+								group=indicator
+							} else {
+								for(var i=0; i<Xdata.length; i++){
+									group[i]+=indicator[i]*j
+								}
+							}
+						}
+					}
+					if(debug)console.log(group)
+					var intercepts=[]
+					var slopes=[]
+					if(modelN==1){
+						intercepts[0]=coeff[0]
+						slopes[0]=coeff[1]
+					}
+					if(XVar==-1){
+						intercepts[0]=0	
+						slopes[0]=1
+					} else {
+//						console.log("coeffs:"+coeff)
+						if(groupByVarNum!=-1){
+							var newX=[]
+							for(var j=0; j< levels[groupByVarNum-1].length; j++){
+								for(var k=0; k<=1; k++){
+									for(var i=0; i<=nCovars+1; i++)newX[i]=k
+									newX[groupByVarNum]=levels[groupByVarNum-1][j]
+									if(k==0){
+										intercepts[j]=calcYHAT(newX)
+									}else{
+										slopes[j]=calcYHAT(newX)-intercepts[j]
+									}
+								}
+							}
+						}
+					}
+					if(debug)console.log("breakpoint 1")
+					
+					
+					
+					var x=[]
+					var y=[]
+					if(nQuantPredictors==0 && nQualPredictors==1 && catX && document.getElementById('showlines').checked && document.getElementById('ScatterVar1').value==0){
+						x = []
+						for(var k=0; k<xVals.length; k++)x.push(k)
+						if(groupByVarNum!=-1){
+							for(var k=0; k<levels[groupByVarNum-1].length; k++){
+								y.push([])
+								for(var i=0; i<x.length; i++){
+									var newX=[]
+									for(var j=0; j<=nCovars+1; j++){
+										if (j==groupByVarNum){
+											newX[j]=levels[groupByVarNum-1][k]
+										}else if(j==XVar){
+											newX[j]=x[i]
+										} else {
+											newX[j]=0
+										}
+									}
+									if(debug)console.log("["+newX + "] -> " + calcYFromX(newX))								
+									y[k].push(calcYFromX(newX))
+								}
+							}
+						} else {
+							y.push([])
+							for(var i=0; i<x.length; i++){
+								var newX=[]
+								for(var j=0; j<=nCovars+1; j++){
+									if(j==XVar){
+										newX[j]=xVals[i]
+									}else if (j==groupByVarNum){
+										newX[j]=levels[groupByVarNum-1][i]
+									} else {
+										newX[j]=0
+									}
+								}
+								if(debug)console.log("["+newX + "] -> " + calcYFromX(newX))								
+								y[0].push(calcYFromX(newX))
+							}
+						}
+					}
+					if(nQuantPredictors==1 && nQualPredictors==1&& document.getElementById('ScatterVar1').value==0 && document.getElementById('ScatterVar2').value!=-1 && document.getElementById('showlines').checked && groupByVarNum!=-1){
+						if(debug)console.log("show lines...")
+						if(debug)console.log("groupByVarNum: "+groupByVarNum)
+						if(debug)console.log(xRange)
+						for(var i=xRange[0]; i<=xRange[1]; i+= (xRange[1]-xRange[0])/40) x.push(i)
+						x.push(xRange[1])
+						if(debug)console.log("breakpoint 1.2")
+						if(debug)console.log(x)
+						for(var k=0; k<levels[groupByVarNum-1].length; k++){
+							y.push([])
+							for(var i=0; i<x.length; i++){
+								var newX=[]
+								for(var j=0; j<=nCovars+1; j++){
+									if(j==XVar){
+										newX[j]=x[i]
+									}else if (j==groupByVarNum){
+										newX[j]=levels[groupByVarNum-1][k]
+									} else {
+										newX[j]=0
+									}
+								}
+								if(debug)console.log("["+newX + "] -> " + calcYFromX(newX))
+								
+								y[k].push(calcYFromX(newX))
+							}
+						}
+						//console.log(x)
+						//console.log(y)
+					}
+					//console.log("breakpoint 2")
+					
+					if(debug)console.log(x)
+					if(debug)console.log(y)
+//					console.log(intercepts + " " + slopes)
+					var showLines = document.getElementById("showlines").checked
+					if(debug)console.log("showLines?" + showLines)
+					scatterplot(Xdata,Ydata,(XVar==-1), xLabel,yLabel,false,false,false,group,showLines,x,y,legend,xVals,'scatterplot')		
+
+
+				} else {
+					//prep labels and data
+					varLabels=[]
+					var scatterData = []
+					varLabels[0]=varNames[0]
+					for(var i=1; i<=nCovars+1; i++){
+						scatterData[i-1]=[]
+						varLabels[i-1]=document.getElementById("name"+i).value
+						if(isFactor[i]){
+							for(var j=0; j<levels[i-1].length; j++){
+								var levelData=getData(i-1,j)
+								if(j==0){ 
+									scatterData[i-1]=levelData
+								} else {
+									for(var k=0; k<levelData.length; k++){
+										scatterData[i-1][k] += levelData[k]*(j+1)
+									}
+								}
+							}
+						} else {
+							scatterData[i-1]=getData(i-1,0)
+						}
+					}
+					labelScatterPlotMatrix("scatterplot",varLabels);
+					for(var i = 0; i<varLabels.length; i++){
+						var Xdata = (i==0?window.modelY:Xfull[i+(logisticReg?-1:0)])
+						for(var j=i; j<varLabels.length; j++){
+							if(i!=j){
+								//var Ydata = (j==0?window.modelY:Xfull[j+(logisticReg?-1:0)])
+//								subScatterPlot(i,j,modelVarNames.length,Xdata,Ydata);
+								if(!isFactor[i+1] && !isFactor[j+1] || !document.getElementById('smartPlot').checked) {
+									subScatterPlot(i,j,varLabels.length,scatterData[i],scatterData[j]);
+								} else if(isFactor[i+1] && !isFactor[j+1]){
+									subBoxPlot(i,j,varLabels.length, scatterData[i], scatterData[j], true)
+								} else if(!isFactor[i+1] && isFactor[j+1]){
+									subBoxPlot(i,j,varLabels.length, scatterData[i], scatterData[j], false)								
+								} else {
+									subMosaicPlot(i,j,varLabels.length, scatterData[i], scatterData[j])
+								}
+							}else{
+//								subHistogram(i,j,modelVarNames.length,Xdata)
+								subHistogram(i,j,varLabels.length,scatterData[i],"scatterplot", isFactor[i+1])
+							}
+						}
+					}
+				}
+			}
+
+			function labelScatterPlotMatrix(canvasID, names){
+				var startTime = new Date().getTime()
+				var c=document.getElementById(canvasID)
+				var ctx=c.getContext("2d")
+				ctx.fillStyle = "white";
+				ctx.fillRect(0, 0, c.width, c.height);	
+				ctx.fill()
+				var scale=c.width/490
+				var lMargin=SPMmargins[0]*scale
+				var rMargin=SPMmargins[1]*scale
+				var tMargin=SPMmargins[2]*scale
+				var bMargin=SPMmargins[3]*scale
+				var chartWidth = c.width-lMargin-rMargin
+				var chartHeight = c.height-tMargin-bMargin		
+
+				ctx.fillStyle="black";
+				ctx.font = (12*scale)+"px sans-serif";
+				ctx.textAlign = "center";
+				ctx.textBaseline = "middle"
+				for(var i=0; i<names.length; i++){
+					names[i]=names[i].replace("<sub>","(")
+					names[i]=names[i].replace("</sub>",")")
+					if(debug)console.log(names[i])
+					ctx.fillText(names[i], lMargin+(.5+i)*chartWidth/(names.length), c.height-10*scale);
+				}
+				ctx.save();
+				ctx.translate(10*scale, tMargin+chartHeight+bMargin);
+				ctx.rotate(-Math.PI/2);
+				for(var i=0; i<names.length; i++){
+					ctx.fillText(names[names.length-i-1], lMargin+(.5+i)*chartWidth/(names.length), tMargin -10*scale);
+				}
+				ctx.restore();
+			}
+
+			function subMosaicPlot(col, row, size, Xdata, Ydata, canvasID="scatterplot"){
+				var startTime = new Date().getTime()
+				var c=document.getElementById(canvasID)
+				var ctx=c.getContext("2d")
+				var scale=c.width/490
+				var lMargin=SPMmargins[0]*scale
+				var rMargin=SPMmargins[1]*scale
+				var tMargin=SPMmargins[2]*scale
+				var bMargin=SPMmargins[3]*scale
+				var chartWidth = c.width-lMargin-rMargin
+				var chartHeight = c.height-tMargin-bMargin		
+				var n = Xdata.length
+
+				var nX = +jStat.max(Xdata)-jStat.min(Xdata)+1
+				var nY = +jStat.max(Ydata)-jStat.min(Ydata)+1
+				
+				var freqTable = Array()
+				for(var i=0; i<nX; i++){
+					freqTable[i]=[]
+					for(var j=0; j<nY; j++) freqTable[i][j]=0
+				}
+				for(var i=0; i<n; i++) freqTable[Xdata[i]-1][Ydata[i]-1]++
+//				console.log(freqTable)
+
+				var x1=lMargin+col*(chartWidth/size)+5 
+				var x2=lMargin+(col+1)*(chartWidth/size)-5
+				var y1=tMargin+row*(chartHeight/size)+5
+				var y2=tMargin+(row+1)*(chartHeight/size)-5
+
+				var gapsize=3*scale
+				var x=x1
+				
+//				console.log("x1="+x1+",x2="+x2+",y1="+y1+",y2="+y2)
+//				console.log(nX+","+nY)
+
+//				ctx.fillStyle = "rgba("+hexToRgb(colorHex).r +","+hexToRgb(colorHex).g +","+hexToRgb(colorHex).b +",.2)";
+//				ctx.strokeStyle = "black"
+
+				for(i=0; i<nX;i++){
+					var mWidth = ((x2-x1) - (nX-1)*gapsize) * jStat.sum(freqTable[i])/n
+					var y=y2
+					for(j=0; j<nY; j++){
+						var cHex = colorHexes[labelColors[j]]
+						ctx.fillStyle = "rgba("+hexToRgb(cHex).r +","+hexToRgb(cHex).g +","+hexToRgb(cHex).b +",.6)";
+						var mHeight = ((y2-y1) - (nY-1)*gapsize) * freqTable[i][j]/jStat.sum(freqTable[i])
+						ctx.beginPath()
+						ctx.fillRect(x,y,mWidth,-mHeight)
+						ctx.fill()				
+						ctx.beginPath()
+						ctx.rect(x,y,mWidth,-mHeight)
+						ctx.stroke()
+						y-=(mHeight+gapsize)
+					}
+					x+=mWidth+gapsize
+				}
+				
+				ctx.beginPath();
+				ctx.rect(lMargin+col*(chartWidth/size),tMargin+row*(chartHeight/size),chartWidth/size,chartHeight/size)
+				ctx.stroke();			
+
+			}
+
+			function subBoxPlot(col, row, size, Xdata, Ydata, vertical=true, canvasID="scatterplot"){
+				var startTime = new Date().getTime()
+				var c=document.getElementById(canvasID)
+				var ctx=c.getContext("2d")
+				var scale=c.width/490
+				var lMargin=SPMmargins[0]*scale
+				var rMargin=SPMmargins[1]*scale
+				var tMargin=SPMmargins[2]*scale
+				var bMargin=SPMmargins[3]*scale
+				var chartWidth = c.width-lMargin-rMargin
+				var chartHeight = c.height-tMargin-bMargin		
+				var n = Xdata.length
+				
+				if(!vertical){
+					var temp = Xdata.slice()
+					Xdata = Ydata.slice()
+					Ydata = temp.slice()
+				} //Now the categories are in X and the numerical is in Y
+
+				var Ymin = +jStat.min(Ydata)
+				var Ymax = +jStat.max(Ydata)
+				
+				var nBoxes = +jStat.max(Xdata)-jStat.min(Xdata)+1
+				var boxData = new Array
+				for(var j=0; j<nBoxes; j++) boxData[j]=[]
+				for(var i=0; i<Ydata.length; i++){
+					boxData[Xdata[i]-1].push(Ydata[i])
+				}
+
+				ctx.save()
+				ctx.translate(lMargin+col*(chartWidth/size), tMargin+row*(chartHeight/size));
+
+				ratio = chartHeight/chartWidth
+				var x1=0+5 
+				var x2=(chartWidth/size)-5
+				var y1=+10*scale
+				var y2=(chartHeight/size)-10*scale
+				if(!vertical){
+					ctx.transform(0,ratio,-1/ratio,0,(chartWidth/size),0)
+				}
+
+				for(var i=0; i<nBoxes; i++){
+					var boxplotData = boxifyData(boxData[i])
+					var bounds=[x2-(i+1)*(x2-x1)/nBoxes+2, y2, (x2-x1)/nBoxes-4, y2-y1]
+					var cHex = colorHexes[labelColors[i]]
+					ctx.fillStyle = "rgba("+hexToRgb(cHex).r +","+hexToRgb(cHex).g +","+hexToRgb(cHex).b +",.6)";
+					drawBoxPlot(ctx, bounds, boxplotData, [Ymin,Ymax],3,scale)
+				}
+				ctx.restore()
+				ctx.beginPath();
+				ctx.rect(lMargin+col*(chartWidth/size),tMargin+row*(chartHeight/size),chartWidth/size,chartHeight/size)
+				ctx.stroke();			
+			}
+			
+			function drawBoxPlot(ctx, bounds, boxplotData,ylim,circleSize=3, scale=1){
+			
+				//box
+				ctx.beginPath()
+				ctx.rect(bounds[0], bounds[1]-bounds[3]*((boxplotData[1]-ylim[0])/(ylim[1]-ylim[0])), bounds[2],-bounds[3]*(boxplotData[3]-boxplotData[1]) /(ylim[1]-ylim[0]))
+				ctx.fill()
+				ctx.stroke()
+			
+				ctx.beginPath()
+				//vertical lines
+				for(var i=0; i<5; i+=2){
+					ctx.moveTo(bounds[0]+(i!=2?bounds[2]/5:0), bounds[1]-bounds[3]*((boxplotData[i]-ylim[0])/(ylim[1]-ylim[0])))
+					ctx.lineTo(bounds[0]+bounds[2]-(i!=2?bounds[2]/5:0), bounds[1]-bounds[3]*((boxplotData[i]-ylim[0])/(ylim[1]-ylim[0])))
+				}
+				//horizontal lines
+				for(var i=0; i<5; i+=3){
+					ctx.moveTo(bounds[0]+bounds[2]/2, bounds[1]-bounds[3]*((boxplotData[i]-ylim[0])/(ylim[1]-ylim[0])))
+					ctx.lineTo(bounds[0]+bounds[2]/2, bounds[1]-bounds[3]*((boxplotData[i+1]-ylim[0])/(ylim[1]-ylim[0])))
+				}
+				ctx.stroke();
+
+				//outliers
+				for(var i=5; i<boxplotData.length; i++){
+					ctx.beginPath()
+					ctx.arc(bounds[0]+bounds[2]/2,bounds[1]-bounds[3]*((boxplotData[i]-ylim[0])/(ylim[1]-ylim[0])), circleSize*scale, 0, 2 * Math.PI);
+					ctx.fill();
+					ctx.stroke();			
+				}
+			}
+
+			function boxifyData(values){
+				var FNS = fiveNumSum(values)
+//				console.log(FNS)
+				var outliers = []
+				var LF = FNS[1]-(FNS[3]-FNS[1])*1.5
+				var UF = FNS[3]+(FNS[3]-FNS[1])*1.5
+				FNS[0]=FNS[1]
+				FNS[4]=FNS[3]
+				for(var i=0; i<values.length; i++){
+					if(values[i] < LF || values[i]>UF){
+						outliers.push(values[i])
+					} else {
+						FNS[0]=Math.min(FNS[0],values[i])
+						FNS[4]=Math.max(FNS[4],values[i])
+					}
+				}
+				return(FNS.concat(outliers))	
+			}
+			
+			function subHistogram(col, row, size, Xdata,canvasID="scatterplot", asBarPlot=false){
+				var startTime = new Date().getTime()
+				var c=document.getElementById(canvasID)
+				var ctx=c.getContext("2d")
+				var scale=c.width/490
+				var lMargin=SPMmargins[0]*scale
+				var rMargin=SPMmargins[1]*scale
+				var tMargin=SPMmargins[2]*scale
+				var bMargin=SPMmargins[3]*scale
+				var chartWidth = c.width-lMargin-rMargin
+				var chartHeight = c.height-tMargin-bMargin		
+				var n = Xdata.length
+				var Xmin = +jStat.min(Xdata)
+				var Xmax = +jStat.max(Xdata)
+				var Xrng = Xmax-Xmin
+				var nBins=8
+				if(asBarPlot) nBins=jStat.max(Xdata)
+				var freqs=[]
+				for(i=0; i<nBins; i++) freqs[i]=0
+				var maxFreq=0
+				for(var i=0; i<n; i++){
+					var j=Math.round((Xdata[i]-Xmin)/Xrng * nBins,0)
+					if(asBarPlot)j=Xdata[i]-1
+					if(j>=nBins)j=nBins-1
+					freqs[j]++
+					maxFreq = Math.max(maxFreq, freqs[j]);
+					if(debug)console.log( Xdata[i] + "->" + j)
+				}
+				if(debug)console.log(freqs)
+				var x1=lMargin+col*(chartWidth/size)+5 
+				var x2=lMargin+(col+1)*(chartWidth/size)-5
+				var y1=tMargin+row*(chartHeight/size)+5
+				var y2=tMargin+(row+1)*(chartHeight/size)-5
+
+				
+				ctx.fillStyle = "rgba("+hexToRgb(colorHex).r +","+hexToRgb(colorHex).g +","+hexToRgb(colorHex).b +",.2)";
+				ctx.strokeStyle = "black"
+				
+				for(var i=0; i<freqs.length; i++){
+					var cHex = colorHexes[labelColors[i]]
+					if(asBarPlot && document.getElementById('smartPlot').checked) ctx.fillStyle = "rgba("+hexToRgb(cHex).r +","+hexToRgb(cHex).g +","+hexToRgb(cHex).b +",.6)";
+
+					ctx.beginPath()
+					ctx.fillRect(x1+i*(x2-x1)/nBins+ (asBarPlot?2:0), y2,(x2-x1)/nBins- (asBarPlot?4:0), -freqs[i]/maxFreq * (y2-y1))
+					ctx.fill()				
+					ctx.rect(x1+i*(x2-x1)/nBins+ (asBarPlot?2:0), y2,(x2-x1)/nBins- (asBarPlot?4:0), -freqs[i]/maxFreq * (y2-y1))
+					ctx.stroke()
+				}
+				ctx.beginPath();
+				ctx.rect(lMargin+col*(chartWidth/size),tMargin+row*(chartHeight/size),chartWidth/size,chartHeight/size)
+				ctx.stroke();			
+			}
+
+			function subScatterPlot(col,row,size,Xdata,Ydata,circleSize=3,canvasID="scatterplot"){
+				var startTime = new Date().getTime()
+				if(debug)console.log(Xdata)
+				if(debug)console.log(Ydata)
+			
+				var c=document.getElementById(canvasID)
+				circleSize = circleSize /Math.max(size-4,1)
+				var ctx=c.getContext("2d")
+				var scale=c.width/490
+				var lMargin=SPMmargins[0]*scale
+				var rMargin=SPMmargins[1]*scale
+				var tMargin=SPMmargins[2]*scale
+				var bMargin=SPMmargins[3]*scale
+				var margin = 10*scale
+				var chartWidth = c.width-lMargin-rMargin
+				var chartHeight = c.height-tMargin-bMargin		
+				var n = Xdata.length
+				var Xmin = +jStat.min(Xdata)
+				var Xmax = +jStat.max(Xdata)
+				var Ymin = +jStat.min(Ydata)
+				var Ymax = +jStat.max(Ydata)
+				for(var i=0; i<n; i++){
+					if(Xdata[i]>Xmax) Xmax = Xdata[i];
+					if(Xdata[i]<Xmin) Xmin = Xdata[i];
+					if(Ydata[i]>Ymax) Ymax = Ydata[i];
+					if(Ydata[i]<Ymin) Ymin = Ydata[i];
+				}
+				var qYrange = Ymax - Ymin
+				var qXrange = Xmax - Xmin
+				//ctx.beginPath();
+				//ctx.rect(lMargin+col*(chartWidth/size),tMargin+row*(chartHeight/size),chartWidth/size,chartHeight/size)
+				//ctx.clip();				
+				ctx.fillStyle = "rgba("+hexToRgb(colorHex).r +","+hexToRgb(colorHex).g +","+hexToRgb(colorHex).b +",.2)";
+				ctx.strokeStyle = "black"
+				for(var i=0; i<n; i++){
+					var qX = (-Xmin + Xdata[i])/qXrange
+					var qY = (-Ymin + Ydata[i])/qYrange
+					ctx.beginPath();
+					ctx.arc(lMargin+col*(chartWidth/size)+margin+(qX)*(chartWidth/size-margin*2),tMargin+row*(chartHeight/size)+margin+(1-qY)*(chartHeight/size-margin*2), circleSize*scale, 0, 2 * Math.PI);
+					ctx.fill();
+					ctx.stroke();
+				}
+				//ctx.restore();	
+				ctx.beginPath();
+				ctx.rect(lMargin+col*(chartWidth/size),tMargin+row*(chartHeight/size),chartWidth/size,chartHeight/size)
+				ctx.stroke();
+				
+			}
+
+			function updateDiagnosticPlot(){
+				var diagPlot = document.getElementById('diagnosticSelect').value
+//				console.log(diagPlot)
+				switch(diagPlot){
+					case 'residualPlot':
+						//console.log(responseVarNum)
+						//console.log(varNames)
+						residualplot(yHat, "Predicted "+varNames[0], false,[],1,false, 'diagnosticPlot')
+						break;
+					case 'residualQQ':
+						var dataName=document.getElementById('name1').value
+						var varUnits=document.getElementById('varUnits1').value
+						var varName=exists('varName1')?document.getElementById('varName1').value:""
+						refreshNormalityPlot(residualsInt.slice(), true, 'diagnosticPlot', dataName, varUnits, varName, true)
+						break;
+					case 'location-scale':
+						residualplot(yHat, "Predicted "+varNames[0], true,[],1,true, 'diagnosticPlot',1,"Scale-Location")
+					
+						break;
+					case 'residualLeverage':
+						residualplot(leverage, "Leverage", false,[],1,false, 'diagnosticPlot',1,"Residual vs Leverage")
+						break;
+											
+					case 'cooksD':
+						var Xdata=[], pointLabels=[]
+						for(var i=0; i< yHat.length; i++) {
+							Xdata.push(i+1)
+							pointLabels.push( (cooksD[i]>1)?i+1:'')
+						}
+						
+						scatterplot(Xdata,cooksD,false, "Index", "Cook's Distance", false, false, false, false, true, [0,yHat.length+1], [[1,1]],[],[], 'diagnosticPlot', ["",""], pointLabels, "Cook's Distance")
+
+						break;
+				}
+			}
+
+			function refreshQQplot(){
+				var qqplotSelect = document.getElementById('QQselect').value
+//				console.log(qqplotSelect)
+				if(+qqplotSelect==0	){ 
+					refreshNormalityPlot(Resid.slice())
+				}else if(qqplotSelect=="int"){
+					refreshNormalityPlot(residualsInt.slice())
+				} else if(qqplotSelect=="ext"){
+					refreshNormalityPlot(residualsExt.slice())
+}				else {
+//					console.log(getData(qqplotSelect-1))
+					var qqData = getData(+qqplotSelect-1)
+					if(qqData) refreshNormalityPlot(qqData.sort(function(a, b){return a-b}))
+				}
+			}
+
+			function refreshROC(){
+				//console.log("Refreshing ROC")
+				//console.log(yHat)
+				//console.log(Y)
+				var Yobs = Y.slice()
+				var pY=[]
+//				var pOrder=[]
+				//console.log(pY)
+				for(var i=0; i<yHat.length; i++){
+					pY[i]=Math.exp(yHat[i])/(1+Math.exp(yHat[i]))
+				}	
+				for(var i=1; i<pY.length; i++){
+					for(var j=0; j<i; j++){
+						if(pY[i] < pY[j]){
+							var tempPY=pY[i]
+							var tempYOBS = Yobs[i]
+							pY[i]=pY[j]
+							pY[j]=tempPY
+							Yobs[i]=Yobs[j]
+							Yobs[j]=tempYOBS
+						}
+					}
+				}
+				//console.log(Yobs)
+				//console.log(pY)
+				
+				var FPR=[]
+				var TPR=[]
+				var P = jStat.sum(Yobs)
+				var N = Yobs.length-P
+				for(var i=0; i<pY.length; i++){
+					var FP=0
+					var TP=0
+					for(var j=i; j<pY.length; j++){
+						if(Yobs[j]==1){
+							TP++
+						}else{
+							FP++
+						}
+					}
+					FPR.push(FP/N)
+					TPR.push(TP/P)
+				}		
+				//console.log(FPR)
+				//console.log(TPR)
+
+				for(var i=1; i<FPR.length; i++){
+					for(var j=0; j<i; j++){
+						if(FPR[i] < FPR[j]){
+							var tempFPR=FPR[i]
+							var tempTPR=TPR[i]
+							FPR[i]=FPR[j]
+							FPR[j]=tempFPR
+							TPR[i]=TPR[j]
+							TPR[j]=tempTPR
+						}
+					}
+				}
+				for(var i=1; i<FPR.length; i++){
+					for(var j=0; j<i; j++){
+						if(TPR[i] < TPR[j]){
+							var tempFPR=FPR[i]
+							var tempTPR=TPR[i]
+							FPR[i]=FPR[j]
+							FPR[j]=tempFPR
+							TPR[i]=TPR[j]
+							TPR[j]=tempTPR
+						}
+					}
+				}
+				
+				var c=document.getElementById("ROCplot")
+				var ctx=c.getContext("2d")
+				var scale=c.width/480
+				var tMargin=20*scale, bMargin=30*scale, lMargin=50*scale, rMargin=10*scale
+				ctx.fillStyle="white"
+				ctx.fillRect(0,0,c.width,c.height)
+				ctx.fill()
+				
+				ctx.beginPath()
+				ctx.moveTo(c.width-rMargin, tMargin)
+				var AUC=0
+				for(var i=0; i<FPR.length; i++){
+					//hacky correction - I know the curve is flipped, I don't know why
+					ctx.lineTo(c.width-rMargin-TPR[i]*(c.width-lMargin-rMargin), tMargin+FPR[i]*(c.height-bMargin-tMargin))
+//					ctx.lineTo(lMargin+FPR[i]*(c.width-lMargin-rMargin), c.height-bMargin-TPR[i]*(c.height-bMargin-tMargin))
+					if(i==0){
+						AUC+=(FPR[i]-0)*(TPR[i]+0)/2
+					}else{
+						AUC+=(FPR[i]-FPR[i-1])*(TPR[i]+TPR[i-1])/2					
+					}
+				}
+				AUC+=(1-FPR[FPR.length-1])*(1+TPR[FPR.length-1])/2	
+				ctx.lineTo(lMargin, c.height-bMargin)
+				ctx.stroke()
+				ctx.beginPath()
+				ctx.setLineDash([5, 3]);
+				ctx.moveTo(lMargin, c.height-bMargin)
+				ctx.lineTo(c.width-rMargin, tMargin)
+				ctx.stroke()
+
+				ctx.beginPath()
+				ctx.setLineDash([1, 0]);
+				ctx.moveTo(lMargin,tMargin)
+				ctx.lineTo(lMargin,c.height-bMargin)
+				ctx.lineTo(c.width-rMargin, c.height-bMargin)
+				ctx.stroke()
+				ctx.textAlign="center"
+				ctx.font = "12px  sans-serif";
+//				drawXaxis(ctx, lMargin, tMargin, c.height-tMargin-bMargin, c.width-lMargin-rMargin, 10, .1, 0)
+				chartAxisX(ctx,c.height-bMargin,lMargin,c.width-rMargin,0,1,5,"False Positive Rate",false,[],fontSizeAxis*scale)
+				chartAxisY(ctx,lMargin,c.height-bMargin,tMargin,0,1,5,"True Positive Rate", false,(c.width-lMargin-rMargin),true, fontSizeAxis*scale)
+				chartTitle(ctx,"ROC Curve",c.width/2,0, fontSizeTitle*scale)
+				document.getElementById('aoc').innerHTML=fixed(AUC)		
+			}
+			
+			function refreshResponseVarLevelOption(){
+				var startTime = new Date().getTime()
+				if(isFactor[responseVarNum]) document.getElementById('regressionType').value=2
+				
+				var minY = jStat.min(getColumn(responseVarNum))
+				var op = document.getElementById("responseTransform").getElementsByTagName("option");
+				for (var i = 0; i < op.length; i++) {
+				  // lowercase comparison for case-insensitivity
+					if (+op[i].value <= 0 && minY <=0 ||
+						+op[i].value ==.5 && minY < 0){
+						op[i].disabled = true;
+//					}else if (+op[i].value ==0 && minY == 0) {
+//						op[i].disabled = true;
+					} else {
+						op[i].disabled = false;
+					}
+				}				
+				if(debug)console.log("regression type:"+document.getElementById('regressionType').value)
+				var htmlString = ""
+				if(document.getElementById('regressionType').value==2){
+					htmlString = "<select id='responseVarLevelSelect' onChange='updateResponseVarLevel(); refreshLinRegAndDependencies()'>"
+					if (responseVarLevel >=levels[responseVarNum-1].length) responseVarLevel = 0 
+					for(var i=0; i<levels[responseVarNum-1].length; i++) 
+						htmlString += "<option value="+i+" "+(responseVarLevel==i?' selected':'')+">"+levels[responseVarNum-1][i]+"</option>"
+					htmlString +="</select>"
+				} 
+				document.getElementById('responseVarLevelSpan').innerHTML=htmlString
+				document.getElementById('predictYes').style.display=(document.getElementById('regressionType').value==2 ? "inline-block" : "none")
+			}
+			
+			function updateResponseVarLevel(){
+				responseVarLevel = +document.getElementById('responseVarLevelSelect').value
+				if(debug)console.log("New Response Var Level: "+responseVarLevel)
+			}
+			
+			function enableRegressionType(){
+				if(isFactor[responseVarNum]) {
+					document.getElementById('regressionType').value=2
+					refreshResponseVarLevelOption()
+				}
+				document.getElementById('regressionType').options[1].disabled = !isLogistic(); 
+				document.getElementById('regressionType').options[0].disabled = isFactor[responseVarNum]; 
+			}
+
+			function refresh(){
+				if(suppressRefresh) return;
+		//	console.log("refresh!")
+				if(exists('precision')) setPrecision(document.getElementById('precision').value)
+				document.getElementById('ROCdiv').style.display=(document.getElementById('regressionType').value==2?'block':'none')
+				document.getElementById('anovaContainer').style.display=(document.getElementById('regressionType').value!=2?'block':'none')
+
+				document.getElementById('residContainer').style.display=(document.getElementById('regressionType').value!=2?'block':'none')
+				document.getElementById('residdiv').style.display=(document.getElementById('regressionType').value!=2?'block':'none')
+				enableRegressionType()
+				cleanData(1)
+				refreshCovariates(true,true)
+				refreshLinRegAndDependencies()
+				updateANOVA()
+				sampleStats(nCovars+1)
+				refreshQQplot()
+				updateDiagnosticPlot()
+			} 
+			
+			function refreshNormality(){
+				var whichResid="raw"
+				if(document.getElementById('QQselect').value=='int') whichResid='int'
+				if(document.getElementById('QQselect').value=='ext') whichResid='ext'
+				normality(nCovars+1, true, isFactor, true,0,false,whichResid)		
+			}
+			
+			function refreshLinRegAndDependencies(){
+				linReg()
+				if(debug) console.log("Valid regression: "+validRegression)
+				if(validRegression){
+					var logisticReg = (document.getElementById('regressionType').value==2)
+					rebuildModelVars()
+					refreshNormality()
+					prepDataForResidualPlot()
+					displayShowLines()
+					prepDataAndCreateScatterplot()
+					document.getElementById('ROCdiv').style.display=(logisticReg?"block":"none")
+					if(!logisticReg){
+						getResiduals()
+					} else {
+						refreshROC();
+					}
+				}
+			}
+
+			function updateChooseResponseVar(forceValue="", muteRefresh=true){
+				responseVarNum=+document.getElementById("ChooseResponse").value; 
+				document.getElementById('regressionType').options[0].selected = 'selected';
+				refreshResponseVarLevelOption();
+				rebuildModelCovariatesTable();
+				if(!muteRefresh)refresh();
+			}
+		
+			function getResiduals(){
+				var residType = document.getElementById('residType').value
+				var residUse = []
+				var append=""
+//				console.log(residuals)
+//				console.log(residualsInt)
+//				console.log(residualsExt)
+				if(residType=='raw'){
+					residUse = residuals.slice();
+				} else if (residType=='int'){
+					residUse = residualsInt.slice();
+					append = " (Internally Studentized)"
+				} else if (residType=='ext'){
+					residUse = residualsExt.slice();
+					append = " (Externally Studentized)"
+				}
+//				console.log(residUse)
+				histogram(residUse.slice(),true,"Model Residuals"+append)
+				var inputX = new Array()
+				
+				var outputString = ""
+				outputString +=	"<div style='max-height:300px;overflow:auto'>\n"
+				outputString += "<table width='100%'>"
+				outputString += "<tr><td>Obs.</td>"
+				for(i=0; i<nCovars+1; i++){
+					outputString +="<td class='unselectable'>"+document.getElementById('name'+(i+1)).value+"</td>"
+					inputX.push(getColumn(i+1))
+				}
+				outputString += "<td class='unselectable'>Predicted</td><td>Residual</td></tr>\n"
+				for(var i=0; i<residuals.length; i++) { 
+					outputString += "<tr><td class='unselectable'>"+(i+1)+"</td>"
+					for(var j=0; j<nCovars+1; j++){
+						outputString += "<td class='unselectable'>"+inputX[j][i] + "</td>"
+					}
+					outputString += "<td class='unselectable'>"+fixed(yHat[i]) + "</td>"		
+					
+					outputString += "<td>"+fixed(residUse[i])+"</td></tr>\n"
+				}
+				outputString += "</table>"
+				outputString +=	"</div>\n"
+				document.getElementById('allResiduals').innerHTML=outputString
+			}
+								
+			function OnInput() {
+				this.style.height = 'auto';
+				this.style.height = (this.scrollHeight) + 'px';
+			}
+			
+			function getVarName(varNum){
+				return (exists('name'+varNum)?document.getElementById('name'+varNum).value:false)
+			}
+			
+//			This refreshes the select boxes that select
+//				1. X variable for residual plot
+//				2. Y variable for scatterplot
+//					2a. calls rebuildScatterVar2
+//				3. Color by: 
+			function rebuildModelVars(){
+//				var scatterOptions =""
+				var colorGrouping="<option value=-1>none</option>"
+				for(var i=1; i<=nCovars+1; i++){
+					var selected=(document.getElementById('groupColor').value==i)?" selected":""
+					if(isFactor[i] /*&& varInModel[i]*/) colorGrouping += "<option value='"+i+"'"+selected+">"+getVarName(i)+"</option>"	
+				}
+				
+				var mod = (document.getElementById("regressionType").value==2 ? "="+levels[responseVarNum-1][responseVarLevel] : "")
+				var outputString="<option value='"+0+"' "+(document.getElementById('ScatterVar1').value==0?"selected":"")+">"+varNames[0] +mod+"</option>\n"
+				for(i=1; i<=modelN; i++){
+					if(!modelVarIsFactor[i]){
+						outputString += "<option value='"+i+"' "+(document.getElementById('ScatterVar1').value==i?"selected":"")+">"+modelVarNames[i] +"</option>\n"
+					} 
+				}
+				var catOptions = ""
+				for(var i=1; i<=nCovars+1; i++){
+					if(isFactor[i] && varInModel[i]) catOptions += "<option value='c"+i+"'>"+getVarName(i)+"</option>"	
+				}
+				
+				var predictedString = "<option value='predicted' selected>(predicted) "+varNames[0]+"</option>\n"
+				var levString = "<option value='leverage'>leverage</option>\n"
+				var residVarVal = document.getElementById("ResidVar").value
+//				console.log(residVarVal)
+				if(residVarVal=="") residVarVal="predicted"
+				document.getElementById("ResidVar").innerHTML=predictedString+"<option value='order'"+(document.getElementById('ResidVar').value=="order"?" selected":"")+">Observation index</option>"+outputString+catOptions+levString;
+				document.getElementById("ResidVar").value=residVarVal
+				document.getElementById("ScatterVar1").innerHTML=outputString + "<option value='-1'>(predicted) "+(document.getElementById('regressionType').value==2?"log-odds ":"")+varNames[0]+"</option>\n";
+				document.getElementById('groupColor').innerHTML=colorGrouping
+				rebuildScatterVar2();
+			}
+			
+//			Rebuilds the select options for the QQ plot
+			function rebuildQQPlotSelect(){
+				outputString=""
+				for(var i = 0; i<=nCovars+1; i++){
+					if(i==0 || !isFactor[i]){
+						var selected=""
+						if(document.getElementById("QQselect").value==i || i==1 && document.getElementById("QQselect").value>nCovars+1) selected=" selected"
+						outputString+="<option value='"+i+"'"+selected+">"+(i==0?"Residuals (raw)":document.getElementById("name"+i).value)+"</option>\n"
+					}
+					if(i==0){
+						if(document.getElementById("QQselect").value=="int") selected=" selected"
+						outputString+="<option value='int'"+selected+">Residuals (int)</option>\n"
+						if(document.getElementById("QQselect").value=="int") selected=" selected"
+						outputString+="<option value='ext'"+selected+">Residuals (ext)</option>\n"
+					}
+				}
+				document.getElementById("QQselect").innerHTML=outputString
+			}
+
+//			This refreshes the select box that selects the scatterplot X variable
+			function rebuildScatterVar2(){
+			
+//			console.log("model var names:"+modelVarNames)
+//			console.log("model var names var num:"+modelVarNamesVarNum)
+//			console.log("model var is factor:"+modelVarIsFactor)
+//			console.log("model var transform:"+modelVarNamesTransform)
+				var logisticReg = (document.getElementById('regressionType').value==2)
+				var outputString=""
+				for(i=0; i<=modelN; i++){
+					var vNum = modelVarNamesVarNum[i]
+					if(document.getElementById('ScatterVar1').value != i && !modelVarIsFactor[i]){
+						outputString += "<option value='"+i+"' "+(document.getElementById('ScatterVar2').value==i?"selected":"")+">"+(i==0?varNames[0]:modelVarNames[i]) +"</option>\n"
+					}
+				}
+				for(var i=1; i<=nCovars+1; i++){
+					if(isFactor[i] && varInModel[i]) outputString += "<option value='c"+i+"'"+(document.getElementById('ScatterVar2').value==('c'+i)?" selected":"")+">"+getVarName(i)+"</option>"	
+				}
+				if(document.getElementById('ScatterVar1').value!='-1')
+					outputString +="<option "+(logisticReg?"selected ":"")+"value='-1'>(predicted) "+(document.getElementById('regressionType').value==2?"log-odds ":"")+varNames[0]+"</option>\n"
+				document.getElementById("ScatterVar2").innerHTML=outputString;
+			}
+			
+			function changeNCovariates(){
+				nCovars = +parseFloat(document.getElementById('nCovars').value)
+				nSamples=nCovars+1
+				var outputString=""
+				for(var i = 1; i<= nCovars+1; i++){
+					if(i==1) {var val = "Y" }else{ var val = "X"+(i-1)}
+					if(exists("name"+i)) val = document.getElementById("name"+i).value;
+					outputString+='<input type="text" id="name'+i+'" value="'+val+'" size="20" maxlength="25" onchange="refreshCovariates(false);" style="position:absolute; left:'+ (48+200*(i-1))+'px; width:201px;"/>'
+				}
+				document.getElementById('varnames').innerHTML=outputString;			
+			}
+			
+//			This function refreshes the variable name inputs (under Data Input)
+//			calls:
+//				a. generateSampleStatsTable
+//				b. rebuildChooseResponseOptions
+//				c. rebuildModelCovariatesTable
+//				d. rebuildQQPlotSelect
+
+			function refreshCovariates(regenVarNameInputs=true, calcPrediction=false, forceResponse=""){
+				//alert(document.activeElement.tagName)
+				//var activeElementID = document.activeElement.id;
+				//alert(activeElementID)
+				
+				nCovars = +parseFloat(document.getElementById('nCovars').value)
+				nVars=nCovars+1
+				nSamples=nCovars+1
+				
+//				console.log("refreshing table")
+				document.getElementById('wrapper').style.width= (200*nCovars+253)+"px"
+				document.getElementById('data1').style.width= (200*nCovars+200)+"px"
+				
+				if(regenVarNameInputs){
+					var outputString=""
+					for(var i = 1; i<= nCovars+1; i++){
+						if(i==1) {var val = "Y" }else{ var val = "X"+(i-1)}
+						if(exists("name"+i)) val = document.getElementById("name"+i).value;
+						outputString+='<input type="text" id="name'+i+'" value="'+val+'" size="20" maxlength="25" onchange="refreshCovariates(false);" style="position:absolute; left:'+ (48+200*(i-1))+'px; width:201px;"/>'
+					}
+					document.getElementById('varnames').innerHTML=outputString;
+				}
+				varNames=[]
+				if(forceResponse!="") responseVarNum= +forceResponse
+				for(var i=0; i<nVars; i++) varNames[i]=document.getElementById('name'+(i+1)).value
+				generateSampleStatsTable(nCovars+1,true,false,true);
+				rebuildChooseResponseOptions()
+				rebuildModelCovariatesTable()
+				rebuildQQPlotSelect()
+				//if(validRegression) refreshQQplot()
+				if(validRegression) buildPrediction(calcPrediction)
+				//if(exists(activeElementID)) document.getElementById(activeElementID).focus()
+			}
+						
+			function rebuildChooseResponseOptions(){
+				outputString=""
+				for(var i = 1; i<=nCovars+1; i++){
+					var selected=""
+					if(responseVarNum==i) selected=" selected"
+					if(i==1 && document.getElementById("ChooseResponse").value>nCovars+1) selected=" selected"
+					outputString+="<option value='"+i+"'"+selected+">"+document.getElementById("name"+i).value+"</option>\n"
+				}
+				document.getElementById("ChooseResponse").innerHTML=outputString
+			}
+			
+			function rebuildModelCovariatesTable(){
+				outputString=""
+				for(var i = 1; i<=nCovars+1; i++){
+					if(i != document.getElementById("ChooseResponse").value){
+						var data=getColumn(i)
+						var n=data.length
+						var allInt = true
+						var allPos = true
+						var someNeg = false
+						for(var j=0; j<n; j++){
+							if(isFloat(data[j])) allInt = false;
+							if (data[j] < 0) {someNeg = true;}
+							if (data[j] <= 0) allPos = false;
+						}
+						outputString+="<tr><td>"+document.getElementById("name"+i).value+"</td>"
+						//alert("Var "+i+" is factor?"+isFactor[i])
+						for(var k=0; k<5; k++){
+							var checked=""
+							if(k==0 && !exists("v"+i+"t"+k) && !isFactor[i] ) checked=" checked"
+//							if (exists("v"+i+"t"+k) && document.getElementById("v"+i+"t"+k).checked==true) checked=" checked"
+//							console.log(varTransformInModel)
+							if(varTransformInModel.length>i && 
+								varTransformInModel[i].length>k &&
+								varTransformInModel[i][k]==true) checked = " checked"
+							outputString += "<td>"
+							//var disabled = (isFactor[i]?" disabled":"")
+							if(!isFactor[i] && (k<3 || (k==3 && allPos==true) || (k==4 && someNeg==false))) outputString +="<input type='checkbox' id='v"+i+"t"+k+"'"+checked+" onchange='clearDummy("+i+");refreshLinRegAndDependencies();'/>"
+							outputString+="</td>"
+						}
+						
+						//Are all checked?
+						var checked=""
+						if(dataMatrix[0].length==0) checked=""
+						if(isFactor[i]) checked=" checked"
+						if(exists("v"+i+"d")){
+							checked=(document.getElementById("v"+i+"d").checked==true?" checked":"")
+						}
+						outputString+="<td>"
+						if(allInt || isFactor[i]){ 
+							outputString+= "<input type='checkbox' id='v"+i+"d'"+checked+" onchange='clearChecks("+i+");rebuildDummyOptions("+i+");refreshLinRegAndDependencies();'/>"
+						}
+						outputString+="<span id='v"+i+"d0'></span></td>"
+						outputString+="</tr>\n"
+						if(allInt || isFactor[i]){
+							outputString+="<tr id='dummyOptions"+i+"' style='display:none;'><td colspan='6'></td>"
+							outputString+="<td id='dummyChoices"+i+"' class='dummyChoices'></td></tr>\n"
+						}
+					}
+				}
+				document.getElementById("modelCovariatesTBODY").innerHTML=outputString
+				for(var i = 1; i<=nCovars+1; i++){
+					if(i != document.getElementById("ChooseResponse").value){
+						clearChecks(i)
+						var data=getColumn(i)
+						var allInt = true
+						for(var j=0; j<n; j++){
+							if(isFloat(data[j])) allInt = false;
+						}
+						if(allInt || exists("v"+i+"d") &&  document.getElementById("v"+i+"d").checked==true) rebuildDummyOptions(i)
+					}
+				}
+				rebuildInteractionOptions()
+			}
+			
+			function rebuildInteractionOptions(){
+				determineVarsInModel()
+				var optionString=""
+				var varsFound = 0
+				if(debug)console.log("vars in Model: "+varInModel)
+				for(var i=1; i<=nCovars+1; i++){
+					if(varInModel[i]){
+						varsFound++
+						if(varsFound>1){
+							optionString+="<tr><td>"+getVarName(i)+"</td><td>"
+							
+							for(var j=1; j<i; j++){
+								if(debug)console.log("i="+i+", j="+j)
+								if(varInModel[j]){
+									var checked=(exists("int_"+i+"."+j) && document.getElementById("int_"+i+"."+j).checked ? ' checked':'')
+									optionString +="<input type='checkbox' id='int_"+i+"."+j+"'"+checked+" onClick='refresh();'>"+getVarName(j)+"<br>"
+								}
+							}
+							optionString+="</td></tr>"
+						}
+					}
+				}
+				document.getElementById('modelInteractionsTBODY').innerHTML=optionString
+			}
+			
+			function rebuildDummyOptions(varNum){
+//				alert("Rebuild dummy "+varNum);
+				if(exists("v"+varNum+"d")){
+//					console.log("var"+varNum+" checked="+ document.getElementById("v"+varNum+"d").checked)
+					var outputString = "";
+					if(document.getElementById("v"+varNum+"d").checked==true){
+						document.getElementById("dummyOptions"+varNum).style.display="table-row"
+						var allDummies=true
+						var baselineSelected=false
+						for(var k=0; k<levels[varNum-1].length; k++){
+							if(exists("v"+varNum+"_"+levels[varNum-1][j])){
+								if (!document.getElementById("v"+varNum+"_"+levels[varNum-1][j]).checked){
+									allDummies=false;
+								} 
+								if (document.getElementById("v"+varNum+"_"+k+"_b").checked)
+									baselineSelected=true
+							}
+						}
+						//document.getElementById("v"+varNum+"d0").innerHTML="("+document.getElementById("name"+varNum).value+"_"+levels[varNum-1][0]+")"
+						for(var j=0; j<levels[varNum-1].length; j++){
+							dummyLabel = levels[varNum-1][j]
+							var checked = "checked"
+							if(exists("v"+varNum+"_"+dummyLabel))
+								checked = document.getElementById("v"+varNum+"_"+dummyLabel).checked
+							if(allDummies){
+								var radioChecked=(baselineLevel[varNum-1]==j ? 'checked':'')
+								//if(exists('v'+varNum+'_'+j+'_b')){
+								//	radioChecked=(document.getElementById('v'+varNum+'_'+j+'_b').checked?'checked':'')
+//									console.log('v'+varNum+'_'+j+'_b is '+radioChecked)
+//								} else {
+//									console.log('v'+varNum+'_'+j+'_b DNE')
+//								}
+								if(allDummies && !baselineSelected && j==0) radioChecked="checked"
+								outputString+="<input type='radio' id='v"+varNum+"_"+j+"_b' name='baseline"+varNum+"' onclick='baselineLevel["+(varNum-1)+"]="+j+";linReg();' value="+j+(!checked?' disabled':'')+" "+radioChecked+">"
+							}
+							var checkVis = (levels[varNum-1].length>=3 ? "inline":"none") 
+							outputString+="<span id='v"+varNum+"_"+j+"_lbl'><input type='checkbox' id='v"+varNum+"_"+dummyLabel+"'"+checked+" onchange='disableRadio("+varNum+","+j+");linReg();' style='display:"+checkVis+"'/>"
+							outputString += ""+/*document.getElementById("name"+varNum).value+"<sub>"+*/dummyLabel /*+ "</sub>*/+"</span><br>\n"
+						}
+						
+						
+						document.getElementById('dummyChoices'+varNum).innerHTML = outputString
+		//				alert(outputString)
+						
+					} else {
+						document.getElementById('dummyChoices'+varNum).innerHTML = outputString
+						document.getElementById("dummyOptions"+varNum).style.display="none"
+					}
+				}
+			}
+			
+			function disableRadio(varNum,j){
+				if(ignoreDummyClicks) return;
+				var noDummies=true
+				var allDummies=true
+				for(var k=0; k<levels[varNum-1].length; k++){
+					if(exists("v"+varNum+"_"+levels[varNum-1][k])){
+						if (!document.getElementById("v"+varNum+"_"+levels[varNum-1][k]).checked){
+							document.getElementById("v"+varNum+"_"+k+"_lbl").className="baseline"
+							allDummies=false;
+							document.getElementById("v"+varNum+"_"+k+"_b").checked=true
+							baselineLevel[varNum-1]=k
+						}else {
+							document.getElementById("v"+varNum+"_"+k+"_lbl").className=""
+							noDummies= false;
+						}
+					}else {
+						noDummies = false
+					}
+				}
+			
+				
+				for(var i=0; i<levels[varNum-1].length; i++){
+					document.getElementById("v"+varNum+"_"+i+"_b").disabled=!allDummies
+					document.getElementById("v"+varNum+"_"+i+"_b").style.display= (allDummies?"":"none")
+				}
+				//document.getElementById("v"+varNum+"_"+0+"_b").checked=true
+				if(noDummies){ 
+					document.getElementById("v"+varNum+"d").checked=false
+					document.getElementById("dummyOptions"+varNum).style.display="none"
+				}
+			}
+			
+			function clearChecks(varNum){
+				if(exists("v"+varNum+"d") && document.getElementById("v"+varNum+"d").checked==true){
+					for(var k=0; k<5; k++){
+						if(exists("v"+varNum+"t"+k)) document.getElementById("v"+varNum+"t"+k).checked=false
+					}
+				}
+				//rebuildInteractionOptions()
+			}
+			
+			function clearDummy(varNum){
+				if(exists("v"+varNum+"d")){
+					document.getElementById("v"+varNum+"d").checked=false
+					document.getElementById("dummyOptions"+varNum).style.display="none"
+				}
+//				rebuildInteractionOptions()
+			}
+			
+			function initialOptions(){
+//				console.log("initial options!")
+				for(var i = 1; i<=nCovars+1; i++){
+					if(i != document.getElementById("ChooseResponse").value){
+						if(!isFactor[i]) {
+							document.getElementById("v"+i+"t0").checked=true
+						} else {
+							document.getElementById("v"+i+"d").checked=true
+						}
+					}
+				}
+			}
+			
+			function share(){
+				makeURL(nCovars+1,false)
+			}
+
+			function buildDataTableFromURL(){
+				for(var i=1; i<=51; i++){
+					if(getQueryVariable("name"+i)!=false){
+						nSamples = i;
+						nCovars=i-1;
+					}
+				}
+				document.getElementById('nCovars').value=nCovars;
+				if(getQueryVariable("response")!=false){
+					responseVarNum = getQueryVariable("response")
+				}
+				changeNCovariates()
+				parseDataFromURL(nCovars+1)
+				cleanData(1)
+				refreshCovariates();
+				//cleanData(1)
+			}
+			
+			function handleTab(){
+				if(event.keyCode===9){var v=this.value,s=this.selectionStart,e=this.selectionEnd;this.value=v.substring(0, s)+'\t'+v.substring(e);this.selectionStart=this.selectionEnd=s+1;return false;}
+			}
+			
+			function startup(){
+				TLN.append_line_numbers('data1');
+				enableTab('data1');
+				buildDataTableFromURL();
+				updateChooseResponseVar("",true);
+//				cleanData(1);
+				generateSampleStatsTable(nCovars+1,true);
+				rebuildModelCovariatesTable();
+				initialOptions();
+				loadPrecision();
+				loadColorChoice();
+				linkMenu();
+				setColors();
+				refresh();
+			}
+			
+			function displayShowLines(){
+//				console.log("n quant predictors = "+nQuantPredictors)
+				if(isLogistic && document.getElementById("ScatterVar2").value!=-1){
+					document.getElementById("showlines").checked=false	
+					document.getElementById("showLinesSpan").style.display="none"				
+				}
+				else if(document.getElementById("ScatterVar2").value==-1 || nQuantPredictors==1 || nCovars==1){
+					document.getElementById("showLinesSpan").style.display="inline"
+					document.getElementById("showlines").checked=true			
+				} else {
+					document.getElementById("showlines").checked=false	
+					document.getElementById("showLinesSpan").style.display="none"				
+				}
+			}
+			
+			
+			function refreshData(){
+				//create the data matrix
+				cleanData(1)
+				refresh()
+				refreshResponseVarLevelOption()
+			}
+						
+			function toggleHideInteractions(){
+				if(document.getElementById("interactions").checked == document.getElementById("modelInteractions").classList.contains("hideRows"))
+				document.getElementById('modelInteractions').classList.toggle('hideRows')
+			}
+			
+			
+			function pinv(A) {
+	if(numeric.det(A)==0) {
+		return false
+	} else {
+		return numeric.inv(A)
+	}
+	peekAtData(A)
+	//var inv = numeric.inv(A)
+	//peekAtData(inv)
+	//if (inv) return inv; else 
+	//return numeric.dot(numeric.inv(numeric.dot(numeric.transpose(A),A)),numeric.transpose(A));
+}
+
+function saveCurrentModel(){
+	determineVarsInModel()
+//	console.log(varTransformInModel)
+	models[activeModel-1] = [modelN,
+							varInModel.slice(),
+							varTransformInModel,
+							baselineLevel.slice(),
+							varLevelInModel,
+							interactionsInModel,
+							modelSS]
+//	console.log(models)
+}
+
+function loadModel(){
+	modelN = models[activeModel-1][0]
+	varInModel = models[activeModel-1][1]
+	varTransformInModel = models[activeModel-1][2]
+	baselineLevel = models[activeModel-1][3]
+	varLevelInModel = models[activeModel-1][4]
+	interactionsInModel=models[activeModel-1][5]
+	modelSS = models[activeModel-1][6]
+	
+	//rebuildModelCovariatesTable()
+	for(var i=0; i<varInModel.length; i++){
+		if(varInModel[i]==true){
+			for(var k=0; k<varTransformInModel[i].length; k++){
+				if(exists("v"+i+"t"+k)) document.getElementById("v"+i+"t"+k).checked = varTransformInModel[i][k]
+			}
+			if(varLevelInModel[i].length>0){
+				var catVarIncluded=false
+				var nFalse = 0
+				var firstFalse = -1
+				for(var k=0; k<varLevelInModel[i].length; k++){
+					if( varLevelInModel[i][k]==true){
+						catVarIncluded=true
+					} else {
+						nFalse++
+						firstFalse = k
+					}
+	
+				}
+				document.getElementById("v"+i+"d").checked = catVarIncluded
+				clearChecks(i)
+				rebuildDummyOptions(i)
+				if(nFalse==1) baselineLevel[i-1]=firstFalse
+				ignoreDummyClicks=true
+				for(var k=0; k<varLevelInModel[i].length; k++){
+					document.getElementById("v"+i+"_"+levels[i-1][k]).checked = (varLevelInModel[i][k] || nFalse==1)
+				}
+				ignoreDummyClicks=false
+				disableRadio(i,baselineLevel[i-1])
+			}
+		} else{
+			if(exists("v"+i+"d")) {
+				document.getElementById("v"+i+"d").checked=false
+				clearChecks(i)
+				rebuildDummyOptions(i)
+			}
+		}
+	}
+	//load interactions
+	suppressRefresh=true
+//	console.log(interactionsInModel)
+//	console.log(interactionsInModel.length)
+	document.getElementById("interactions").checked = interactionsInModel.length>0
+	toggleHideInteractions()
+	if(interactionsInModel.length>0){
+		for(var i=1; i<interactionsInModel.length; i++){ //Changed this to start at 1...
+			if(interactionsInModel[i].length>0){
+			for(j=0; j<interactionsInModel[i].length; j++){
+//				console.log(i+","+j)
+				if(interactionsInModel[i][j]==true) document.getElementById("int_"+i+"."+j).checked=true 
+			}
+			}
+		}
+	}
+	suppressRefresh=false
+	
+}
+
+function saveAndNewModel(){
+	saveCurrentModel()
+	if(document.getElementById("modelSelect").value=="new"){
+		modelNames.push("model"+(modelNames.length+1))
+		activeModel = modelNames.length
+	} else {
+		activeModel = +document.getElementById("modelSelect").value
+		loadModel()
+	}
+	refreshModelChoices()
+//	console.log(activeModel)
+//	console.log(modelNames)
+	document.getElementById("modelName").value = modelNames[activeModel-1]
+}
+
+function renameModel(){
+	modelNames[activeModel-1] = document.getElementById("modelName").value
+	refreshModelChoices()
+}
+
+function refreshModelChoices(){
+	var modelChoices=""
+	var ANOVAchoices = "<option value=0>Null Model</option>"
+	for(var i=0; i<modelNames.length; i++){
+		modelChoices += "<option value='"+(i+1)+"'"+((i+1)==activeModel?' selected':'')+">"+modelNames[i]+"</option>"
+		if(i+1!=activeModel) ANOVAchoices += "<option value="+(i+1)+">"+modelNames[i]+"</option>"
+	}
+	modelChoices+="<option value='new'>new</option>"
+	document.getElementById("modelSelect").innerHTML=modelChoices
+	document.getElementById("ANOVAcompare").innerHTML=ANOVAchoices
+	updateANOVA()
+}
+
+function deleteModel(){
+	if(modelNames.length>1){
+		for(var i=activeModel-1; i<modelNames.length-1; i++){
+			modelNames[i]=modelNames[i+1]
+			models[i]=models[i+1]
+		}
+		modelNames.pop()
+		models.pop()
+		activeModel = Math.min(activeModel, modelNames.length)
+//		console.log(activeModel)
+//		console.log(modelNames)
+		refreshModelChoices()
+		document.getElementById("modelName").value = modelNames[activeModel-1]
+		loadModel()
+	}	
+}
+
+function isLevelBlock(varArray, lvl){
+//	console.log("check is level block:" +varArray+" "+lvl)
+//	console.log(JSON.stringify(expDesign))
+	if(varArray.length>1) return false;
+	var result=false 
+	for(var j=0; j<expDesign[lvl].length; j++){
+		if(expDesign[lvl][j][0]==varArray[0] && (expDesign[lvl][j][1]==2 || expDesign[lvl][j][1]==3 || expDesign[lvl][j][1]==6)){
+		return true;
+		} 
+	}
+	return result;
+}
+
+function nLevelBlocks(varArray, lvl){
+	var count=0
+	for(var i=0; i<varArray.length; i++){
+		if(expLevels[varArray[i]]==lvl && (expTypes[varArray[i]]==2 ||expTypes[varArray[i]]==3)) count++ 
+	}
+	return count
+}
+
+function nNestedLevelBlocks(varArray, lvl){
+	var count=0
+	for(var i=0; i<varArray.length; i++){
+		if(expLevels[varArray[i]]==lvl && (expTypes[varArray[i]]==3)) count++ 
+	}
+	return count
+}
+
+
+function nNonErrorLevelBlocks(varArray, lvl){
+	var count=0
+	for(var i=0; i<varArray.length; i++){
+		if(expLevels[varArray[i]]==lvl && (expTypes[varArray[i]]==6)) count++ 
+	}
+	return count
+}
+
+function noLaterFactors(factorArray, lvl){
+//	console.log("no later factors in "+factorArray+" level "+lvl)
+	var result=true 
+	for(var i=lvl+1; i<expDesign.length; i++){
+		for(var j=0; j<expDesign[i].length; j++){
+//			console.log("contains "+expDesign[i][j]+" ?")
+//			console.log(factorArray.indexOf(expDesign[i][j][0]))
+			if(factorArray.indexOf(expDesign[i][j][0]) > -1) return false
+		}
+	}
+	return result;
+}
+
+function hasLevelFactor(factorArray, lvl){
+	for(var j=0; j<expDesign[lvl].length; j++){
+		for(var i=0; i<factorArray.length; i++){
+			if(expDesign[lvl][j][0]==factorArray[i]){
+				return true;
+			} 
+		}
+	}
+	return false;
+}
+
+
+function hasLevelTreatment(factorArray, lvl){
+	for(var j=0; j<expDesign[lvl].length; j++){
+		for(var i=0; i<factorArray.length; i++){
+			if(expDesign[lvl][j][0]==factorArray[i] && (expDesign[lvl][j][1]==1 || expDesign[lvl][j][1]==5)){
+				return true;
+			} 
+		}
+	}
+	return false;
+}
+
+function getNestedBlock(factorArray){
+	for(var i=0; i<factorArray.length; i++){
+		if(expTypes[factorArray[i]]==3) return (document.getElementById("name"+factorArray[i]).value)
+	}
+}
+
+function hasNoBlocks(factorArray){
+//	console.log(expTypes)
+	var result=true
+	for(var ii=0; ii<factorArray.length; ii++){
+//		for(var i=0; i<expDesign.length; i++){
+//			for(var j=0; j<expDesign[i].length; j++){
+		if(expTypes[factorArray[ii]]==2 || expTypes[factorArray[ii]]==3 || expTypes[factorArray[ii]]==6) return false
+//				if(factorArray[ii]==expDesign[i][j][0] && (expDesign[i][j][1]==2 ||expDesign[i][j][1]==3 ) ) return false
+//			}
+//		}
+	}
+	return result;
+}
+
+function hasNoErrors(factorArray){
+//	console.log(expTypes)
+	var result=true
+	for(var ii=0; ii<factorArray.length; ii++){
+		if(expTypes[factorArray[ii]]==4) return false
+	}
+	return result;
+}
+
+function updateANOVA(){
+	if(document.querySelector("input[type='radio'][name=whichModel]:checked").value=="1"){
+		updateANOVACompare()
+	} else {
+		console.log(JSON.stringify(expDesign))
+		var outputString = ""
+		var valid = checkValidDesign()
+		if(valid[0]){
+			var SS = createSSTable()
+//			console.log(JSON.stringify(SS))
+//			var anyBadDfs = false
+//			for(var i=0;i<SS[1].length; i++){
+//				if(SS[1][i]<=0){
+//					anyBadDfs=true; 
+//					valid=[false, "Model is over-parameterized; sample size too small"];
+//					break;
+//				}
+//			}
+//			console.log(JSON.stringify(expDesign))
+		
+			outputString ="<div class='overflowX'>"
+			outputString += "<table class='anova'>\n"
+			outputString += "<tr class='bBorder'><th>Source</th><th>df</th><th>SS</th><th>MS</th><th>F</th><th><i>p</i>-value</th>"
+
+			// go through the experiment Design expDesign
+			// level by Level
+
+			var SStable = []
+		
+		
+//		var blocksInPrevLevels=[]
+//		var factorsInPrevLevels = []
+		for(var i=0; i<expDesign.length; i++){
+		//Let's go through the SS array row by row, starting with row 1
+			var levelErrorSS=0
+			var levelErrorDF=0
+			var levelNonErrorSS=0
+			var levelNonErrorDF=0
+			for(var j=1; j<SS[0].length; j++){
+	//			console.log(j + "<" + SS[2].length+" ? ")
+				if(j<SS[2].length){
+	//			console.log(i+","+j+":no later factors:"+noLaterFactors(SS[2][j],i))
+	//			console.log(i+","+j+":is level block:"+isLevelBlock(SS[2][j],i))
+	//			console.log(i+","+j+":has level treatment:"+hasLevelTreatment(SS[2][j],i))
+	//			console.log(i+","+j+":no blocks:"+hasNoBlocks(SS[2][j]))
+				}
+			
+				if(j==SS[2].length || noLaterFactors(SS[2][j],i)){
+					if(j<SS[2].length &&( isLevelBlock(SS[2][j],i) || (hasLevelTreatment(SS[2][j],i) && hasNoBlocks(SS[2][j]) && hasNoErrors(SS[2][j])))){
+						var sourceName=""
+						for(var k=0; k < SS[2][j].length; k++){
+							if(k>0) sourceName +="&times;"
+							sourceName += document.getElementById("name"+[SS[2][j][k]]).value
+						}			
+						SStable.push([sourceName, SS[1][j], SS[0][j]])
+					} else if(j<SS[2].length && (nLevelBlocks(SS[2][j],i)==SS[2][j].length && nNestedLevelBlocks(SS[2][j],i)==1)){
+						var nestedBlock = getNestedBlock(SS[2][j])
+						var rowindex=0
+						for(var ii=0; ii<SStable.length; ii++){
+							if(SStable[ii][0]==nestedBlock){
+								SStable[ii][1]+=SS[1][j]
+								SStable[ii][2]+=SS[0][j]						
+								break;
+							}
+						}
+					} else if(j==SS[2].length || hasLevelFactor(SS[2][j],i)){ //added this condition for subsample errors....
+						//add it to the error
+						if(j<SS[2].length && nNonErrorLevelBlocks(SS[2][j],i)){
+							levelNonErrorSS+=SS[0][j]
+							levelNonErrorDF+=SS[1][j]						
+						} else {
+							levelErrorSS+=SS[0][j]
+							levelErrorDF+=SS[1][j]
+						}
+					}
+				}
+			}
+			if(levelErrorDF<=0){
+				valid=[false, "Model is over-parameterized; sample size too small"];
+				break;
+			}
+			
+			if(levelNonErrorDF>0)SStable.push(["non-error",levelNonErrorDF,levelNonErrorSS])
+			SStable.push(["error",levelErrorDF,levelErrorSS])
+			var errorRow=SStable.length-1
+			for(var j=SStable.length-1; j>=0; j--){
+				if(SStable[j].length>3) break;
+				SStable[j][3]=SStable[j][2]/SStable[j][1]
+				if(SStable[j][0]=="error") {errorRow=j}
+				else if(SStable[j][0]=="non-error"){}
+				else{
+					SStable[j][4]=SStable[j][3]/SStable[errorRow][3]
+					SStable[j][5]=1-jStat.centralF.cdf(SStable[j][4],SStable[j][1],SStable[errorRow][1])
+				}
+			}
+			SStable.push(["----------"])
+		}		
+/*		var varsInLevel = []
+		var factorsInLevel = []
+		for(var i=0; i<expDesign.length; i++){
+			varsInLevel[i]=[]
+			factorsInLevel[i]=[]
+			for(var j=0; j<expDesign[i].length;j++){
+				varsInLevel[i].push(expDesign[i][j][0])
+				if(expDesign[i][k][1]==1) factorsInLevel[i].push(expDesign[i][j][0])
+			}
+			
+			// in each level get the SS for each block
+			for(var j=0; j<expDesign[i].length;j++){
+				if(expDesign[i][j][1]==2){
+					for(var k=1; k<SS[2].length; k++){
+						if(arraysEqual(SS[2][k], [expDesign[i][j][0]])){
+							SStable.push([document.getElementById("name"+expDesign[i][j][0]).value,SS[1][k],SS[0][k]])
+						}
+					}
+				}
+			}
+			
+			for(var j=0; j<factorsInLevel[i].length; j++){
+			var levelSubsets = getAllSubsets(factorsInLevel[i]) //skip first one
+			var prevLevelSubsets = getAllSubsets(factorsInPrevLevels)
+			// get the SS for each treatment and combination of treatments
+			// contain factorsInLevel[i]
+			// plus anything in factorsInLevel[i-1...]
+			
+			
+			
+			}
+			factorsInPrevLevels = factorsInPrevLevels.concat(factorsInLevel[i])
+		}
+*/		
+//		console.log(JSON.stringify(SStable))
+		
+		// get the SS for each treatment and combination of treatments
+		// and also the interactions with higher-level treatments
+		// and the error is going to be any interactions  
+		// between blocks and level treatments / blocks that are in this level
+
+		// simplest thing is to just total up all SS that consists only of these facto numbers
+		// and subtract
+
+		var lvl=1
+		if(expDesign.length>1){
+			outputString += "<tr><th>Level "+lvl+"</th></tr>"		
+			lvl++
+		}
+		for(var i=0; i<SStable.length; i++){
+			var divider=""
+			if(SStable[i][0]=="----------" && i<SStable.length-1){
+				outputString += "<tr><th>Level "+lvl+"</th></tr>"		
+				lvl++
+//				divider=" class='bBorder'"
+				i++
+				if(i>=SStable.length)break;
+			} else if(SStable[i][0]=="----------" && i==SStable.length-1){
+				break;
+			}
+			outputString +="<tr"+divider+"><td>"+SStable[i][0]+"</td>"
+			for(var k=1; k<SStable[i].length; k++){
+				outputString += "<td>"+fixed(SStable[i][k])+"</td>"
+			}
+			outputString +="</tr>"
+		}
+		
+/*		for(var i=1; i<SS[0].length; i++){
+			var sourceName=""
+			if(i>=SS[2].length){
+				sourceName = "error"
+			} else {
+				for(var j=0; j<SS[2][i].length; j++){
+					if(j>0) sourceName +="&times;"
+					sourceName += document.getElementById("name"+[SS[2][i][j]]).value
+				}			
+			}
+			
+			//var fstat = (SS[i][0])/(redSS[3]-fullSS[3]) / (fullSS[2]/fullSS[3])
+			//var pval = 1-jStat.centralF.cdf(fstat,redSS[3]-fullSS[3],fullSS[3])
+			outputString += "<tr><td>"+sourceName+"</td><td>"+fixed(SS[1][i])+"</td><td>"+fixed(SS[0][i])+"</td><td>"+ fixed(SS[0][i]/SS[1][i]) + "</td><td></td><td></td></tr>"
+		}*/
+		outputString +="</table>"
+		outputString +="</div>"
+		if(!valid[0]) outputString=valid[1]
+
+		} else {
+			outputString = valid[1]
+		}
+		document.getElementById('ANOVAoutput').innerHTML=outputString
+	}
+}
+
+function createSSTable(){
+	var varUsed=[]
+	for(var i=0; i<expDesign.length; i++){
+		for(var j=0; j<expDesign[i].length; j++){
+			varUsed.push(expDesign[i][j][0])
+		}
+	}
+	var dftemp = []
+	
+	var Y = getColumn(responseVarNum)
+	var Ybars=[]
+	var allSubsets = getAllSubsets(varUsed)
+//	console.log(JSON.stringify(allSubsets))	
+//	var allSubsetsBackup=allSubsets.slice()
+	for(var i=0; i<allSubsets.length; i++){
+		var groups = repeat(Y.length, "")
+		groups = concatenateColumns(groups, allSubsets[i])
+		//console.log(groups)
+		var uniqueGroups = uniqueValues(groups)
+		if(uniqueGroups.length==0) uniqueGroups.push('')
+		dftemp[i]=Y.length-uniqueGroups.length
+		//console.log(uniqueGroups)
+		var ybar = repeat(uniqueGroups.length, 0)
+		var groupn = repeat(uniqueGroups.length, 0)
+		for(var j=0; j<Y.length; j++){
+			var k=uniqueGroups.indexOf(groups[j])
+			ybar[k]+= +Y[j]
+			groupn[k]++
+		}
+		for(var j=0; j<ybar.length; j++) ybar[j] *= 1/groupn[j]
+		//console.log(ybar)
+		var yBarColumn=[]
+		for(var j=0; j<groups.length; j++){
+			yBarColumn.push(ybar[uniqueGroups.indexOf(groups[j])])
+		}
+		Ybars.push(yBarColumn)		
+	}
+	allSubsets = getAllSubsets(varUsed)
+//	console.log(JSON.stringify(allSubsets))	
+//	console.log(JSON.stringify(Ybars))
+//	for(var i=0; i<varUsed.length; i++){
+//		console.log(getColumn(varUsed[i]))
+//	}
+	
+	var SSpart = []
+	var SS=[]
+	var df=[]
+	for(var i=0; i<allSubsets.length; i++){
+		SSpart[i]=0;
+		for(var j=0; j<Y.length; j++){
+			SSpart[i] += +Math.pow(Y[j]-Ybars[i][j],2)
+		}
+		if(i==0) {
+			SS.push(SSpart[i])
+			df.push(dftemp[i])
+		} else {
+			var SStemp = 0
+			var dftemp2=0
+			var thisLength = allSubsets[i].length
+			for(var j=0; j<allSubsets.length; j++){
+				if(allSubsets[j].length < thisLength && allSubsets[j].every(val => allSubsets[i].includes(val))){
+					SStemp += SSpart[j]*(Math.pow(-1, (1+ allSubsets[j].length - thisLength)))
+					dftemp2 += dftemp[j]*(Math.pow(-1, (1+ allSubsets[j].length - thisLength)))
+				}
+			}
+			SStemp -= SSpart[i]
+			dftemp2 -= dftemp[i]
+			SS.push(SStemp)
+			df.push(dftemp2)
+		}
+	}
+	var SSerror = SS[0]
+	var dferror = df[0]
+	for(var i=1; i<SS.length; i++){
+		SSerror -= SS[i]
+		dferror -= df[i]
+	}
+	SS.push(SSerror)
+	df.push(dferror)
+//	console.log(SS)
+//	console.log(df)
+	return([SS,df,allSubsets])
+}
+
+function arraysEqual(array1, array2){
+	console.log(array1)
+	console.log(array2)
+	return (array1.sort().join(',')=== array2.sort().join(','))
+}
+
+function concatenateColumns(column1, columns){
+	if(columns.length==0) {
+		return column1
+	} else {
+		var addColumn = columns.shift()
+		var newValues = getColumn(addColumn)
+		return concatenateColumns(addvector(column1, newValues), columns)
+	}
+}
+
+function addvector(a,b){
+    return a.map((e,i) => e + b[i]);
+}
+
+function repeat(num,whatTo){
+    var arr = [];
+    for(var i=0;i<num;i++){
+        arr.push(whatTo);
+    }
+    return arr;
+}
+
+function getAllSubsets(array) {
+    const subsets = [[]];
+    for (const el of array) {
+        const last = subsets.length-1;
+        for (let i = 0; i <= last; i++) {
+            subsets.push( [...subsets[i], el] );
+        }
+    }    
+	subsets.sort((a, b) => a.length - b.length);
+
+    return subsets;
+}
+
+function checkValidDesign(){
+	//Make sure every level has at least 1 factor
+	//and each factor is used only once
+	var isValid=true
+	if(expDesign.length==0) return [false,"Model is blank"]
+	if(isFactor[responseVarNum])return [false, "Response variable is not quantitative"]
+	varUsed=[]
+	for(var i=0; i<expDesign.length; i++){
+		if(expDesign[i].length==0) return [false, "An experimental level is blank"];
+		for(var j=0; j<expDesign[i].length; j++){
+			varUsed.push(expDesign[i][j][0])
+		}
+	}
+	if(varUsed.length > uniqueValues(varUsed).length) return [false, "Variable is used twice"];
+	return [true,""];
+}
+
+
+function updateANOVACompare(){
+	var compareSS, compareName="null"
+	if(document.getElementById("ANOVAcompare").value==0){
+		compareSS = [0,0,modelSS[0]+modelSS[2], modelSS[1]+modelSS[3]]
+	} else {
+		compareSS = models[document.getElementById("ANOVAcompare").value-1][6]
+		compareName=modelNames[document.getElementById("ANOVAcompare").value-1]
+	}
+//	console.log(modelSS)
+//	console.log(compareSS)
+	
+	/*
+	Model	df		SSdiff	dfdiff	F	p
+	*/
+	var outputString=""
+	if(compareSS[3]==modelSS[3]){
+	outputString = "Models have same size; ANOVA is not appropriate."
+	} else {
+		
+		var	fullSS=modelSS
+		var	fullName=modelNames[activeModel-1]
+		var	redSS=compareSS
+		var	redName=compareName
+		if(modelSS[3]>compareSS[3]){
+			redSS=modelSS
+			redName=modelNames[activeModel-1]
+			fullSS=compareSS
+			fullName=compareName
+		}
+	
+		outputString ="<div class='overflowX'>"
+		outputString += "<table class='anova'>\n"
+		outputString += "<tr><th>Model</th><th>df error</th><th>SS error</th><th>&Delta;df</th><th>&Delta;SS</th></tr>"
+		outputString += "<tr><td>"+fullName+"</td><td>"+fullSS[3]+"</td><td>"+fixed(fullSS[2])+"</td><td>"+fixed(redSS[3]-fullSS[3])+"</td><td>"+fixed(redSS[2]-fullSS[2])+"</td></tr>"
+		outputString += "<tr><td>"+redName+"</td><td>"+redSS[3]+"</td><td>"+fixed(redSS[2])+"</td><td></td><td></td></tr>"
+		outputString +="</table>"
+		
+		var fstat = (redSS[2]-fullSS[2])/(redSS[3]-fullSS[3]) / (fullSS[2]/fullSS[3])
+		var pval = 1-jStat.centralF.cdf(fstat,redSS[3]-fullSS[3],fullSS[3])
+		outputString +="<b>F=</b>"+fixed(fstat) + "; <i>p</i>-value="+fixed(pval)		
+		outputString +="</div>"
+	}
+	document.getElementById("ANOVAoutput").innerHTML=outputString
+}
+
+var suppressRefresh=false
+var ignoreDummyClicks=false
+var models = []
+var modelNames = ["model1"]
+var activeModel = 1
+
+
+function batchDisplay(IDs, newDisplay){
+	for(var i=0; i<IDs.length; i++){
+//		console.log(IDs[i] + " " + newDisplay[i])
+		document.getElementById(IDs[i]).style.display=newDisplay[i]
+	}
+}
+
+
+var expDesign=[]
+var expTypes=[]
+var expLevels=[]
+// index 1: experiment Level
+// index 2: factor
+// index 3: factor type
+
+function addLevel(){
+//	console.log(expDesign)
+	var nLevels = expDesign.length
+	var newLevel = nLevels+1
+	const newDiv = document.createElement("div");
+	newDiv.id="expLvl"+newLevel
+	newDiv.classList='expLvl options'
+	if(newLevel>1) document.getElementById('rlvl'+(newLevel-1)).style.display="none"
+	
+	document.getElementById('experimentLevels').insertBefore(newDiv, document.getElementById('addLevel'))
+	newDiv.innerHTML="<b id='elvlLabel"+newLevel+"'>Experiment Level "+newLevel+"</b>"
+	newDiv.innerHTML+="<a id='rlvl"+newLevel+"' onClick='removeLevel("+newLevel+")' class='fauxButton floatright'>&Cross;</a><br>"
+	newDiv.innerHTML+="<a id='expLvl"+newLevel+"AddFactor' onClick='addFactor("+newLevel+")' class='fauxButton'>&plus; Factor</a>"
+	//newDiv.innerHTML+='<select id="expLvl'+newLevel+'Fac1"></select>'
+	expDesign[newLevel-1]=[]
+//	console.log(JSON.stringify(expDesign))
+	updateANOVA()
+}
+
+function addFactor(levelNum){
+	var nFactors = expDesign[levelNum-1].length
+	var newFactor = nFactors+1
+	const newDiv = document.createElement("div");
+	newDiv.id="expLvl"+levelNum+"fac"+newFactor
+	newDiv.innerHTML="							<select id='expLvl"+levelNum+"Fac"+newFactor+"select' onChange='setFactor("+levelNum+","+newFactor+");'>"
+	newDiv.innerHTML+="		</select>"
+	newDiv.innerHTML+="									<select id='expLvl"+levelNum+"FacType"+newFactor+"' onChange='setFactor("+levelNum+","+newFactor+");'>"
+	newDiv.innerHTML+="									</select> "
+	newDiv.innerHTML+="									<a id='removeFactor"+levelNum+"_"+newFactor+"' onClick='removeFactor("+levelNum+","+newFactor+")' class='fauxButton'>&Cross;</a>"
+	expDesign[levelNum-1][newFactor-1]=[]
+	document.getElementById('expLvl'+levelNum).insertBefore(newDiv, document.getElementById('expLvl'+levelNum+'AddFactor'))
+	
+	if(newFactor>1) document.getElementById('removeFactor'+levelNum+"_"+(newFactor-1)).style.display="none"
+	updateFactorChoices(levelNum, newFactor)
+	setFactor(levelNum, newFactor)
+//	console.log(JSON.stringify(expDesign))
+	updateANOVA()
+}
+
+function updateFactorChoices(levelNum, factorNum){
+//	console.log(isFactor)
+//	console.log(varNames)
+	options=""
+	for(var i=1; i<isFactor.length; i++){
+		if(isFactor[i] || isInteger[i]){
+			options +="<option value="+i+">"+document.getElementById("name"+i).value+"</option>"
+		}
+	}
+	document.getElementById('expLvl'+levelNum+"Fac"+factorNum+"select").innerHTML=options
+	document.getElementById('expLvl'+levelNum+"FacType"+factorNum).innerHTML="<option value=1>treatment</option><option value=2>block</option><option value=3>nested block</option><option value=4>error</option><option value=5>random effect</option><option value=6>nonerror block</option>"
+}
+
+function setFactor(levelNum, factorNum){
+	expDesign[levelNum-1][factorNum-1]= [+document.getElementById('expLvl'+levelNum+"Fac"+factorNum+"select").value,+document.getElementById('expLvl'+levelNum+"FacType"+factorNum).value]
+//	console.log(JSON.stringify(expDesign))
+	updateExpTypes()
+	updateANOVA()
+}
+
+function updateExpTypes(){
+	expTypes=[]
+	expLevels=[]
+	for(var i=0; i<expDesign.length; i++){
+		for(var j=0; j<expDesign[i].length; j++){
+			expTypes[expDesign[i][j][0]]=expDesign[i][j][1]
+			expLevels[expDesign[i][j][0]]=i
+		}
+	}
+//	console.log(expTypes)
+}
+
+function clearExperiment(){
+	var kill=0
+	var maxIt = expDesign.length+1
+	while(expDesign.length>0 && kill < maxIt){
+//		console.log("iteration = " + kill)
+//		console.log(JSON.stringify(expDesign))
+//		console.log(expDesign.length)
+		removeLevel(expDesign.length)
+		kill++
+	}
+//	console.log("done")
+}
+
+
+function resetExperiment(){
+	clearExperiment()
+	addLevel();
+//	console.log(document.getElementById("expDesTemplate").value);
+	switch(+document.getElementById("expDesTemplate").value){
+		case 1:
+			addFactor(1);
+			break;
+		case 2: 
+			addFactor(1);
+			selectFactorType(1,1,2);
+			addFactor(1);
+			break;
+		case 3:
+			addFactor(1);
+			selectFactorType(1,1,2);
+			addFactor(1);
+			selectFactorType(1,2,2);
+			addFactor(1);
+			break;
+		case 4:
+			addFactor(1);
+			selectFactorType(1,1,2);
+			addFactor(1);
+			selectFactorType(1,2,3);
+			addFactor(1);
+			selectFactorType(1,3,3);
+			addFactor(1);
+			break;
+		case 5: 
+			addFactor(1);
+			addFactor(1);
+			selectFactorType(1,2,4);
+			addLevel();
+			addFactor(2)
+			selectFactorType(2,1,4);
+			break;
+		case 6:
+			addFactor(1);
+			selectFactorType(1,1,2);
+			addFactor(1);
+			addLevel();
+			addFactor(2);
+			selectFactorType(2,1,4);
+			break;
+		case 7:
+			addFactor(1);
+			selectFactorType(1,1,2);
+			addFactor(1);
+			addLevel();
+			addFactor(2);
+			break;
+		case 8:
+			addFactor(1);
+			selectFactorType(1,1,5);
+			break;
+		case 9:
+			addFactor(1);
+			selectFactorType(1,1,5);
+			addFactor(1);
+			selectFactorType(1,2,4);
+			break;
+		}		
+}
+
+function selectFactorType(lvl, fctr, type){
+	document.getElementById("expLvl"+lvl+"FacType"+fctr).value=type
+	expDesign[lvl-1][fctr-1][1]=type
+}
+
+
+function removeFactor(levelNum, factorNum){
+	for(var i=factorNum-1; i<expDesign[levelNum-1].length-1; i++){
+		expDesign[levelNum-1][i]=expDesign[levelNum-1][i+1]
+	}
+	expDesign[levelNum-1].pop()
+	document.getElementById("expLvl"+levelNum+"fac"+factorNum).remove()
+	if(factorNum>1) document.getElementById('removeFactor'+levelNum+"_"+(factorNum-1)).style.display="inline"
+	console.log(JSON.stringify(expDesign))
+	updateANOVA()
+
+}
+
+function removeLevel(levelNum){
+	if(levelNum < expDesign.length) return;
+	if(levelNum>1)	document.getElementById('rlvl'+(levelNum-1)).style.display="inline"
+
+	document.getElementById('expLvl'+levelNum).remove()
+	for(var i=levelNum-1; i<expDesign.length-1; i++){
+		expDesign[i]=expDesign[i+1]
+//		document.getElementById('elvlLabel'+(i+2)).innerHTML="Experiment Level "+(i+1)
+	}
+	expDesign.pop()
+	console.log(JSON.stringify(expDesign))
+	updateANOVA()
+}
+
+		</script>
+		<style>
+		.hideRows tbody{
+			display:none;
+		}
+		
+		.invisCheck{
+			/*display:None;*/
+		}
+		.invisCheck:checked + .strikeThroughLabel{
+			text-decoration: none;
+		}
+		.invisCheck + .strikeThroughLabel{
+			text-decoration: line-through;
+		}
+		radio[disabled] {color:#EEE;}
+		
+		:checked + span {font-style: italic; color: #999;}
+		.baseline { font-style: italic; color: #999;}
+		
+		.dummyChoices{border: 1px solid gray; background-color:#F5F5F5;}
+		
+		.blackBorder{border: 1px solid black;}
+		
+		.collapse{border-collapse: collapse;}
+		
+		.interactionTable {border:solid black 1px;}
+		.interactionTable tr{border-bottom: solid #DDD 1px;}
+		.interactionTable th{padding-right: 4px;}
+		.interactionTable td{vertical-align:top; padding-right: 4px;}
+		
+		#dataMatrix{overflow-x: auto;}
+		#corMatrix{overflow-x: auto;}
+		
+		.rTop td, .rRow td, .rBot td{
+			background-color:#FFC;
+			margin:.1em;
+			border-radius:.2em;
+			padding: .2em;
+		}
+		tr.rTop td{border-top:black solid .01em;}
+		tr.rBot td{border-bottom:black solid .01em;}
+		tr.rRow td:first-child{border-left:black solid .01em;}
+		tr.rRow td:last-child{border-right:black solid .01em;}
+
+		.bBorder td {border-bottom: black solid 1px;}
+		.bBorder th {border-bottom: black solid 1px;}
+		</style>
+	</head>
+	
+	<body onload="startup();">
+		<div id="container">
+			<div id="title" onClick="setColors()">StatPowers</div>
+			<div id="menu"></div>
+			<form name="form1">
+				<div class="container" >
+					<input type="checkbox" checked name="headerDataEntry" id="headerDataEntry" class="css-checkbox">
+					<label for="headerDataEntry" class="css-label">Data Entry</label>
+					<div class="content css-content">
+						<div class='helpDiv minimized'>
+							<a onClick='toggle(this);' class='expander'>?</a>
+							<a onClick='toggle(this);' class='collapser'>&#10006;</a>
+							<span>
+						Enter data separated by: <br>
+						<input class="invisCheck" type="checkbox" checked id="delimComma"><label for="delimComma" class="strikeThroughLabel">comma</label>, 
+						<input class="invisCheck" type="checkbox" checked id="delimSemicolon"><label for="delimSemicolon" class="strikeThroughLabel">semicolon</label>, 
+						<input class="invisCheck" type="checkbox" checked id="delimSpace"><label for="delimSpace" class="strikeThroughLabel">space</label> or 
+						<input class="invisCheck" type="checkbox" checked id="delimTab"><label for="delimTab" class="strikeThroughLabel">tab</label>.<br>
+						Each observation should be placed on a new line.<br>
+							</span>
+						</div>
+						Independent Variables: <input id="nCovars" type="number" min="1" max="50" step="1" value="2" required="true" onChange="refreshCovariates()" /><br>
+						<div style="width:100%; box-sizing:border-box;">
+						<div style="max-height:500px; width:100%; overflow:auto;">
+							<span style="color:red">Variables:</span> 
+							<div id="varnames" style="position:relative;height:10px;">
+								<input type="text" id="name1" value="Y" size="20" maxlength="25" onchange='refreshCovariates(false);' style="position:absolute; left:49px; width:200px;"/>
+								<input type="text" id="name2" value="X1" size="20" maxlength="25" onchange='refreshCovariates(false);' style="position:absolute; left:249px; width:200px;" />
+								<input type="text" id="name3" value="X2" size="20" maxlength="25" onchange='refreshCovariates(false);' style="position:absolute; left:449px; width:200px;" />
+							</div>
+							<div id="wrapper">
+								<textarea name="data1" id="data1" class="fauxTable niceCols grid multicol" rows=6 cols=60 onkeydown="handleTab()" onchange="refreshData()"></textarea>
+								
+							</div>
+						</div>
+						</div>
+						<button TYPE=button VALUE="Calculate Now" onClick="refresh()">Calculate Now</button>
+						&nbsp;&nbsp;&nbsp;
+						<button TYPE=reset VALUE="Clear All" onClick="document.getElementById('data1').innerHTML='';document.getElementById('dataLink').innerHTML='';">Clear All</button>
+						&nbsp;&nbsp;&nbsp;
+						<button TYPE=button VALUE="Share Data" onClick="share()">Share Data</button> 
+					<div id="dataLink" ></div><iframe id="frmFile" style="display: none;"></iframe>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerSummaryStats" class="css-checkbox">
+					<label for="headerSummaryStats" class="css-label">Summary Statistics</label>
+					<div class="content css-content">
+						<div class="results">
+						<div id="output">
+						</div>
+						<div id="corMatrix">
+						</div>
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<h3>Charts</h3>
+					<div>
+						<input type="checkbox" id="headerScatter" class="css-checkbox">
+						<label for="headerScatter" class="css-label sub">Scatter Plot</label>
+						<div class="content css-content">
+							<div  class='options'>
+							<input type="checkbox" id="showScatterPlotMatrix" onChange = "prepDataAndCreateScatterplot(); document.getElementById('scplotVars').style.display=(this.checked?'none':'block');">
+							<label for="showScatterPlotMatrix">Scatter Plot Matrix</label><br>
+							<input type="checkbox" id="smartPlot" checked onChange = "prepDataAndCreateScatterplot();">
+							<label for="smartPlot">smartPlot</label><br>
+							<div id='scplotVars'>
+								Vertical-Variable: 
+								<select id="ScatterVar1" onchange="rebuildScatterVar2();prepDataAndCreateScatterplot();">
+								</select><br>
+								Horizontal-Variable: 
+								<select id="ScatterVar2" onchange="displayShowLines();prepDataAndCreateScatterplot();">
+								</select><br>
+
+								<span id="showLinesSpan" style="display:none;"><input type="checkbox" id="showlines" onClick="prepDataAndCreateScatterplot();">
+								<label for="showlines">Line(s)</label><br></span>
+								<span id="colorBySpan">
+								Color by:<select id="groupColor" onChange="prepDataAndCreateScatterplot()">
+									<option>none</option>
+								</select>
+								</span>
+							</div>
+							</div>
+							<div class="canvasdiv">
+							<canvas id="scatterplot" width="490" height="500" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'scatterplot','scatterplot.png');"></a>
+							</div>
+						</div>
+					</div>
+					<div id="residdiv">
+						<input type="checkbox" id="headerResid" class="css-checkbox">
+						<label for="headerResid" class="css-label sub">Residual Plot</label>
+						
+						<div class="content css-content">
+						<div  class='options'>
+							Residuals: <select id="residWhich" onchange = "prepDataForResidualPlot();">
+								<option value='raw'>Raw</option>
+								<option value='int'>Internally Studentized</option>
+								<option value='ext'>Externally Studentized</option>
+							</select>
+							<select id="residTransform" onChange="prepDataForResidualPlot();">
+								<option value='none'>no transform</option>
+								<option value='abs'>absolute value</option>
+								<option value='sqrt'>square root</option>
+							</select><br>
+							Horizontal-Variable: 
+							<select id="ResidVar" onchange="prepDataForResidualPlot();">
+							</select> 
+						</div>
+						<div class="canvasdiv">
+							<canvas id="residualplot" width="490" height="490" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'residualplot','residualplot.png');"></a>
+							</div>
+						</div>
+					</div>
+					<div id='diagnostics'>
+						<input type="checkbox" id="headerDiagnostic" class="css-checkbox">
+						<label for="headerDiagnostic" class="css-label sub">Diagnostic Plots</label>
+						<div class="content css-content">
+						<select id='diagnosticSelect' onChange="updateDiagnosticPlot()">
+							<option value='residualPlot'>Residual v Fitted</option>
+							<option value='residualQQ'>Standardized Residual QQ</option>
+							<option value='location-scale'>Location Scale</option>
+							<option value='residualLeverage'>Residual v Leverage</option>
+							<option value='cooksD'>Cook's Distance</option>
+						</select>
+						<div class="canvasdiv">
+							<canvas id="diagnosticPlot" width="490" height="490" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'diagnosticPlot','diagnosticPlot.png');"></a>
+							</div>
+						</div>		
+					</div>
+					<div id="ROCdiv" style="display: none;">
+						<input type="checkbox" id="headerROC" class="css-checkbox">
+						<label for="headerROC" class="css-label sub">ROC</label>
+						<div class="content css-content">
+							<div class="canvasdiv">
+							<canvas id="ROCplot" width="490" height="500" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomright"  href="" onClick="downloadCanvas(this,'ROCplot','ROCplot.png');"></a>
+							</div>
+							<div class='results'>
+							Area Under the Curve (AUC): <span id='aoc'></span>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerNormality" class="css-checkbox" onClick="refreshQQplot()">
+					<label for="headerNormality" class="css-label">Normality</label>
+					<div class="content css-content">
+						
+						<div class='options'>
+						QQ Plot: <select id='QQselect' onChange='refreshQQplot();refreshNormality();'></select> <a name='refreshQQ' onClick='refreshQQplot()' class='fauxButton'>&#8635;</a>
+								<input type="checkbox" id="qqbands" onClick="refreshQQplot();"> 95% Bands
+								<input type="checkbox" id="wormPlot" onClick="refreshQQplot();"> Worm Plot
+						</div>
+
+						
+						<div class="canvasdiv">
+							<canvas id="qqPlot" width="490" height="400" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+						<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'qqPlot','qqPlot.png');"></a> </div>
+						<div id="normality" class='results'></div>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerLinRegOptions" class="css-checkbox">
+					<label for="headerLinRegOptions" class="css-label">Model Options</label>
+					<div class="radio-toolbar" id="tabs_modelOptions">
+						<input type="radio" name="whichModel" id="whichModel1" value="1" checked onClick="batchDisplay(['experimentOptions','regressionOptions','ANOVAcompareOptions'],['none','block','block']); ">
+						<label for="whichModel1"> Regression</label>
+						<input type="radio" name="whichModel" id="whichModel2" value="2" onClick="batchDisplay(['experimentOptions','regressionOptions','ANOVAcompareOptions'],['block','none','none']); ">
+						<label for="whichModel2"> ANOVA Design</label>
+					</div>
+					<div id="modelOptions" class="content cass-content">
+						<div id="responseVarOptions" class="">
+							Response Variable: 
+							<select id="ChooseResponse" onchange="updateChooseResponseVar();refresh();">
+								<option value="1" selected>Y</option>
+								<option value="2">X1</option>
+								<option value="3">X2</option>
+							</select> 
+							Transformation: 
+							<select id="responseTransform" onchange="refresh();">
+								<option value="3">y&sup3;</option>
+								<option value="2">y&sup2;</option>
+								<option value="1" selected>none</option>
+								<option value=".5">&#8730;y</option>
+								<option value="0">log(y)</option>
+								<option value="-.5">1/&#8730;y</option>
+								<option value="-1">1/y</option>
+								<option value="-2">1/y&sup2;</option>
+								<option value="-3">1/y&sup3;</option>
+							</select><br>
+						
+						</div>					
+					<div id='regressionOptions' class="">
+						<div class='options'>
+						Confidence Level
+						<input type="number" id="cLevel" value="0.95" class="smallNumber" min="0" max="1" step=".01"  onchange="refreshLinRegAndDependencies();" /><br>
+						Regression Type:
+						<select id="regressionType" onClick = "document.getElementById('regressionType').options[1].disabled = !isLogistic();" onchange="refreshResponseVarLevelOption();refresh();">
+							<option value="1" selected>Linear</option>
+							<option value="2">Logistic</option>
+						</select> <span id="responseVarLevelSpan"></span><span id='predictYes'> | Threshhold:<input type='number' id='predictYesLevel' class="tinyNumber" min=0 max=1 step=.01 value=.5 onChange=refresh();></span><br>
+						
+						<div class='options'>
+						Model: <select id="modelSelect" onChange="saveAndNewModel();">
+								<option selected id="1">model1</option>
+								<option id="new">new</option>
+								</select>
+								<input id="modelName" value="model1" onChange="renameModel();">
+								<a name='deleteModel' onClick='deleteModel()' class='fauxButton'>delete</a>
+								<br>
+							Model Covariates:
+							<table class="anova" id="modelCovariates">
+								<thead>
+									<tr><td rowspan=2>Variable</td><td colspan=5 style="text-align:center">Transformation</td></tr>
+									<tr><td>x</td><td>x<sup>2</sup></td><td>x<sup>3</sup></td><td>ln(x)</td><td>&radic;<span style="text-decoration:overline">x</span></td><td>Categorical</td></tr>
+								</thead>
+								<tbody id="modelCovariatesTBODY">
+								</tbody>
+							</table>
+							
+							<table class='interactionTable collapse hideRows' id="modelInteractions">
+								<thead>
+									<tr class='perm'><th colspan=2 align="left"><input id="interactions" type=checkbox onchange="toggleHideInteractions()">Variable Interactions</th></tr>
+								</thead>
+								<tbody id="modelInteractionsTBODY">
+								</tbody>
+							</table>
+							</div>
+						</div>
+						<!--a name='refreshLinReg' onClick='refreshLinRegAndDependencies()' class='fauxButton'>&#8635;</a-->
+						<!--pre id="Xdata"></pre-->
+					</div>
+					<div id='experimentOptions' class="" style="display:none">
+						<div class='options'>
+						Experiment Design: 
+						<select id="expDesTemplate">
+						<option value=0>custom</option>
+						<option value=1>CRD</option>
+						<option value=2>RCBD</option>
+						<option value=3>Latin Square</option>
+						<option value=4>Multiple Latin Squares</option>
+						<option value=8>Random Effect</option>
+						<option value=9>Subsampling</option>
+						<option value=5>CRD with Subsampling</option>
+						<option value=6>RCBD with Subsampling</option>
+						<option value=7>Split Plot</option>
+						</select> 
+						<a name='loadExperiment' onClick='resetExperiment()' class='fauxButton'>Load</a>
+						<div id="experimentLevels">
+							<!--div id="expLvl1" class='expLvl options'>
+							<b>Experiment Level 1</b> <a onClick='removeLevel(1)' class='fauxButton floatright'>&Cross;</a><br>
+							<select id="expLvl1Fac1">
+								<option value='1'>antibiotic</option>
+								<option value='2'>b12</option>
+							</select>
+							<select id="expLvl1FacType1">
+								<option value='1'>treatment</option>
+								<option value='2'>block</option>
+							</select> 
+							<a onClick='removeFactor(1,1)' class='fauxButton'>&Cross;</a>
+							<br>
+							<a name='expLvl1AddFactor' onClick='addFactor(1)' class='fauxButton'>&plus; Factor</a>
+							</div-->
+							<a id='addLevel' onClick='addLevel()' class='fauxButton'>&plus; Level</a>
+							
+						</div>
+						
+						<!--  
+Drop down with experiment designs
+
+CRD
+RCBD
+
+---------------
+[Add Factor]
+drop downs:   [random block; fixed block; treatment factor; random effect;]
+-antibiotic
+-b12  [X]
+---------------
+[Add nested experiment]
+
+
+---------------
+
+						-->
+						
+						
+						
+						</div>						
+					</div>
+				</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerLinRegOutput" class="css-checkbox">
+					<label for="headerLinRegOutput" class="css-label">Regression Output</label>
+					<div class="content css-content">
+						<div id="linRegOutput" class='results'>
+						</div>
+						<div id='prediction'></div>
+					</div>
+				</div>
+				<div class="container" id="anovaContainer">
+					<input type="checkbox" id="headerANOVA" class="css-checkbox">
+					<label for="headerANOVA" class="css-label">ANOVA</label>
+					<div class="content css-content">
+						<div id="ANOVAcompareOptions" class="options">
+						Compare to: <select id="ANOVAcompare" onchange="updateANOVACompare()">
+								<option value=0>Null Model</option>
+							</select>
+						</div>
+						<div id="ANOVAoutput" class='results'>
+						</div>
+					</div>
+				</div>
+				<div class="container" id="residContainer">
+					<input type="checkbox" id="headerHistogram" class="css-checkbox" onClick="histogram(residuals.slice(),true,'Model Residuals')">
+					<label for="headerHistogram" class="css-label">Residuals</label>
+					<div class="content css-content">
+					Residual Type: <select id='residType' onChange='getResiduals()'>
+						<option value='raw'>Raw</option>
+						<option value='int'>Internally Studentized</option>
+						<option value='ext'>Externally Studentized</option>
+						</select>
+						
+						<input id='nBinsOverride' value='fd' hidden style="display:none;">
+						<input type=checkbox id='discrete' hidden style="display:none;">
+						<input id='varName1' value='residual' hidden style="display:none;">
+						<input id='varUnits1' value ='' hidden style="display:none;">
+						<div class="canvasdiv">
+							<canvas id="histogram" width="490" height="350" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton topright"  href="" onClick="downloadCanvas(this,'histogram','residualHistogram.png');"></a>
+							</div>
+						<div id='allResiduals' class='results'></div>
+					</div>
+				</div>	
+				<div id='dataMatrix' class='results'>
+				</div>
+			</form>
+		</div>
+	</body>
+</html>
+
+<script>
+if(!debug) document.getElementById('dataMatrix').style.display="none"
+/*	var tx = document.getElementsByTagName('textarea');
+
+	for (var i = 0; i < tx.length; i++) {
+		tx[i].setAttribute('style', 'height:' + (tx[i].scrollHeight) + 'px;overflow-y:hidden;');
+		tx[i].addEventListener("input", OnInput, false);
+	}*/
+</script>

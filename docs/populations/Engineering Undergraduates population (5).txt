@@ -1,0 +1,17 @@
+"Engineering Undergraduates"
+5
+["degree","GPA","School","offers","Salary(K)"]
+[1,3,1,2,3]
+[2,0,1,3,4]
+[[0,0,1,0,0],[0,0,1,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,1,0,1,0]]
+[0,4,0,3,1]
+[1,1,0,0,3]
+[1,1,0,0,0]
+[[[],[null,null,1]],[[],[null,null,1]],[""],[""],["55 + .2v4-200v4=0+5v2+3.5z^2+2z"]]
+[[[null,null,[null,null],[null,null],[null,null],[null,null],[null,null],[null,null],[null,null],[null,null]],[]],[[2.5,4],[2,4]],[[null,[null,null]]],[[0,7]],[[0,100]]]
+[10,1,2,1,1]
+[["mechanical","computer","electrical","chemical","biomedical","civil","environmental","general","physics","architectural"],["lvl1"],["State Polytechnic","Regional Technical Institute"],["lvl1"],["lvl1"]]
+[[[0.2693726937269373,0.04428044280442804,0.16605166051660517,0.12915129151291513,0.21771217712177118,0.12915129151291513,0.02214022140221402,0.01107011070110701,0.007380073800738006,0.003690036900369003],[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]],[[1],[]],[[0.5,0.5]],[[1]],[[1]]]
+[2,2,2,2,1]
+1274167122
+[0,0,0,0,0]

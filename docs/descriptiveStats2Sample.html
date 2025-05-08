@@ -1,0 +1,1506 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Descriptive Statistics (2 Independent Samples)</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+		<style>
+			.tableHeader {font-weight: bold;}
+		</style>
+		<script type="text/javascript" src="js/jstat.js"></script>
+		<script type="text/javascript" src="js/commonFunctions.js"></script>
+		<script type="text/javascript" src="js/chartFunctions.js"></script>
+		<script type="text/javascript" src="js/shapiro-wilk.js"></script>
+		<script language="javascript">
+			var nSets = 2
+			var nSamples = 2
+			var dataMessy =[false,false];			
+
+			function ciMean(){
+				
+				var alpha = 1-parseFloat(document.getElementById("cLevel").value)
+				var outputString=""
+				var xbar1, s1, n1, xbar2, s2, n2;
+				if (document.form1.whichCIMEAN[0].checked)
+				{
+					var data1 = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+					for(var i=0; i<data1.length; i++) { data1[i] = +data1[i]; }
+					
+					var data2 = document.getElementById("data2").value.trim().split(/[\s,;\t\n]+/)
+					for(var i=0; i<data2.length; i++) { data2[i] = +data2[i]; }
+					
+					xbar1 = jStat.mean(data1)
+					s1 = jStat.stdev(data1,true)
+					n1 = data1.length
+					xbar2 = jStat.mean(data2)
+					s2 = jStat.stdev(data2,true)
+					n2 = data2.length
+					} else {
+					xbar1=parseFloat(document.getElementById("mean1").value)
+					s1=parseFloat(document.getElementById("s1").value)
+					n1=parseFloat(document.getElementById("n1").value)
+					xbar2=parseFloat(document.getElementById("mean2").value)
+					s2=parseFloat(document.getElementById("s2").value)
+					n2=parseFloat(document.getElementById("n2").value)
+				}
+				var pooledDF = n1+n2 - 2
+				var pooledVar = ((n1-1)*Math.pow(s1,2) + (n2-1)*Math.pow(s2,2)) / pooledDF
+				var pooledME = jStat.studentt.inv(1-alpha/2, pooledDF)*Math.sqrt(pooledVar * (1/n1 + 1/n2))
+				var A=document.getElementById('name1').value
+				var B=document.getElementById('name2').value
+
+				var unpooledDF = Math.pow(Math.pow(s1,2)/n1 + Math.pow(s2,2)/n2,2)/( Math.pow(Math.pow(s1,2)/n1,2)/(n1-1) + Math.pow(Math.pow(s2,2)/n2,2)/(n2-1))
+				var unpooledME = jStat.studentt.inv(1-alpha/2,unpooledDF) * Math.sqrt(Math.pow(s1,2)/n1 + Math.pow(s2,2)/n2)
+				
+				outputString += "x&#772;<sub>"+A+"</sub>-x&#772;<sub>"+B+"</sub> = " +( xbar1-xbar2).toFixed(precision) + "<br><hr>\n"
+				outputString += fixed((1-alpha)*100)+"% confidence interval for &mu;<sub>"+A+"</sub>-&mu;<sub>"+B+"</sub> :<br>\n"
+				outputString += "Pooled Variances: "
+				outputString += "(" +( xbar1-xbar2 - pooledME).toFixed(precision) + ", " + +(xbar1-xbar2 + pooledME).toFixed(precision) + ")<br>\n"
+				outputString += "Unpooled Variances: "
+				outputString += "(" +( xbar1-xbar2 - unpooledME).toFixed(precision) + ", " + +(xbar1-xbar2 + unpooledME).toFixed(precision) + ")"
+				document.getElementById("ciMeanOutput").innerHTML=outputString
+			}
+			
+			function ciVar(){
+				var alpha = 1-parseFloat(document.getElementById("cLevel").value)
+				var outputString=""
+				var xbar1, s1, n1, xbar2, s2, n2;
+				if (document.form1.whichCIVAR[0].checked)
+				{
+					var data1 = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+					for(var i=0; i<data1.length; i++) { data1[i] = +data1[i]; }
+					
+					var data2 = document.getElementById("data2").value.trim().split(/[\s,;\t\n]+/)
+					for(var i=0; i<data2.length; i++) { data2[i] = +data2[i]; }
+					
+					s1 = jStat.stdev(data1,true)
+					n1 = data1.length
+					s2 = jStat.stdev(data2,true)
+					n2 = data2.length
+					} else {
+					s1=parseFloat(document.getElementById("ciVars1").value)
+					n1=parseFloat(document.getElementById("ciVarn1").value)
+					s2=parseFloat(document.getElementById("ciVars2").value)
+					n2=parseFloat(document.getElementById("ciVarn2").value)
+				}	
+				var UB = Math.pow(s1/s2,2) *  jStat.centralF.inv(1-alpha/2,n2-1,n1-1)
+				var LB = Math.pow(s1/s2,2) /  jStat.centralF.inv(1-alpha/2,n1-1,n2-1)
+				var A=document.getElementById('name1').value
+				var B=document.getElementById('name2').value
+
+				outputString += fixed((1-alpha)*100)+"% confidence interval for &sigma;<sup>2</sup><sub>"+A+"</sub>/&sigma;<sup>2</sup><sub>"+B+"</sub> : ("
+				outputString += +(LB.toFixed(precision)) + ", " + +(UB.toFixed(precision)) + ")"
+				document.getElementById("ciVarOutput").innerHTML=outputString
+			}
+			
+			function ciProp(){
+				var alpha = 1-parseFloat(document.getElementById("cLevel").value)
+				var outputString = ""
+				
+				var x1=0,n1,x2=0,n2
+				if (document.form1.whichCIPROP[0].checked)
+				{
+					var threshold = parseFloat(document.getElementById("propSuccess").value)
+					var ineqType = document.getElementById("propIneq").selectedIndex;
+					
+					var data1 = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+					for(var i=0; i<data1.length; i++) { data1[i] = +data1[i]; }
+					
+					var data2 = document.getElementById("data2").value.trim().split(/[\s,;\t\n]+/)
+					for(var i=0; i<data2.length; i++) { data2[i] = +data2[i]; }
+					
+					n1 = data1.length
+					n2 = data2.length
+					for(var i=0; i<data1.length; i++){
+						if( (ineqType==0 && data1[i]<threshold) || (ineqType==1 && data1[i]<=threshold) || (ineqType==2 && data1[i]>threshold) || (ineqType==3 && data1[i]>=threshold) || (ineqType==4 && data1[i]==threshold)) x1++
+					}
+					for(var i=0; i<data2.length; i++){
+						if( (ineqType==0 && data2[i]<threshold) || (ineqType==1 && data2[i]<=threshold) || (ineqType==2 && data2[i]>threshold) || (ineqType==3 && data2[i]>=threshold) || (ineqType==4 && data2[i]==threshold)) x2++
+					}
+					} else {
+					x1=parseFloat(document.getElementById("x1").value)
+					n1=parseFloat(document.getElementById("ciPropn1").value)
+					x2=parseFloat(document.getElementById("x2").value)
+					n2=parseFloat(document.getElementById("ciPropn2").value)
+				}
+				
+				var pHat1 = x1/n1;
+				var pHat2 = x2/n2;
+				var A=document.getElementById('name1').value
+				var B=document.getElementById('name2').value
+
+				outputString += "<strong><span class='Name1' id='ciPropOutputName1'>"+document.getElementById("name1").value +"</span></strong></br>\n" 
+				outputString += "Successes (x<sub>"+A+"</sub>) = " + x1 + "</br>\n"
+				outputString += "Sample size (n<sub>"+A+"</sub>) = " + n1 + "</br>\n"
+				outputString += "Sample Proportion (p&#770;<sub>"+A+"</sub>) = " + +pHat1.toFixed(precision) + "</br>\n"
+				outputString += "<strong><span class='Name2' id='ciPropOutputName2'>"+document.getElementById("name2").value +"</span></strong></br>\n" 
+				outputString += "Successes (x<sub>"+B+"</sub>) = " + x2 + "</br>\n"
+				outputString += "Sample size (n<sub>"+B+"</sub>) = " + n2 + "</br>\n"
+				outputString += "Sample Proportion (p&#770;<sub>"+B+"</sub>) = " + +pHat2.toFixed(precision) + "</br><hr>\n"
+				
+				var UBapprox = jStat.normal.inv(1-alpha/2,pHat1-pHat2,Math.sqrt(pHat1*(1-pHat1)/n1 +pHat2*(1-pHat2)/n2))
+				var LBapprox = jStat.normal.inv(alpha/2,pHat1-pHat2,Math.sqrt(pHat1*(1-pHat1)/n1 +pHat2*(1-pHat2)/n2))
+				outputString +=  +fixed((1-alpha)*100)+"% confidence interval for p<sub>"+A+"</sub>-p<sub>"+B+"</sub><br>\n"
+				outputString += "Approximate (normal): (" +(LBapprox.toFixed(precision)) + ", " + +(UBapprox.toFixed(precision)) + ")</br>\n"
+				document.getElementById("ciPropOutput").innerHTML=outputString
+			}
+			
+			function hypMean(){
+				var findCritical = (document.getElementById("sigLevel").value != "")
+				var alpha = parseFloat(document.getElementById("sigLevel").value)
+				var mu0=parseFloat(document.getElementById("mu0").value)
+				var testType = document.getElementById("hypmeanIneq").selectedIndex;
+				document.getElementById("mu1").innerHTML=document.getElementById("mu0").value
+				var outputString=""
+				var t = null
+				
+				var xbar1, s1, n1, xbar2, s2, n2;
+				if (document.form1.whichHYPMEAN[0].checked)
+				{
+					var data1 = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+					for(var i=0; i<data1.length; i++) { data1[i] = +data1[i]; }
+					
+					var data2 = document.getElementById("data2").value.trim().split(/[\s,;\t\n]+/)
+					for(var i=0; i<data2.length; i++) { data2[i] = +data2[i]; }
+					
+					xbar1 = jStat.mean(data1)
+					s1 = jStat.stdev(data1,true)
+					n1 = data1.length
+					xbar2 = jStat.mean(data2)
+					s2 = jStat.stdev(data2,true)
+					n2 = data2.length
+					} else {
+					xbar1=parseFloat(document.getElementById("hypMeanmean1").value)
+					s1=parseFloat(document.getElementById("hypMeans1").value)
+					n1=parseFloat(document.getElementById("hypMeann1").value)
+					xbar2=parseFloat(document.getElementById("hypMeanmean2").value)
+					s2=parseFloat(document.getElementById("hypMeans2").value)
+					n2=parseFloat(document.getElementById("hypMeann2").value)
+				}	
+				
+				
+				var criticalT = 0
+				var pValue=0
+				
+				var A=document.getElementById('name1').value
+				var B=document.getElementById('name2').value
+
+				
+				outputString += "x&#772;<sub>"+A+"</sub>-x&#772;<sub>"+B+"</sub> = " +( xbar1-xbar2).toFixed(precision) + "<br><hr>\n"
+				var ineqStr = "&lt;"
+				if(testType==1) {ineqStr = "&gt;"} else if (testType==2) {ineqStr = "&ne;"}
+				outputString += "H<sub>0</sub>: &mu;<sub>"+A+"</sub>-&mu;<sub>"+B+"</sub> = "+mu0 + "</br>\n"
+				outputString += "H<sub>1</sub>: &mu;<sub>"+A+"</sub>-&mu;<sub>"+B+"</sub> "+ineqStr+" "+mu0 + "</br>\n"
+				
+				outputString += "<strong>Pooled Variances:</strong> <br>\n"
+				var pooledDF = n1+n2 - 2
+				var pooledVar = ((n1-1)*Math.pow(s1,2) + (n2-1)*Math.pow(s2,2)) / pooledDF
+				var pooledStdError = Math.sqrt(pooledVar * (1/n1 + 1/n2))
+				t = ((xbar1-xbar2)-mu0)/pooledStdError
+				outputString += "T stat: "+ +t.toFixed(precision) +"</br>\n"
+				outputString += "degrees of freedom: "+pooledDF + "</br>\n"
+				if(findCritical){
+					outputString += "Rejection region: "
+					if(testType==0){
+						criticalT = jStat.studentt.inv(alpha,pooledDF)
+						outputString += "T<"
+						}else if(testType==1) {
+						criticalT = jStat.studentt.inv(1-alpha,pooledDF)
+						outputString += "T>"
+						}else if(testType==2) {
+						criticalT = jStat.studentt.inv(1-alpha/2,pooledDF)
+						outputString += "|T|>"
+					}
+					outputString += +criticalT.toFixed(precision) +"</br>\n"
+				}
+				if(testType==0){
+					pValue = jStat.studentt.cdf(t,pooledDF)
+					}else if(testType==1) {
+					pValue = 1-jStat.studentt.cdf(t,pooledDF)
+					}else if(testType==2) {
+					pValue = 2*jStat.studentt.cdf(-Math.abs(t),pooledDF)
+				}
+				outputString += "<i>p</i>-value: "+ +pValue.toFixed(precision) +"</br>\n"
+				
+				outputString += "<strong>Unpooled Variances:</strong><br>\n "
+				var unpooledDF = Math.pow(Math.pow(s1,2)/n1 + Math.pow(s2,2)/n2,2)/( Math.pow(Math.pow(s1,2)/n1,2)/(n1-1) + Math.pow(Math.pow(s2,2)/n2,2)/(n2-1))
+				t = ((xbar1-xbar2)-mu0)/Math.sqrt(Math.pow(s1,2)/n1 + Math.pow(s2,2)/n2)
+				outputString += "T stat: "+ +t.toFixed(precision) +"</br>\n"
+				outputString += "degrees of freedom: "+unpooledDF.toFixed(precision) + "</br>\n"
+				if(findCritical){
+					outputString += "Rejection region: "
+					if(testType==0){
+						criticalT = jStat.studentt.inv(alpha,unpooledDF)
+						outputString += "T<"
+						}else if(testType==1) {
+						criticalT = jStat.studentt.inv(1-alpha,unpooledDF)
+						outputString += "T>"
+						}else if(testType==2) {
+						criticalT = jStat.studentt.inv(1-alpha/2,unpooledDF)
+						outputString += "|T|>"
+					}
+					outputString += +criticalT.toFixed(precision) +"</br>\n"
+				}
+				if(testType==0){
+					pValue = jStat.studentt.cdf(t,unpooledDF)
+					}else if(testType==1) {
+					pValue = 1-jStat.studentt.cdf(t,unpooledDF)
+					}else if(testType==2) {
+					pValue = 2*jStat.studentt.cdf(-Math.abs(t),unpooledDF)
+				}
+				outputString += "<i>p</i>-value: "+ +pValue.toFixed(precision) +"</br>\n"
+				
+				document.getElementById("hypMeanOutput").innerHTML=outputString
+			}
+			
+			function hypVar(){
+				var findCritical = (document.getElementById("sigLevel").value != "")
+				var alpha = parseFloat(document.getElementById("sigLevel").value)
+				var sig0=1
+				var testType = document.getElementById("hypvarIneq").selectedIndex;
+				var outputString=""
+				if (document.form1.whichHYPVAR[0].checked)
+				{
+					var data1 = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+					for(var i=0; i<data1.length; i++) { data1[i] = +data1[i]; }
+					
+					var data2 = document.getElementById("data2").value.trim().split(/[\s,;\t\n]+/)
+					for(var i=0; i<data2.length; i++) { data2[i] = +data2[i]; }
+					
+					s1 = jStat.stdev(data1,true)
+					n1 = data1.length
+					s2 = jStat.stdev(data2,true)
+					n2 = data2.length
+					} else {
+					s1=parseFloat(document.getElementById("hypVars1").value)
+					n1=parseFloat(document.getElementById("hypVarn1").value)
+					s2=parseFloat(document.getElementById("hypVars2").value)
+					n2=parseFloat(document.getElementById("hypVarn2").value)
+				}	
+				
+				t = Math.pow(s1/s2,2)
+				
+				var A=document.getElementById('name1').value
+				var B=document.getElementById('name2').value
+				var ineqStr = "&lt;"
+				if(testType==1) {ineqStr = "&gt;"} else if (testType==2) {ineqStr = "&ne;"}
+				outputString += "H<sub>0</sub>: &sigma;<sub>"+A+"</sub> = &sigma;<sub>"+B+"</sub></br>\n"
+				outputString += "H<sub>1</sub>: &sigma;<sub>"+A+"</sub> "+ineqStr+" &sigma;<sub>"+B+"</sub></br>\n"
+				outputString += "<strong>F test:</strong></br>\n"
+				outputString += "Test stat F: "+ +t.toFixed(precision) +"</br>\n"
+				if(findCritical){
+					if(testType==0){
+//						alert(n1-1, n2-1)
+						outputString += "Rejection region: F&lt;" + +jStat.centralF.inv(alpha,n1-1,n2-1).toFixed(precision)
+						}else if(testType==1) {
+						outputString += "Rejection region: F&gt;" + +jStat.centralF.inv(1-alpha,n1-1,n2-1).toFixed(precision)
+						}else if(testType==2) {
+						outputString += "Rejection region: F&lt;" + +jStat.centralF.inv(alpha/2,n1-1,n2-1).toFixed(precision) + " or F&gt;" + +jStat.centralF.inv(1-alpha/2,n1-1,n2-1).toFixed(precision)
+					}
+					outputString += "</br>\n"
+				}
+				var pValue=0
+				if(testType==0){
+					pValue = jStat.centralF.cdf(t,n1-1,n2-1)
+					}else if(testType==1) {
+					pValue = 1-jStat.centralF.cdf(t,n1-1,n2-1)
+					}else if(testType==2) {
+					pValue = 2 *Math.min(jStat.centralF.cdf(t,n1-1,n2-1),1-jStat.centralF.cdf(t,n1-1,n2-1))
+				}
+				outputString += "<i>p</i>-value: "+ +pValue.toFixed(precision) +"</br>\n"
+				
+				if(testType==2 && document.form1.whichHYPVAR[0].checked){
+					outputString += "<strong>Levene's Test</strong><br>\n"
+					outputString += "Mean: "+leveneTest(2,"mean")
+					outputString += "Median: "+leveneTest(2,"median")
+				
+				//-------------Conover's Test
+				
+				outputString +="<strong>Conover Test</strong><br>"
+				
+				
+				var allData = []
+				var n= []
+				var N = 0
+				for(var i = 1; i<=nSamples; i++){
+					var data = parseData(i)
+					var datamean = jStat.mean(data)
+					n[i-1]=data.length;
+					N += data.length
+					for(var j=0; j<n[i-1]; j++) {data[j] = Math.abs(data[j]-datamean)}
+					allData = allData.concat(data)					
+				}				
+				var ranks = jStat.rank(allData)
+				var S=[]
+				var rw=0
+				var Rba
+				for(var i=0; i<nSamples; i++){
+					S[i]=0
+					for(j=0; j<n[i]; j++){
+						S[i]+=Math.pow(ranks[rw],2)
+						rw++
+					}
+				}
+				Sbar = jStat.sum(S)/N
+				var Tu = S[0]
+				var Dsq = 0
+				for(var i=0; i<ranks.length; i++){
+					Dsq+=Math.pow(ranks[i],4)
+				}
+				var Rbar4=Dsq/N
+				var T1 = (Tu - n[0]*Sbar)/Math.sqrt(n[0]*n[1]/(N-1)*(Rbar4 - Math.pow(Sbar,2)))
+				
+				
+				Dsq = (Dsq - N*Math.pow(Sbar,1))/(N-1)
+				var T = 0
+				for(var i=0; i<nSamples; i++){
+					T += Math.pow(S[i],2)/n[i]
+				}
+				T = (T-N*Math.pow(Sbar,1))/Dsq
+//				outputString += "T = "+fixed(T)+"<br>"
+//				outputString += "<i>p</i>-value = "+ fixed(1-jStat.chisquare.cdf(T,nSamples-1))+"<br>"				
+				outputString += "Z = "+fixed(T1)+"<br>"
+				outputString += "<i>p</i>-value = "+ fixed(2*(jStat.normal.cdf(-Math.abs(T1),0,1)))+"<br>"				
+				
+				}
+				
+				
+				
+				
+				document.getElementById("hypVarOutput").innerHTML=outputString
+			}
+			
+			function hypProp(){
+				
+				var findCritical = (document.getElementById("sigLevel").value != "")
+				var alpha = parseFloat(document.getElementById("sigLevel").value)
+				var p0=parseFloat(document.getElementById("p0").value)
+				document.getElementById("p1").innerHTML=document.getElementById("p0").value
+				var testType = document.getElementById("hyppropIneq").selectedIndex;
+				var outputString = ""
+				
+				var x1=0,n1,x2=0,n2
+				if (document.form1.whichHYPPROP[0].checked)
+				{
+					var threshold = parseFloat(document.getElementById("propHSuccess").value)
+					var ineqType = document.getElementById("propHIneq").selectedIndex;
+					
+					var data1 = parseData(1)
+					var data2 = parseData(2)
+					
+					n1 = data1.length
+					n2 = data2.length
+					for(var i=0; i<data1.length; i++){
+						if( (ineqType==0 && data1[i]<threshold) || (ineqType==1 && data1[i]<=threshold) || (ineqType==2 && data1[i]>threshold) || (ineqType==3 && data1[i]>=threshold)||(ineqType==4 && data1[i]==threshold)) x1++
+					}
+					for(var i=0; i<data2.length; i++){
+						if( (ineqType==0 && data2[i]<threshold) || (ineqType==1 && data2[i]<=threshold) || (ineqType==2 && data2[i]>threshold) || (ineqType==3 && data2[i]>=threshold) || (ineqType==4 && data2[i]==threshold)) x2++
+					}
+				} else {
+					x1=Math.round(parseFloat(document.getElementById("hypPropx1").value))
+					n1=Math.round(parseFloat(document.getElementById("hypPropn1").value))
+					x2=Math.round(parseFloat(document.getElementById("hypPropx2").value))
+					n2=Math.round(parseFloat(document.getElementById("hypPropn2").value))
+				}	
+				
+				var pHat1 = x1/n1;
+				var pHat2 = x2/n2;
+				var A=document.getElementById('name1').value
+				var B=document.getElementById('name2').value
+				outputString += "<strong><span class='Name1' id='hypPropOutputName1'>"+document.getElementById("name1").value +"</span></strong></br>\n" 
+				outputString += "Successes (x<sub>"+A+"</sub>) = " + x1 + "</br>\n"
+				outputString += "Sample size (n<sub>"+A+"</sub>) = " + n1 + "</br>\n"
+				outputString += "Sample Proportion (p&#770;<sub>"+A+"</sub>) = " + +pHat1.toFixed(precision) + "</br>\n"
+				outputString += "<strong><span class='Name2' id='hypPropOutputName2'>"+document.getElementById("name2").value +"</span></strong></br>\n" 
+				outputString += "Successes (x<sub>"+B+"</sub>) = " + x2 + "</br>\n"
+				outputString += "Sample size (n<sub>"+B+"</sub>) = " + n2 + "</br>\n"
+				outputString += "Sample Proportion (p&#770;<sub>"+B+"</sub>) = " + +pHat2.toFixed(precision) + "</br><hr>\n"
+				var pPooled = (x1+x2)/(n1+n2)
+				var z= (pHat1-pHat2-p0)/Math.sqrt( pPooled*(1-pPooled) *((1/n1) + (1/n2)))
+				
+				var pValue=0
+				
+				var ineqStr = "&lt;"
+				if(testType==1) {ineqStr = "&gt;"} else if (testType==2) {ineqStr = "&ne;"}
+				outputString += "H<sub>0</sub>: p<sub>"+A+"</sub>-p<sub>"+B+"</sub> = "+p0 + "</br>\n"
+				outputString += "H<sub>1</sub>: p<sub>"+A+"</sub>-p<sub>"+B+"</sub> "+ineqStr+" "+p0 + "</br>\n"
+				outputString += "Z stat: "+z.toFixed(precision)+"</br>\n"
+				
+				if(findCritical){
+					if(testType==0){
+						criticalT = jStat.normal.inv(alpha,0,1)
+						outputString += "Rejection region: Z<"
+						}else if(testType==1) {
+						criticalT = jStat.normal.inv(1-alpha,0,1)
+						outputString += "Rejection region: Z>"
+						}else if(testType==2) {
+						criticalT = jStat.normal.inv(1-alpha/2,0,1)
+						outputString += "Rejection region: |Z|>"
+					}
+					outputString += +criticalT.toFixed(precision) +"</br>\n"
+				}
+				var pValue=0
+				if(testType==0){
+					pValue = jStat.normal.cdf(z,0,1)
+					}else if(testType==1) {
+					pValue = 1-jStat.normal.cdf(z,0,1)
+					}else if(testType==2) {
+					if (z<0) z=-z
+					pValue = 2*jStat.normal.cdf(-z,0,1)
+				}
+				outputString += "Approximate (normal) <i>p</i>-value: "+ +pValue.toFixed(precision) +"</br>\n"
+				document.getElementById("hypPropOutput").innerHTML=outputString
+			}
+			
+			function hypMedian(){
+				var data1 = parseData(1)
+				var data2 = parseData(2)	
+				var n1=data1.length
+				var n2=data2.length
+				var U=0
+				for (var i=0; i<n1; i++){
+					for(var j=0; j<n2; j++){
+						if(data1[i]==data2[j]) U+=.5
+						if(data1[i]>data2[j]) U+=1
+					}
+				}
+				
+				var muU = n1*n2/2
+				var sdU = Math.sqrt(n1*n2*(n1+n2+1)/12)
+				var z = (U-muU)/sdU
+				var pvalue = 2*(1-jStat.normal.cdf(Math.abs(z),0,1))
+				
+				
+				outputString = "<strong>Mann-Whitney Test</strong><br>"
+				outputString +="Median A = " + jStat.median(data1).toFixed(precision) + "<br>"
+				outputString +="Median B = " + jStat.median(data2).toFixed(precision) + "<br>"
+				outputString +="n<sub>A</sub>="+n1+"<br>"
+				outputString +="n<sub>B</sub>="+n2+"<br>"
+				outputString +="U = "+U+"<br>"
+				if(n1>=20 || n2>=20){
+					outputString +="<i>p</i>-value &approx;"+pvalue.toFixed(precision)+"<br>"
+				} else if (n1<3 || n2<3){
+					outputString +="Sample sizes too small to test significance<br>"
+				}else{
+					var cv = mannWhitneCV(n1,n2)
+					if(U>=cv[1]){
+						outputString +="<i>p</i>-value < .01<br>"
+					} else if (U>=cv[0]){
+						outputString +="<i>p</i>-value < .05<br>"
+					} else {
+						outputString +="No significant difference<br>"
+					}
+				}
+				
+				
+				//---------Mood's Median Test 
+				
+				var allData = []
+				var n= []
+				var N = 0
+				for(var i = 1; i<=nSamples; i++){
+					var data = parseData(i)
+					allData = allData.concat(data)					
+					n[i-1]=data.length;
+					N += data.length
+				}				
+				var nullMedian = jStat.median(allData)
+				
+				var conTable = []
+				var E = []
+				for(var i=0; i<nSamples; i++){
+					conTable[i]=[0,0]
+					E[i]=[0,0]
+					var data = parseData(i+1)
+					for(var j=0; j<data.length; j++){
+						if(data[j]>nullMedian){
+							conTable[i][0]++
+						} else {
+							conTable[i][1]++
+						}
+					}		
+				}
+				for(var row = 0; row <nSamples; row++){
+					for (var col=0; col<2; col++){
+						var colTotal = 0, rowTotal = 0
+						for(var k=0; k<2; k++){
+							rowTotal += conTable[row][k]
+						}
+						for(var k=0; k<nSamples; k++){
+							colTotal += conTable[k][col]
+						}
+					
+						E[row][col]=  colTotal * rowTotal / N
+					}
+				}
+				var chiSq = 0
+				for(var row = 0; row <nSamples; row++){
+					for (var col=0; col<2; col++){
+						chiSq += Math.pow(conTable[row][col] - E[row][col],2)/E[row][col]
+					}
+				}
+				var df = nSamples-1
+				
+				outputString += "<strong>Mood's Median Test</strong><br>"
+				outputString += "&chi;<sup>2</sup> = "+chiSq.toFixed(precision)+"<br>\n";
+				outputString += "d.f. = "+df+"<br>\n";
+				outputString += "<i>p</i>-value = "+ (1-jStat.chisquare.cdf(chiSq,df)).toFixed(precision)+"<br>\n";				
+				
+				
+				
+				//---------------------------
+				
+				
+				
+				
+				
+				
+				hypMedianOutput.innerHTML=outputString
+			}
+			
+			
+			function mannWhitneCV(n1,n2){
+				var MWCVT05 = [[-1,-1,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8],
+							[-1,0,1,2,3,4,4,5,6,7,8,9,10,11,11,12,13,14],
+							[0,1,2,3,5,6,7,8,9,11,12,13,14,15,17,18,19,20],
+							[1,2,3,5,6,8,10,11,13,14,16,17,19,21,22,24,25,27],
+							[1,3,5,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34],
+							[2,4,6,8,10,13,15,17,19,22,24,26,29,31,34,36,38,41],
+							[2,4,7,10,12,15,17,20,23,26,28,31,34,37,39,42,45,48],
+							[3,5,8,11,14,17,20,23,26,29,33,36,39,42,45,48,52,55],
+							[3,6,9,13,16,19,23,26,30,33,37,40,44,47,51,55,58,62],
+							[4,7,11,14,18,22,26,29,33,37,41,45,49,53,57,61,65,69],
+							[4,8,12,16,20,24,28,33,37,41,45,50,54,59,63,67,72,76],
+							[5,9,13,17,22,26,31,36,40,45,50,55,59,64,67,74,78,83],
+							[5,10,14,19,24,29,34,39,44,49,54,59,64,70,75,80,85,90],
+							[6,11,15,21,26,31,37,42,47,53,59,64,70,75,81,86,92,98],
+							[6,11,17,22,28,34,39,45,51,57,63,67,75,81,87,93,99,105],
+							[7,12,18,24,30,36,42,48,55,61,67,74,80,86,93,99,106,112],
+							[7,13,19,25,32,38,45,52,58,65,72,78,85,92,99,106,113,119],
+							[8,14,20,27,34,41,48,55,62,69,76,83,90,98,105,112,119,127]]
+				var MWCVT01 = 	[[-1,-1,-1,-1,-1,-1,0,0,0,1,1,1,2,2,2,2,3,3],
+								[-1,-1,-1,0,0,1,1,2,2,3,3,4,5,5,6,6,7,8]
+								[-1,-1,0,1,1,2,3,4,5,6,7,7,8,9,10,11,12,13],
+								[-1,0,1,2,3,4,5,6,7,9,10,11,12,13,15,16,17,18],
+								[-1,0,1,3,4,6,7,9,10,12,13,15,16,18,19,21,22,24],
+								[-1,1,2,4,6,7,9,11,13,15,17,18,20,22,24,26,28,30],
+								[0,1,3,5,7,9,11,13,16,18,20,22,24,27,29,31,33,36],
+								[0,2,4,6,9,11,13,16,18,21,24,26,29,31,34,37,39,42],
+								[0,2,5,7,10,13,16,18,21,24,27,30,33,36,39,42,45,48],
+								[1,3,6,9,12,15,18,21,24,27,31,34,37,41,44,47,51,54],
+								[1,3,7,10,13,17,20,24,27,31,34,38,42,45,49,53,56,60],
+								[1,4,7,11,15,18,22,26,30,34,38,42,46,50,54,58,63,67],
+								[2,5,8,12,16,20,24,29,33,37,42,46,51,55,60,64,69,73],
+								[2,5,9,13,18,22,27,31,36,41,45,50,55,60,65,70,74,79],
+								[2,6,10,15,19,24,29,34,39,44,49,54,60,65,70,75,81,86],
+								[2,6,11,16,21,26,31,37,42,47,53,58,64,70,75,81,87,92],
+								[3,7,12,17,22,28,33,39,45,51,56,63,69,74,81,87,93,99],
+								[3,8,13,18,24,30,36,42,48,54,60,67,73,79,86,92,99,105]]
+				var returnArray = [MWCVT05[n1-3][n2-3],MWCVT01[n1-3][n2-3]]
+				return(returnArray)
+			}
+			
+			function hypKS(){
+				var data1 = parseData(1)
+				var data2 = parseData(2)	
+				var n1=data1.length
+				var n2=data2.length
+			
+				var idx1=-1, idx2=-1
+				var S1=0, S2=0
+				var D = 0
+				while(idx1<n1-1 || idx2<n2-1){
+//					console.log(idx1 + " " +idx2 + " " + S1 + " "+S2)
+					if(idx2==n2-1 || data1[idx1+1]<data2[idx2+1]){
+						idx1++
+						S1 = (idx1+1)/n1
+					} else if (data1[idx1+1]==data2[idx2+1]){
+						idx1++
+						idx2++
+						S1 = (idx1+1)/n1
+						S2 = (idx2+1)/n2
+					}else {
+						idx2++
+						S2 = (idx2+1)/n2
+					}
+					D = Math.max(D,Math.abs(S1-S2))
+				}
+				var outputString ="D = "+fixed(D)+"<br>"
+//				console.log(KSCV(n1,n2))
+				var alphas = [.2,.1,.05,.02,.01]
+				var CVs = KSCV(n1,n2)
+				var testType=2
+				for(var j=4; j>=-1; j--){
+					if(j<0){outputString += "Not significant<br>"; break;}
+					if(testType==0 && D >=CVs[j] || testType == 1 && D >=CVs[j] || testType==2 && Math.abs(D)>=CVs[j]){
+						if(j<4) outputString += alphas[j+1]*(testType==2?2:1) + " &lt; "
+						outputString += "<i>p</i>-value &lt " + alphas[j]*(testType==2?2:1) + "<br>"
+						break;
+					}
+				}	
+				var pValue = (1-kolmogorovCDF(Math.abs(D)))	
+				outputString += "<i>p</i>-value: "+ +fixed(pValue)+"<br>"	
+				document.getElementById("hypKSOutput").innerHTML=outputString
+			
+			}
+			
+			function KSCV(n1, n2){
+				var CVs = [[[3,0.667,0.667,1.1,1.1,1.1],      //3
+							[4,0.75,0.75,1.1,1.1,1.1],
+							[5,0.667,0.8,0.8,1.1,1.1],
+							[6,0.667,0.667,0.833,1.1,1.1],
+							[7,0.667,0.714,0.857,0.857,1.1],
+							[8,0.625,0.75,0.75,0.875,1.1],
+							[9,0.667,0.667,0.778,0.889,0.889],
+							[10,0.6,0.7,0.8,0.9,0.9],
+							[12,0.583,0.667,0.75,0.833,0.917]],
+						   [[4,0.75,0.75,0.75,1.1,1.1],        //4
+							[5,0.6,0.75,0.8,0.8,1.1],
+							[6,0.583,0.667,0.75,0.833,0.833],
+							[7,0.607,0.714,0.75,0.857,0.857],
+							[8,0.625,0.625,0.75,0.875,0.875],
+							[9,0.556,0.667,0.75,0.778,0.889],
+							[10,0.55,0.65,0.7,0.8,0.8],
+							[12,0.583,0.667,0.667,0.75,0.833],
+							[16,0.563,0.625,0.688,0.75,0.812]],
+						   [[5,0.6,0.6,0.8,0.8,0.8],			//5
+							[6,0.6,0.667,0.667,0.833,0.833],
+							[7,0.571,0.657,0.714,0.829,0.857],
+							[8,0.55,0.625,0.675,0.8,0.8],
+							[9,0.556,0.6,0.689,0.778,0.8],
+							[10,0.5,0.6,0.7,0.7,0.8],
+							[15,0.533,0.6,0.667,0.733,0.733],
+							[20,0.5,0.55,0.6,0.7,0.75]],
+						   [[6,0.5,0.667,0.667,0.833,0.833],	//6
+							[7,0.548,0.571,0.69,0.714,0.833],
+							[8,0.5,0.583,0.667,0.75,0.75],
+							[9,0.5,0.556,0.667,0.722,0.778],
+							[10,0.5,0.567,0.633,0.7,0.733],
+							[12,0.5,0.583,0.583,0.667,0.75],
+							[18,0.444,0.556,0.611,0.667,0.722],
+							[24,0.458,0.5,0.583,0.625,0.667]],
+						   [[7,0.571,0.571,0.714,0.714,0.714],	//7
+							[8,0.482,0.589,0.625,0.732,0.75],
+							[9,0.492,0.556,0.635,0.714,0.746],
+							[10,0.471,0.557,0.614,0.7,0.714],
+							[14,0.429,0.5,0.571,0.643,0.714],
+							[28,0.429,0.464,0.536,0.607,0.643]],
+						   [[8,0.5,0.5,0.625,0.625,0.75],		//8
+							[9,0.444,0.542,0.625,0.667,0.75],
+							[10,0.475,0.525,0.575,0.675,0.7],
+							[12,0.458,0.5,0.583,0.625,0.667],
+							[16,0.438,0.5,0.563,0.625,0.625],
+							[32,0.406,0.438,0.5,0.563,0.594]],
+							[[9,0.444,0.556,0.556,0.667,0.667],	//9
+							[10,0.467,0.5,0.578,0.667,0.689],
+							[12,0.444,0.5,0.556,0.611,0.667],
+							[15,0.422,0.489,0.533,0.6,0.644],
+							[18,0.389,0.444,0.5,0.556,0.611],
+							[36,0.361,0.417,0.472,0.528,0.556]],
+							[[10,0.4,0.5,0.6,0.6,0.7],			//10
+							[15,0.4,0.467,0.5,0.567,0.633],
+							[20,0.4,0.45,0.5,0.55,0.6],
+							[40,0.35,0.4,0.45,0.5,0.576]],
+							[[11,0.454,0.454,0.545,0.636,0.636]],	//11
+							[[12,0.417,0.417,0.5,0.583,0.583],		//12
+							[15,0.383,0.45,0.5,0.55,0.583],
+							[16,0.375,0.438,0.479,0.542,0.583],
+							[18,0.361,0.417,0.472,0.528,0.556],
+							[20,0.367,0.417,0.467,0.517,0.567]],
+							[[13,0.385,0.462,0.462,0.538,0.615]],	//13
+							[[14,0.357,0.429,0.5,0.5,0.571]],		//14
+							[[15,0.333,0.4,0.467,0.467,0.533]],		//15
+							[[16,0.375,0.375,0.438,0.5,0.563]],		//16
+							[[17,0.353,0.412,0.412,0.471,0.529]],	//17
+							[[18,0.333,0.389,0.444,0.5,0.5]],		//18
+							[[19,0.316,0.368,0.421,0.473,0.473]],	//19
+							[[20,0.3,0.35,0.4,0.45,0.5]],			//20
+							[[21,0.286,0.333,0.381,0.429,0.476]],	//21
+							[[22,0.318,0.364,0.364,0.454,0.454]],	//22
+							[[23,0.304,0.348,0.391,0.435,0.435]],	//23
+							[[24,0.292,0.333,0.375,0.417,0.458]],	//24
+							[[25,0.28,0.32,0.36,0.4,0.44]]]			//25
+				if(n1>n2){
+					var ntemp=n1
+					n1=n2
+					n2=ntemp
+				}
+	//			console.log(n1 + " " +n2)
+				var K=Math.sqrt((n1+n2)/(n1*n2))
+				var found=true
+				if(n1>25 || n1<3){
+					found=false
+				} else {
+					for(var i=0; i<CVs[n1-3].length; i++){
+						if(n2 <= CVs[n1-3][i][0]){
+							found=true
+							returnArray=CVs[n1-3][i]
+							returnArray.splice(0,1)
+							return returnArray
+						}
+					}
+				}
+				if(!found){
+					return [1.07*K, 1.22*K, 1.36*K, 1.52*K, 1.63*K]
+				}
+				return 0
+			
+			}
+			
+			function refresh(){
+				setPrecision(document.getElementById('precision').value)
+				if(document.getElementById('whichDATA2').checked) fillDataArea();
+				cleanDataInput(2)
+				cleanDataColumns('dataColumns');
+				sampleStats(2)
+				percentile(2)
+				updateNames(2)
+				histogramPlot(2)
+				beeswarm(2)
+				violinplot(2)
+				densityPlot(2, "ridgeplot")
+				boxplot(2)
+				ecdf(2)
+				refreshQQPlot();
+				//normality(2,false)
+				ciMean()
+				ciVar()
+				ciProp()
+				hypMean()
+				hypVar()
+				hypProp()
+				frequencyPolygon(2)
+				refreshStemLeaf()
+				hypMedian()
+				hypKS()
+			} 
+
+			function refreshHistogram(){
+				histogramPlot(2)
+			}
+
+			function refreshStemLeaf(){
+				stemLeafPlot([document.getElementById('name1').value,document.getElementById('name2').value], [parseData(1),parseData(2)])			
+			}					
+					
+			function checkNoData(){
+				var data1 = parseData(1)
+				var data2 = parseData(2)
+				var n1=data1.length
+				var n2=data2.length	
+				var option= (n1<2 && n2<2 ? 2 : 1)
+				var radios=['whichCIMEAN','whichCIPROP','whichCIVAR','whichHYPMEAN','whichHYPPROP','whichHYPVAR']
+				for(var i=0; i<radios.length; i++){
+//					document.getElementById(radios[i]+option).checked=true
+					document.getElementById(radios[i]+option).click()
+				}
+			}			
+
+			function refreshQQPlot(){
+				var vNum = document.getElementById('QQselect').value
+				document.getElementById('qqPlotDiv').style.display=(vNum==0?"none":"block")
+				if(vNum>0){
+					refreshNormalityPlot(parseData(vNum), false, 'qqPlot',document.getElementById('name'+vNum).value)
+				}
+			}
+				
+		var labelColors=[0,1]		
+				
+		var selecting=false		
+		function showSelect(setNum){
+			if(!selecting){
+				selecting=true
+				var index=setNum-1
+				var outputString = "<select id='color"+index+"' style='color:"+colors[labelColors[index]] + ";' onMouseLeave='hideSelect("+setNum+");' onChange='setColor("+setNum+");'>"
+				for(var j=0; j<colors.length; j++){
+					outputString+="<option style=\""+(colors[j]=='Black'?'color:White;':'color:Black;')+"background-color:"+colors[j]+";\" value='"+(j)+"' "+(labelColors[index]==j?" selected":"")+">"+colors[j]+"</option>"
+				}
+				outputString+="</select>"
+				document.getElementById('dataSet'+setNum).innerHTML=outputString
+			}
+		}
+		
+		function setColor(setNum){
+			labelColors[setNum-1]=document.getElementById('color'+(setNum-1)).value
+			document.getElementById('dataSet'+setNum).style.color=colors[labelColors[setNum-1]]
+		
+			hideSelect(setNum)
+		}
+		
+		function hideSelect(setNum){
+			selecting=false;
+			document.getElementById('dataSet'+setNum).innerHTML="Data Set "+String.fromCharCode(64+setNum)
+		}
+		
+		function moveDown(setNum){
+			var tempName= document.getElementById('name'+setNum).value
+			var tempData= document.getElementById('data'+setNum).value
+			
+			document.getElementById('name'+setNum).value = document.getElementById('name'+(setNum+1)).value
+			document.getElementById('data'+setNum).value = document.getElementById('data'+(setNum+1)).value
+			document.getElementById('name'+(setNum+1)).value=tempName
+			document.getElementById('data'+(setNum+1)).value=tempData
+			refresh()
+		}
+		
+		</script>
+		
+		<script type="text/javascript" src="js/tln.min.js"></script>
+		<link rel="stylesheet" type="text/css" href="styles/tln.min.css"/>
+		<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+	
+	</head>
+	
+	<body onload="loadPrecision();loadColorChoice();linkMenu();setColors();generateSampleStatsTable(2,false);TLN.append_line_numbers('dataColumns');enableTab('dataColumns');parseDataFromURL(2);			cleanDataInput(2);">
+		<div id="container">
+			<div id="title" onClick="setColors()">StatPowers</div>
+			<div id="menu"></div>
+			
+			<form name="form1">
+				
+				<div class="container" >
+					<input type="checkbox" checked name="headerData" id="headerData" class="css-checkbox">
+					<label for="headerData" class="css-label">Data Entry</label>
+
+					<div class="css-content">
+						<div class="radio-toolbar">
+							<input type="radio" name="whichDATA" id="whichDATA1" checked onClick="document.getElementById('dataEntryColumns').style.display='none';document.getElementById('dataEntryArea').style.display='block';fillDataArea();">
+							<label for="whichDATA1"> Text Areas</label>
+							<input type="radio" name="whichDATA" id="whichDATA2" onClick="cleanDataColumns('dataColumns');document.getElementById('dataEntryColumns').style.display='block';document.getElementById('dataEntryArea').style.display='none';fillColumns();">
+							<label for="whichDATA2"> Columns</label>
+						</div>
+						<div id="dataArea" class="content">
+						<div class='helpDiv minimized'>
+							<a onClick='toggle(this);' class='expander'>?</a>
+							<a onClick='toggle(this);' class='collapser'>&#10006;</a>
+							<span>
+							Enter data separated by comma, semicolon, space, tab or newlines<br>
+							Repeated values: 4x3 becomes 3 3 3 3<br/>
+							</span>
+						</div>							
+							<span style="font-weight:bold">Variable Name:</span> <input type="text" id="varName1" value="" placeholder="variable name" size="19" maxlength="25" onchange="refresh()" />,  
+							<span style="font-weight:bold">units:</span> <input type="text" id="varUnits1" value="" placeholder="unset"  size="14" maxlength="25" onchange="refresh()" /><br/>
+							<div id="dataEntryArea" style="display:block;"  class="content">
+								
+								<span style="color:red" id='dataSet1' onClick='showSelect(1);'>Data Set A:</span> <input name="name1" type="text" id="name1" value="Group A" size="25" maxlength="25" onChange="updateNames(2)" /><!--a class='rightAlign fauxbutton' name='moveDown1' onClick="moveDown(1)">	
+&#9660;</a--><br/>
+								<textarea name="data1" id="data1" rows=6 cols=60 onChange="refresh();"></textarea><br/>
+								<span style="color:blue" id='dataSet2' onClick='showSelect(2);'>Data Set B:</span> <input name="name2" type="text" id="name2" value="Group B" size="25" maxlength="25" onChange="updateNames(2)" /><a class='rightAlign fauxButton' name='moveDown1' onClick="moveDown(1)">	
+<img src="img/updown2.png"></a><br/>
+								<textarea name="data2" id="data2" rows=6 cols=60 onChange="refresh();"></textarea><br/>
+							</div>
+							<div id="dataEntryColumns" style="display:none;"  class="content">
+						<span style="color:red">Data Sets:</span> 
+								<div style="position:relative;height:10px;">
+									<input type="text" id="colName1" value="Group A" size="20" maxlength="25" onchange="document.getElementById('name1').value=this.value;" style="position:absolute; left:49px; width:195px;"/>
+									<input type="text" id="colName2" value="Group B" size="20" maxlength="25" onchange="document.getElementById('name2').value=this.value;" style="position:absolute; left:249px;width:195px;" />
+								</div>
+							
+							<div id="wrapper">
+								<textarea name="dataColumns" id="dataColumns" class="niceCols grid twocol" rows=6 cols=60 onkeydown="if(event.keyCode===9){var v=this.value,s=this.selectionStart,e=this.selectionEnd;this.value=v.substring(0, s)+'\t'+v.substring(e);this.selectionStart=this.selectionEnd=s+1;return false;}"
+								style="position:absolute; left:49px;"></textarea>
+							</div>
+							</div>
+							<button TYPE=button VALUE="Calculate Now" onClick="refresh()">Calculate Now</button>
+							&nbsp;&nbsp;&nbsp;
+							<button TYPE=reset VALUE="Clear All" onClick="document.getElementById('data1').innerHTML='';document.getElementById('data2').innerHTML='';document.getElementById('ciMeanSummary').style.display='none';document.getElementById('dataLink').innerHTML='';">Clear All</button>
+							&nbsp;&nbsp;&nbsp;
+							<button TYPE=button VALUE="Share Data" onClick="makeURL()">Share Data</button> 
+							<div id="dataLink" ></div><iframe id="frmFile" style="display: none;"></iframe>
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" name="headerStats" id="headerStats" class="css-checkbox">
+					<label for="headerStats" class="css-label">Summary Statistics</label>
+					<div class="content css-content">
+						<div id="output" class="results">
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" name="headerNormality" id="headerNormality" class="css-checkbox">
+					<label for="headerNormality" class="css-label">Normality</label>
+					<div class="content css-content">
+						<div class='options'>
+							QQ Plot: <select id='QQselect' onChange='refreshQQPlot();'>
+							<option value=0>choose a variable</option>
+							<option value=1 id='QQA' class='Name1'>Group A</option>
+							<option value=2 id='QQB' class='Name2'>Group B</option>
+						</select><br> 
+								<input type="checkbox" id="qqbands" onClick="refreshQQPlot();"> 95% Bands<br>
+								<input type="checkbox" id="wormPlot" onClick="refreshQQPlot();"> Worm Plot<br>
+						</div>
+						<div id='qqPlotDiv' class="canvasdiv" style='display:none;'>
+							<canvas id="qqPlot" width="490" height="400" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'qqPlot','qqPlot.png');"></a> 
+						</div>
+						<div id="normality" class='results'></div>
+					</div>
+				</div>
+				<div class="container">
+					<h3>Charts</h3>
+					<div>
+						<input type="checkbox" id="headerHistogram" class="css-checkbox">
+						<label for="headerHistogram" class="css-label sub">Histograms</label>
+						<div class="content css-content">
+							<div class='options'>
+							<input type="checkbox" id="discreteFreqHist" onclick="histogramPlot(2);document.getElementById('nPointsOverrideHist').disabled=(document.getElementById('discreteFreqHist').checked==true)">Discrete Ticks (only for integer data)</br>
+							Number of bins: <select id="nPointsOverrideHist" onchange="histogramPlot(2);">
+								<option value="sqrt" >Square-Root of n</option>
+								<option value="sturges" >Sturges' formula</option>
+								<option value="rice" >Rice Rule</option>
+								<option value="doanes" >Doane's formula</option>
+								<option value="scotts" >Scott's normal reference rule</option>
+								<option value="fd" selected >Freedman-Diachonis' choice</option>
+								<option value="4" >4</option>
+								<option value="5" >5</option>
+								<option value="6" >6</option>
+								<option value="7" >7</option>
+								<option value="8" >8</option>
+								<option value="9" >9</option>
+								<option value="10" >10</option>
+								<option value="11" >11</option>
+								<option value="12" >12</option>
+								<option value="13" >13</option>
+								<option value="14" >14</option>
+								<option value="15" >15</option>
+								<option value="16" >16</option>
+								<option value="17" >17</option>
+								<option value="18" >18</option>
+								<option value="19" >19</option>
+								<option value="20" >20</option>
+							</select>
+							</div>
+							<div class="canvasdiv">
+								<canvas id="hist" width="490" height="300" class='zoomable'>
+									<p>Your browser doesn't support canvas. Please update your browser.</p>
+								</canvas>
+								<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'histogram','histogram.png');"></a>
+							</div>
+						</div>
+					</div>
+					<div>
+						<input type="checkbox" id="headerfrequencyPolygon" class="css-checkbox">
+						<label for="headerfrequencyPolygon" class="css-label sub">Frequency Polygon</label>
+						<div class="content css-content">
+							<div class='options'>
+							<input type="checkbox" id="discreteFreq" onclick="frequencyPolygon(2);document.getElementById('nPointsOverride').disabled=(document.getElementById('discreteFreq').checked==true)">Discrete Ticks (only for integer data)</br>
+							<input type="checkbox" id="cumulative" onclick="frequencyPolygon(2)">Cumulative</br>
+							Number of bins: <select id="nPointsOverride" onchange="frequencyPolygon(2);">
+								<option value="sqrt" >Square-Root of n</option>
+								<option value="sturges" >Sturges' formula</option>
+								<option value="rice" >Rice Rule</option>
+								<option value="doanes" >Doane's formula</option>
+								<option value="scotts" >Scott's normal reference rule</option>
+								<option value="fd" selected >Freedman-Diachonis' choice</option>
+								<option value="4" >4</option>
+								<option value="5" >5</option>
+								<option value="6" >6</option>
+								<option value="7" >7</option>
+								<option value="8" >8</option>
+								<option value="9" >9</option>
+								<option value="10" >10</option>
+								<option value="11" >11</option>
+								<option value="12" >12</option>
+								<option value="13" >13</option>
+								<option value="14" >14</option>
+								<option value="15" >15</option>
+								<option value="16" >16</option>
+								<option value="17" >17</option>
+								<option value="18" >18</option>
+								<option value="19" >19</option>
+								<option value="20" >20</option>
+							</select>
+							</div>
+							<div class="canvasdiv">
+								<canvas id="freqPolygon" width="490" height="300" class='zoomable'>
+									<p>Your browser doesn't support canvas. Please update your browser.</p>
+								</canvas>
+								<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'freqPolygon','freqPolygon.png');"></a>
+							</div>
+						</div>
+					</div>
+					<div> <!--- Empirical CDF --->
+						<input type="checkbox" id="headerECDF" class="css-checkbox" onClick="ecdf(2)">
+						<label for="headerECDF" class="css-label sub">Empirical CDF</label>
+						<div class="content css-content">
+							<div class="canvasdiv">
+							<canvas id="ecdf" width="490" height="300" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'ecdf','ecdf.png');"></a>
+							</div>
+						</div>
+					</div>					
+					<div> <!--- Box Plot --->
+						<input type="checkbox" id="headerBoxplot" class="css-checkbox">
+						<label for="headerBoxplot" class="css-label sub">Boxplot</label>
+						<div class="content css-content">
+							<div class="canvasdiv">
+							<canvas id="boxplot" width="490" height="300" class='zoomable' >
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'boxplot','boxplot.png');"></a>
+							</div>
+						</div>
+					</div>
+
+					<div> <!--Dot Plot-->
+						<input type="checkbox" id="headerBeeswarm" class="css-checkbox">
+						<label for="headerBeeswarm" class="css-label sub">Dot Plot</label>
+						<div class="content css-content">
+							<div class='helpDiv minimized'>
+								<a onClick='toggle(this);' class='expander'>?</a>
+								<a onClick='toggle(this);' class='collapser'>&#10006;</a>
+								<span>Neat will attempt to pack dots neatly. By row will stack dots. </span>
+							</div>
+							<div class='options'>
+							Style: <select id="beeswarmStyle" onchange="beeswarm(2);">
+								<option value="neat" selected >neat</option>
+								<option value="stack" >by row</option>
+								<option value="bars" >bottom aligned</option>
+								<option value="line" >line</option>
+								<option value="strip" >strip</option>
+								<!--option value="messy" >messy</option-->
+							</select>
+							</div>
+							<div class="canvasdiv">
+							<canvas id="beeswarm" width="490" height="300" class='zoomable' >
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+						<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'beeswarm','beeswarm.png');"></a>
+							</div>
+						</div>
+					</div>
+
+					<div> <!--- Ridgeline Plot --->
+						<input type="checkbox" id="headerDensityPlot" class="css-checkbox">
+						<label for="headerDensityPlot" class="css-label sub">Ridgeline Plot</label>
+						<div class="content css-content">
+							<div class='options'>
+							Kernel Function: <select id="kernelFunction" onchange="densityPlot(2,'ridgeplot');">
+								<option value="Uniform" >Uniform</option>
+								<option value="Triangle" >Triangle</option>
+								<option value="Epanechnikov" >Epanechnikov</option>
+								<option value="Gaussian" selected>Gaussian</option>
+							</select><br>
+							Bandwidth: <input disabled type="number" id= "bandwidth" onChange="densityPlot(2,'ridgeplot')" value="1" min=".01" max="10" step=".1"> <input type="checkbox" id="autoBandwidth" checked onclick="densityPlot(2,'ridgeplot');document.getElementById('bandwidth').disabled=this.checked;">Auto</br>
+							</div>
+							<div class="canvasdiv">
+							<canvas id="ridgeplot" width="490" height="300" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton topright"  href="" onClick="downloadCanvas(this,'ridgeplot','ridgeplot.png');"></a>
+							</div>
+						</div>
+					</div>					
+					<div> <!--- Violin Plot --->
+						<input type="checkbox" id="headerViolinPlot" class="css-checkbox">
+						<label for="headerViolinPlot" class="css-label sub">Violin Plot</label>
+						<div class="content css-content">
+							<div class='options'>
+							Interior: <select id="violinInterior" onchange="violinplot(2);">
+								<option value="blank" selected >empty</option>
+								<option value="boxplot" >Boxplot</option>
+								<option value="meanSD" >Mean+SD</option>
+								<option value="data" >Data</option>
+								<option value="strip" >Strip Chart</option>
+								</select>
+							</div>
+							<div class="canvasdiv">
+							<canvas id="violinplot" width="490" height="300" class='zoomable' >
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'violinplot','violinplot.png');"></a>
+							</div>
+						</div>
+					</div>					
+					<div> <!--- Stem and Leaf Plot --->
+						<input type="checkbox" id="headerStemLeaf" class="css-checkbox">
+						<label for="headerStemLeaf" class="css-label sub">Stem and Leaf Plot</label>
+						<div class="content css-content">
+								<div class='options'>
+								<div style="width:100%;">
+								<div style="display:inline-block; width:30%;">
+								<input type="checkbox" id="autoStem" checked onClick="document.getElementById('stemSize').disabled=this.checked;document.getElementById('stemsplit').disabled=this.checked;refreshStemLeaf();">Auto Format</div>
+								<div style="display:inline-block; width:48%;">Target # of Stems: <input id="optimalStems" type='number' class='tinyNumber' value=10 min=5 max=30 step=1  onchange="refreshStemLeaf();">
+								
+								</div>
+								</div>
+								<div style="width:100%;">
+
+								<div style="display:inline-block; width:34%;">
+								Stem size: <select disabled id="stemSize" onchange="refreshStemLeaf();">
+									<option value="0.00001" >0.00001</option>
+									<option value="0.0001" >0.0001</option>
+									<option value="0.001" >0.001</option>
+									<option value="0.01" >0.01</option>
+									<option value="0.1" >0.1</option>
+									<option value="1" >1</option>
+									<option value="10" selected >10</option>
+									<option value="100" >100</option>
+									<option value="1000" >1,000</option>
+									<option value="10000" >10,000</option>
+									<option value="100000" >100,000</option>
+									<option value="1000000" >1,000,000</option>
+								</select>
+								</div>
+								<div style="display:inline-block; width:50%;">
+								Split stems: <select disabled id="stemsplit" onchange="refreshStemLeaf();">
+									<option value="1" selected>None</option>
+									<option value="2" >2 Parts</option>
+									<option value="5" >5 Parts</option>
+									<option value="10" >10 Parts</option>
+								</select>
+								</div>
+								</div>
+								</div>
+							<div class="canvasdiv">
+							<canvas id="stemleafplot" width="490" height="300" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton topright"  href="" onClick="downloadCanvas(this,'stemleafplot','stemleafplot.png');"></a>
+							</div>
+							<div id="stemLeafInfo"></div>
+						</div>
+					</div>
+				</div>
+				<div class="container"><h3>Confidence Intervals</h3>
+					<div id="commonCI" class="content">
+						Confidence Level
+						<input type="number" id="cLevel" value="0.95" class="smallNumber" min="0" max="1" step=".01" onchange="ciMean();ciVar();ciProp();" />
+					</div>
+					<div>
+						<input type="checkbox" id="headerCIMean" class="css-checkbox" onclick="checkNoData()">
+						<label for="headerCIMean" class="css-label sub">Difference of Means</label>
+						<div class="css-content">
+							<div class="radio-toolbar">
+								<input type="radio" name="whichCIMEAN" id="whichCIMEAN1" checked onClick="document.getElementById('ciMeanSummary').style.display='none';ciMean();">
+								<label for="whichCIMEAN1"> Use data</label>
+								
+								<input type="radio" name="whichCIMEAN" id="whichCIMEAN2" onClick="document.getElementById('ciMeanSummary').style.display='block';ciMean();">
+								<label for="whichCIMEAN2"> Enter summary stats</label>
+							</div>
+							<div  class="content">
+								<div id="ciMeanSummary" style="display:none;">
+									<table  border="0">
+										<tr><td></td><td class="Name1" id="ciMeanName1">Group A</td><td class="Name2" id="ciMeanName2">Group B</td></tr>
+										<tr>
+											<td>Sample Mean (x&#772;)</td>
+											<td><input type="number" class="smallNumber" id="mean1"  value="1"  onchange="ciMean();copyTo('hypMeanmean1')" /></td>
+											<td><input type="number" class="smallNumber" id="mean2"  value="0"  onchange="ciMean();copyTo('hypMeanmean2')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Standard Deviation (s)</td>
+											<td> <input type="number" class="smallNumber" id="s1" value="1" min="0.0000001" onchange="ciMean();copyTo('hypMeans1')" /></td>
+											<td> <input type="number" class="smallNumber" id="s2" value="1" min="0.0000001" onchange="ciMean();copyTo('hypMeans2')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Size (n)</td>
+											<td> <input type="number" class="smallNumber" id="n1" value="30" min="2" step="1" onchange="ciMean();copyTo('hypMeann1')" /></td>
+											<td> <input type="number" class="smallNumber" id="n2" value="30" min="2" step="1" onchange="ciMean();copyTo('hypMeann2')" /></td>
+										</tr>
+									</table>	
+								</div>
+								<div id="ciMeanOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					
+					<div>
+						
+						<input type="checkbox" id="headerCIProp" class="css-checkbox" onclick="checkNoData()">
+						<label for="headerCIProp" class="css-label sub">Difference of Proportions</label>
+						<div class="css-content">
+							<div class="radio-toolbar">
+								<input type="radio" name="whichCIPROP" id="whichCIPROP1" checked onClick="document.getElementById('ciPropStats').style.display='block';document.getElementById('ciPropSummary').style.display='none';ciProp();">
+								<label for="whichCIPROP1"> Use data</label>
+								<input type="radio" name="whichCIPROP" id="whichCIPROP2" onClick="document.getElementById('ciPropStats').style.display='none';document.getElementById('ciPropSummary').style.display='block';ciProp();">
+								<label for="whichCIPROP2"> Enter summary stats</label>
+							</div>
+							<div  class="content">
+								<div id="ciPropStats" style="display:block;">
+									<table  border="0">
+										<tr>
+											<td>Consider a success: X</td>
+											<td> 
+												<select id="propIneq" onchange="ciProp();">
+													<option value="l">&lt;</option>
+													<option value="leq">&le;</option>
+													<option value="g">&gt;</option>
+													<option value="geq" selected>&ge;</option>
+													<option value="eq">=</option>
+												</select>
+											<input type="number" class="smallNumber" id="propSuccess" value="1"  onchange="ciProp();" /></td>
+										</tr>
+									</table>	
+								</div>
+								<div id="ciPropSummary" style="display:none;">
+									<table  border="0">
+										<tr><td></td><td class="Name1" id="ciPropName1">Group A</td><td class="Name2" id="ciPropName2">Group B</td></tr>
+										<tr>
+											<td>Number of successes (x)</td>
+											<td><input type="number" class="smallNumber"  id="x1"  value="25" min="0" step="1" onchange="ciProp();copyTo('hypPropx1')" /></td>
+											<td><input type="number" class="smallNumber"  id="x2"  value="38" min="0" step="1" onchange="ciProp();copyTo('hypPropx2')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Size (n)</td>
+											<td> <input type="number" class="smallNumber"  id="ciPropn1" value="50" min="2" step="1" onchange="ciProp();copyTo('hypPropn1')" /></td>
+											<td> <input type="number" class="smallNumber"  id="ciPropn2" value="50" min="2" step="1" onchange="ciProp();copyTo('hypPropn2')" /></td>
+										</tr>
+									</table>	
+								</div>
+								<div id="ciPropOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					
+					<div>
+						<input type="checkbox" id="headerCIVar" class="css-checkbox" onclick="checkNoData()">
+						<label for="headerCIVar" class="css-label sub">Ratio of Variances</label>
+						<div class="css-content">
+							<div class="radio-toolbar">
+								<input type="radio" name="whichCIVAR" id="whichCIVAR1" checked onClick="document.getElementById('ciVarSummary').style.display='none';ciVar();">
+								<label for="whichCIVAR1"> Use data</label>
+								
+								<input type="radio" name="whichCIVAR" id="whichCIVAR2" onClick="document.getElementById('ciVarSummary').style.display='block';ciVar();">
+								<label for="whichCIVAR2"> Enter summary stats</label>
+							</div>
+							<div  class="content">
+								<div id="ciVarSummary" style="display:none;">
+									<table  border="0">
+										<tr><td></td><td class="Name1" id="ciVarName1">Group A</td><td class="Name2" id="ciVarName2">Group B</td></tr>
+										<tr>
+											<td>Sample Standard Deviation (s)</td>
+											<td> <input type="number" class="smallNumber"  id="ciVars1" value="1" min="0.0000001" onchange="ciVar();copyTo('hypVars1')" /></td>
+											<td> <input type="number" class="smallNumber"  id="ciVars2" value="1" min="0.0000001" onchange="ciVar();copyTo('hypVars2')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Size (n)</td>
+											<td> <input type="number" class="smallNumber"  id="ciVarn1" value="30" min="2" step="1" onchange="ciVar();copyTo('hypVarn1')" /></td>
+											<td> <input type="number" class="smallNumber"  id="ciVarn2" value="30" min="2" step="1" onchange="ciVar();copyTo('hypVarn2')" /></td>
+										</tr>
+									</table>	
+									
+								</div>
+								<div id="ciVarOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					
+					
+				</div>
+				<div class="container"><h3>Hypothesis Testing</h3>
+					<div id="commonHYP" class="content">
+						Significance Level (&alpha;)
+						<input type="number" id="sigLevel" value="0.05" placeholder="optional" class="smallNumber" min="0" max="1" step=".01" onchange="hypMean();hypVar();hypProp();" />
+					</div>
+					
+					<div>
+						<input type="checkbox" id="headerHypMean" class="css-checkbox" onclick="checkNoData()">
+						<label for="headerHypMean" class="css-label sub">T Test for Difference of Means</label>
+						<div class="css-content">
+							<div class="radio-toolbar">
+								<input type="radio" name="whichHYPMEAN" id = "whichHYPMEAN1" checked onClick="document.getElementById('hypMeanSummary').style.display='none';hypMean();">
+								<label for="whichHYPMEAN1"> Use data</label>
+								
+								<input type="radio" name="whichHYPMEAN" id="whichHYPMEAN2" onClick="document.getElementById('hypMeanSummary').style.display='block';hypMean();">
+								<label for="whichHYPMEAN2"> Enter summary stats</label>
+								
+							</div>
+							<div  class="content">
+								<div id="hypMeanSummary" style="display:none;">
+									<table  border="0">
+										<tr><td></td><td class="Name1" id="hypMeanName1">Group A</td><td class="Name2" id="hypMeanName2">Group B</td></tr>
+										<tr>
+											<td>Sample Mean (x&#772;)</td>
+											<td><input type="number" id="hypMeanmean1"  value="1" class="smallNumber" onchange="hypMean();copyTo('mean1')" /></td>
+											<td><input type="number" id="hypMeanmean2"  value="0" class="smallNumber" onchange="hypMean();copyTo('mean2')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Standard Deviation (s)</td>
+											<td> <input type="number" id="hypMeans1" value="1" class="smallNumber" min="0.0000001" onchange="hypMean();copyTo('s1')" /></td>
+											<td> <input type="number" id="hypMeans2" value="1" class="smallNumber" min="0.0000001" onchange="hypMean();copyTo('s2')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Size (n)</td>
+											<td> <input type="number" id="hypMeann1" value="30" class="smallNumber" min="2" step="1" onchange="hypMean();copyTo('n1')" /></td>
+											<td> <input type="number" id="hypMeann2" value="30" class="smallNumber" min="2" step="1"  onchange="hypMean();copyTo('n2')" /></td>
+										</tr>
+									</table>	
+								</div>
+								<table  border="0">
+									<tr><td>H<sub>0</sub>: &mu;<sub>A</sub>-&mu;<sub>B</sub> </td><td>=</td><td> <input type="number"  id="mu0" value="0" class="smallNumber" onchange="hypMean();" /></td></tr>
+									<tr><td>H<sub>1</sub>: &mu;<sub>A</sub>-&mu;<sub>B</sub> </td>
+										<td><select id="hypmeanIneq" onchange="hypMean();">
+											<option value="l">&lt;</option>
+											<option value="g">&gt;</option>
+											<option value="ne" selected>&ne;</option>
+										</select></td>
+									<td id="mu1">0</td></tr>
+								</table>
+								<div id="hypMeanOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					
+					<div>
+						<input type="checkbox" id="headerHypProp" class="css-checkbox" onclick="checkNoData()">
+						<label for="headerHypProp" class="css-label sub">Test for Difference of Proportions</label>
+						<div class="css-content">
+							<div class="radio-toolbar">
+								<input type="radio" name="whichHYPPROP" id="whichHYPPROP1" checked onClick="document.getElementById('hypPropStats').style.display='block';document.getElementById('hypPropSummary').style.display='none';hypProp();">
+								<label for="whichHYPPROP1"> Use data</label>
+								<input type="radio" name="whichHYPPROP" id="whichHYPPROP2" onClick="document.getElementById('hypPropStats').style.display='none';document.getElementById('hypPropSummary').style.display='block';hypProp();">
+								<label for="whichHYPPROP2"> Enter summary stats</label>
+							</div>
+							<div  class="content">
+								<div id="hypPropStats" style="display:block;">
+									<table  border="0">
+										<tr>
+											<td>Consider a success: X</td>
+											<td> 
+												<select id="propHIneq" onchange="hypProp();">
+													<option value="l">&lt;</option>
+													<option value="leq">&le;</option>
+													<option value="g">&gt;</option>
+													<option value="geq" selected>&ge;</option>
+													<option value="eq">=</option>
+												</select>
+											<input name="propHSuccess" type="number" id="propHSuccess" value="1" class="smallNumber" onchange="hypProp();" /></td>
+										</tr>
+									</table>	
+								</div>
+								<div id="hypPropSummary" style="display:none;">
+									<table  border="0">
+										<tr><td></td><td class="Name1" id="ciPropName1">Group A</td><td class="Name2" id="ciPropName2">Group B</td></tr>
+										<tr>
+											<td>Number of successes (x)</td>
+											<td><input type="number" id="hypPropx1"  value="25" class="smallNumber" min="0" step="1" onchange="hypProp();copyTo('x1')" /></td>
+											<td><input type="number" id="hypPropx2"  value="38" class="smallNumber" min="0" step="1" onchange="hypProp();copyTo('x2')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Size (n)</td>
+											<td> <input type="number" id="hypPropn1" value="50" class="smallNumber" min="2" step="1" onchange="hypProp();copyTo('ciPropn1')" /></td>
+											<td> <input type="number" id="hypPropn2" value="50" class="smallNumber" min="2" step="1"  onchange="hypProp();copyTo('coPropn2')" /></td>
+										</tr>
+									</table>	
+								</div>
+								<table  border="0">
+									<tr><td>H<sub>0</sub>: &pi;<sub>A</sub>-&pi;<sub>B</sub> </td><td>=</td><td> <input name="p0" type="number" id="p0" value="0" class="smallNumber" min="0" max="1" step="0.01" onchange="hypProp();" /></td></tr>
+									<tr><td>H<sub>1</sub>: &pi;<sub>A</sub>-&pi;<sub>B</sub> </td>
+										<td><select id="hyppropIneq" onchange="hypProp();">
+											<option value="l">&lt;</option>
+											<option value="g">&gt;</option>
+											<option value="ne" selected>&ne;</option>
+										</select></td>
+									<td id="p1">0</td></tr>
+								</table>
+								<div id="hypPropOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					
+					<div>
+						<input type="checkbox" id="headerHypVar" class="css-checkbox" onclick="checkNoData()">
+						<label for="headerHypVar" class="css-label sub">Test for Equality of Standard Deviations</label>
+						<div class="css-content">
+							<div class="radio-toolbar">
+								<input type="radio" name="whichHYPVAR" id="whichHYPVAR1" checked onClick="document.getElementById('hypVarSummary').style.display='none';hypVar();">
+								<label for="whichHYPVAR1"> Use data</label>
+								<input type="radio" name="whichHYPVAR" id="whichHYPVAR2" onClick="document.getElementById('hypVarSummary').style.display='block';hypVar();">
+								<label for="whichHYPVAR2"> Enter summary stats</label>
+							</div>
+							<div  class="content">
+								<div id="hypVarSummary" style="display:none;">
+									<table  border="0">
+										<tr><td></td><td class="Name1" id="hypVarName1">Group A</td><td class="Name2" id="hypVarName2">Group B</td></tr>
+										<tr>
+											<td>Sample Standard Deviation (s)</td>
+											<td> <input type="number" id="hypVars1" value="1" class="smallNumber" min="0.0000001" onchange="hypVar();copyTo('ciVars1')" /></td>
+											<td> <input type="number" id="hypVars2" value="1" class="smallNumber" min="0.0000001" onchange="hypVar();copyTo('ciVars2')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Size (n)</td>
+											<td> <input type="number" id="hypVarn1" value="30" class="smallNumber" min="2" step="1" onchange="hypVar();copyTo('ciVarn1');" /></td>
+											<td> <input type="number" id="hypVarn2" value="30" class="smallNumber" min="2" step="1" onchange="hypVar();copyTo('ciVarn2')" /></td>
+										</tr>
+									</table>	
+								</div>
+								<table  border="0">
+									<tr><td>H<sub>0</sub>: &sigma;<sub>A</sub> </td><td>=</td><td> &sigma;<sub>B</sub></td></tr>
+									<tr><td>H<sub>1</sub>: &sigma;<sub>A</sub> </td>
+										<td><select id="hypvarIneq" onchange="hypVar();">
+											<option value="l">&lt;</option>
+											<option value="g">&gt;</option>
+											<option value="ne" selected>&ne;</option>
+										</select></td>
+									<td id="sig1">&sigma;<sub>B</sub></td></tr>
+								</table>
+								<div id="hypVarOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div>
+						<input type="checkbox" id="headerHypMedian" class="css-checkbox" onclick="checkNoData()">
+						<label for="headerHypMedian" class="css-label sub">Test for Equality of Medians</label>
+						<div class="css-content">
+							<div  class="content">
+								<table  border="0">
+									<tr><td>H<sub>0</sub>: Population medians are the same</td></tr>
+									<tr><td>H<sub>1</sub>: Population medians differ </td></tr>
+								</table>
+								<div id="hypMedianOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div>
+						<input type="checkbox" id="headerHypKS" class="css-checkbox" onclick="checkNoData()">
+						<label for="headerHypKS" class="css-label sub">Kolmogorov-Smirnov Test</label>
+						<div class="css-content">
+							<div  class="content">
+								<table  border="0">
+									<tr><td>H<sub>0</sub>: Population distributions are the same</td></tr>
+									<tr><td>H<sub>1</sub>: Population distributions differ </td></tr>
+								</table>
+								<div id="hypKSOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+
+				</div>	
+			</form>
+		</div>
+	</body>
+</html>	
+<script>
+document.querySelector('#container').onclick=function(ev) {
+if(ev.target.value && ev.target.id.substring(0,6)=="header"){
+	//alert(ev.target.id)
+	if(ev.target.id == "headerHistogram") histogramPlot(2);
+	if(ev.target.id == "headerfrequencyPolygon") frequencyPolygon(2);
+	if(ev.target.id == "headerBoxplot") boxplot(2);
+	if(ev.target.id == "headerViolinPlot") violinplot(2);
+	if(ev.target.id == "headerStemLeaf") refreshStemLeaf();
+	if(ev.target.id == "headerNormality") normality(2);
+	if(ev.target.id == "headerBeeswarm") beeswarm(2);
+	if(ev.target.id == "headerECDF") ecdf(2);
+	if(ev.target.id == "headerDensityPlot") densityPlot(2, "ridgeplot");
+	}
+}
+</script>

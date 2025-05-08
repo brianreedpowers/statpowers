@@ -1,0 +1,20 @@
+Table of Playing Cards in 52-Card Deck
+Description
+A table describing each of the 52 cards in a deck.
+
+Usage
+playing_cards
+Format
+A data frame with 52 observations on the following 2 variables.
+
+number
+The number or card type.
+
+suit
+Card suit, which takes one of four values: Club, Diamond, Heart, or Spade.
+
+face_card
+Whether the card counts as a face card.
+
+Source
+This extremely complex data set was generated from scratch.

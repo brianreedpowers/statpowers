@@ -1,0 +1,20 @@
+New York City Marathon Times
+Description
+Marathon times of male and female winners of the New York City Marathon 1970-1999.
+
+Usage
+marathon
+Format
+A data frame with 60 observations on the following 3 variables.
+
+year
+Year
+
+gender
+Gender
+
+time
+Running time (in hours)
+
+Source
+http://www.webcitation.org/5kx7ilFLp

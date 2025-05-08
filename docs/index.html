@@ -1,0 +1,51 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>StatPowers: Introductory Statistics Resources</title>
+	<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<script type="text/javascript" src="js/commonFunctions.js"></script>
+	
+</head>
+
+<body onload="linkMenu();setColors();">
+	<div id="container">
+		<div id="title" onClick="setColors()">StatPowers</div>
+		<div id="menu"></div>
+		<div id="content" class="whitebg">
+		<h3>Resources for Introductory Statistics</h3>
+		My name is Dr. Brian Powers. I'm a game theory researcher and statistics intructor. There are a lot of good resources online for doing statistical calculations but they are in many places and sometimes have a bit of a learning curve. For introductory statistics there's no need to learn R or SPSS - I've created some very simple, flexible and user-friendly tools to help you do everything you'll need to do in a typical intro Statistics course. I'll be adding more resources as I can.
+		<h3>Descriptive Statistics and Analysis</h3>
+		The first set of tools are for working with data.
+		<ul>
+		<li><a href="descriptiveStats.html">1 Sample Analysis</a> includes desciptive statistics, histogram and boxplot creation and normality test/QQ plot. You can perform random sampling from the data set. You can construct confidence intervals and do hypothesis testing for the mean, standard deviation or proportion. You may do this inference on the data or on entered summary stats. </li>
+		<li><a href="descriptiveStats2Sample.html">2 Independent Sample Analysis</a> includes descriptive statistics, histogram and boxplot creation and normlity tests. You can construct confidence intervals and do hypothesis testing for the mean, standard deviation or proportion. You may do this inference on the data or on entered summary stats. </li>
+		<li><a href="descriptiveStatsNSample.html">3+ Indepdendent Sample Analysis</a> allows you to calculate descriptive statistics, run normality tests and create side-by-side boxplots. You can also run an ANOVA test for a difference of means, Chi Square test for difference in proportions and a Levene's test for difference in variances.</li>
+		<li><a href="dependentSamples.html">2 Dependent/Paired Samples</a> analysis allows the calculation of summary statistics and differences, creation of scatterplots and residual plots, and performing normality tests. You construct confidence intervals and do hypothesis testing for the difference of means or correlation coefficient. Finally you can also get simple linear regression output, predict on new X values and view the scatterplot and residual plot.</li>
+		<li><a href="multipleRegression.html">Multiple Regression</a> allows you to enter a response (Y) variable and 2+ dependent (X) variable data. You can calculate summary statistics and run normlaity tests for each variable, view pairwise scatterplots and residual plots for each X variable. You may apply transformations to the variables and perform quadratic and cubic regression, and convert variables to dummy variables as well.</li>
+		<li><a href="contingencyTable.html">2 Factor Contingency Table</a> allows you to enter an m&times;n grid of frequencies, run a Chi-Square test for indepdendence, or (for a 2x2 grid) various tests for a difference in proportions (e.g. McNemar Test).</li>
+		<li><a href="goodnessOfFit.html">Goodness of Fit Test</a> allows you to enter 2+ outcomes, how many were observed and the expected frequency (or proportions) to perform a Chi-Square test.</li>
+		<li><a href="sampleSize.html">Sample Size Calculator</a> will easily calcualte the required sample size needed for a given confidence level and margin of error to construct a confidence interval for a mean or proportion.</li>
+		</ul>
+		
+		<h3>Probability Distributions</h3>
+		<ul>
+		<li><a href="distributionCustom.html">Custom Discrete Distribution</a>: 
+		You can create a custom discrete distribution with a small or huge number of possible values. You can create the distribution by entering frequencies or by entering probabilities, and the last probability will be automatically calculated for you. The expected value, variance and standard deviation will be calculated for you, and you can query various probabilities.</li>
+		<li>For other well known distributions you can set parameters, calculate probabilities and percentiles and perform random sampling. Discrete distributions include: <a href='distributionDiscrete.html?f=uniform'>Uniform</a>, <a href='distributionDiscrete.html?f=binomial'>Binomial</a>, <a href='distributionDiscrete.html?f=geometric'>Geometric</a>, <a href='distributionDiscrete.html?f=Poisson'>Poisson</a>, and <a href='distributionDiscrete.html?f=hypergeometric'>Hypergeometric</a></li>
+		<li><a href="distributionCustomContinuous.html">Custom Continuous Distribution</a>Alows you to enter a support and density function (whcih may or may not be scaled properly). You can then calculate probabilities and percentiles and perform random sampling.</li>
+		<li>For other well-known continuous distributions you can set parameters, calculate probabilities and percentiles and perform random sampling. Continuous distributions include: <a href='distributionContinuous.html?f=uniform'>Uniform</a>,	<a href='distributionContinuous.html?f=Gaussian'>Gaussian (normal)</a>,	<a href='distributionContinuous.html?f=T'>Student's t</a>,	<a href='distributionContinuous.html?f=Gamma'>Gamma</a>,	<a href='distributionContinuous.html?f=exponential'>Exponetial</a>,	<a href='distributionContinuous.html?f=chiSq'>Chi Squared</a>,	<a href='distributionContinuous.html?f=F'>F</a>, and	<a href='distributionContinuous.html?f=Beta'>Beta</a></li>
+		</ul>
+		<h3>Sampling Distributions</h3>
+		<ul>
+		<li><a href="samplingDistribution.html">Sampling Distribution of the Mean</a>: You can enter the mean and standard deviation and get the resulting sampling distribution of the sample mean. You can calculate probabilities and percentiles and even perform random sampling.</li>
+		<li><a href="samplingDistributionProportion.html">Sampling Distribution of the Proportion</a>: You can enter the proportion and sample size and get the resulting sampling distribution of the sample proportion. You can then calculate probabiliteis and percentiles.</li>
+		</ul>
+		
+		If you have any questions or suggestions please email me at <a href="mailto:powersofstatistics@gmail.com">powersofstatistics@gmail</a>.
+		
+	</div>
+</body>
+</html>

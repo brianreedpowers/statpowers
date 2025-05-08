@@ -1,0 +1,7 @@
+Simulated data sets, drawn from a normal distribution.
+Data were simulated using rnorm.
+
+Variables
+$ n40 : 40 observations from a standard normal distribution.
+n100 - 100 observations from a standard normal distribution.
+n400 - 400 observations from a standard normal distribution.

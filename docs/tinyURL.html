@@ -1,0 +1,27 @@
+<html>
+<body>
+<script>
+var url = "https://api.tinyurl.com/create";
+
+var xhr = new XMLHttpRequest();
+xhr.open("POST", url);
+
+xhr.setRequestHeader("accept", "application/json");
+xhr.setRequestHeader("Content-Type", "application/json");
+xhr.setRequestHeader("Authorization", "Bearer 9U7U0RadIXKz6GtCeppldU2kJZT968PpoJwyZgb093CFuvmSxJc6dTvxTlXQ");
+
+xhr.onreadystatechange = function () {
+   if (xhr.readyState === 4) {
+      console.log(xhr.status);
+//      console.log(xhr.responseText);
+      console.log(JSON.parse(xhr.responseText)["data"]["tiny_url"]);
+	  
+   }};
+
+var data = '{"url":"https://www.statpowers.com","domain":"tiny.one"}';
+
+xhr.send(data);
+
+</script>
+</body>
+</html>

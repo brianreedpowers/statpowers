@@ -1,0 +1,14 @@
+Lifespan of ball bearings
+Description
+A simulated data set on lifespan of ball bearings.
+
+Usage
+ball_bearing
+Format
+A data frame with 75 observations on the following variable.
+
+life_span
+Lifespan of ball bearings (in hours).
+
+Source
+Simulated data.

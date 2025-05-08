@@ -1,0 +1,317 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sampling Distribution (Sum)</title>
+
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<script type="text/javascript" src="js/commonFunctions.js"></script>
+<script type="text/javascript" src="js/chartFunctions.js"></script>
+<script type="text/javascript" src="js/distributionFunctions.js"></script>
+<script type="text/javascript" src="js/jstat.js"></script>
+<script language="javascript">
+var a=0
+var b=0
+var distribution = "Gaussian"
+
+function probability() {	
+	var pField = document.getElementById("p")
+	var n = parseFloat(document.getElementById("n").value)
+	var xbar = parseFloat(document.getElementById("xbar").value)*n
+	if(document.getElementById('sampleSD').checked)
+		var s = parseFloat(document.getElementById("s").value)
+	else
+		var s = parseFloat(document.getElementById("sPop").value)
+	var df = n-1
+	var stderror = s*Math.sqrt(n)
+	var tail = false
+	var useNormal = false
+	if(n>=30 && !document.getElementById('sampleSD').checked) useNormal = true
+	if(document.getElementById('forceNormal').checked) useNormal = true
+	var p = 0
+	if(document.getElementById('probType').value=='above') {
+		ll = (parseFloat(document.getElementById("above").value) - xbar)/stderror
+		ul=999999
+		if(!useNormal) 
+			p=1-jStat.studentt.cdf(ll,df)
+		else{
+			p = 1-jStat.normal.cdf(ll,0,1)
+			}
+		pString="P(&Sigma;X&gt;"+(ll*stderror + xbar).toFixed(precision)+")="
+	} else if (document.getElementById('probType').value=='below'){
+		ul = (parseFloat(document.getElementById("below").value) - xbar)/stderror
+		ll=-999999
+		if(!useNormal)
+			p=jStat.studentt.cdf(ul,df)
+		else
+			p = jStat.normal.cdf(ul,0,1)
+		pString="P(&Sigma;X&lt;"+(ul*stderror + xbar).toFixed(precision)+")="
+	} else if (document.getElementById('probType').value=='between'){
+		ll = (parseFloat(document.getElementById("ll").value) - xbar)/stderror
+		ul = (parseFloat(document.getElementById("ul").value) - xbar)/stderror
+		if(!useNormal) 
+			p = jStat.studentt.cdf(ul,df)-jStat.studentt.cdf(ll,df)
+		else{
+			p = jStat.normal.cdf(ul,0,1)-jStat.normal.cdf(ll,0,1)		
+		}
+		pString="P(" +(ll*stderror + xbar).toFixed(precision)+"&lt;&Sigma;X&lt;"+(ul*stderror + xbar).toFixed(precision)+")="
+	}
+	else if (document.getElementById('probType').value=='tails'){
+		tail = true
+		ll = (parseFloat(document.getElementById("oll").value) - xbar)/stderror
+		ul = (parseFloat(document.getElementById("oul").value) - xbar)/stderror
+		if(!useNormal) 
+			p = 1-(jStat.studentt.cdf(ul,df)-jStat.studentt.cdf(ll,df))
+		else {
+			p = 1-(jStat.normal.cdf(ul,0,1)-jStat.normal.cdf(ll,0,1))
+		}
+		pString="P(&Sigma;X&lt;"+(ll*stderror + xbar).toFixed(precision)+" or &Sigma;X&gt;"+(ul*stderror + xbar).toFixed(precision)+")="
+	}
+	
+	if(!useNormal && df<=0) return
+	ctx.fillStyle='white'
+	ctx.fillRect(0,0,w,h)
+	if(!useNormal){
+		distribution="T";
+		a=df;
+		drawDensity(a,b,ll,ul,tail, xbar, stderror,false,"normal")
+//		drawT(ctx,box,df,xbar,stderror,ll,ul,tail) //canvas, bounds, mean, standard deviation, lower limit, upper limit, tail (outside or inside)
+	}else{
+		distribution="Gaussian";
+		a=xbar
+		b=stderror
+		drawDensity(a,b,ll*stderror+xbar,ul*stderror+xbar,tail,0,1,false,"normal")
+//		drawNormal(ctx,box,xbar,stderror,ll*stderror+xbar,ul*stderror+xbar,tail)
+	}
+	pField.innerHTML=pString+"<strong>"+(p).toFixed(precision)+"</strong>"
+	var reason = "n<30"
+	document.getElementById('meanSamp1').innerHTML = xbar
+	document.getElementById('sdSamp1').innerHTML = stderror.toFixed(precision)
+	if (document.getElementById('sampleSD').checked) reason = "&sigma; unknown"
+	document.getElementById("distributionType").innerHTML="Using T distribution ("+reason+")."
+	if(useNormal) document.getElementById("distributionType").innerHTML="Using Gaussian distribution (&sigma; known and n &ge;30)."
+	if(document.getElementById('forceNormal').checked) document.getElementById("distributionType").innerHTML="Using Gaussian distribution (forced)."
+}
+
+function inverse() {
+	clearFields()
+	var ll, ul, x1,x2
+	var n = parseFloat(document.getElementById("n").value)
+	var xbar = parseFloat(document.getElementById("xbar").value)*n
+	if(document.getElementById('sampleSD').checked)
+		var s = parseFloat(document.getElementById("s").value)
+	else
+		var s = parseFloat(document.getElementById("sPop").value)
+	var df = n-1
+	var stderror = s*Math.sqrt(n)
+	var useNormal = false
+	if(n>=30 && !document.getElementById('sampleSD').checked) useNormal = true
+	if(document.getElementById('forceNormal').checked) useNormal = true
+	ctx.clearRect(0,0,w,h)
+	tail = false
+	var p = parseFloat(document.getElementById("p2").value)
+	if(!useNormal) 
+		var x1 = jStat.studentt.inv(p,df) 
+	else{
+		var x1 = jStat.normal.inv(p,0,1) 
+	}
+	if (document.form1.area1[0].checked) {
+		ul=4
+		if(!useNormal) 
+			ll=+(jStat.studentt.inv(1-p,df)).toFixed(precision)
+		else{
+			ll=+(jStat.normal.inv(1-p,0,1)).toFixed(precision)			
+		}
+		document.getElementById("aboveX").innerHTML="P(&Sigma;X&gt;<strong>"+(ll* stderror + xbar).toFixed(precision)+"</strong>)="+p
+	} else if (document.form1.area1[1].checked){
+		ll=-4
+		ul=+(x1).toFixed(precision)
+		document.getElementById("belowX").innerHTML="P(&Sigma;X&lt;<strong>"+(ul* stderror + xbar).toFixed(precision)+"</strong>)="+p
+	} else if (document.form1.area1[2].checked){
+		if(!useNormal) {
+			ll=(jStat.studentt.inv(.5-p/2,df)).toFixed(precision)
+			ul=(jStat.studentt.inv(.5+p/2,df)).toFixed(precision)
+		}else{
+			ll=(jStat.normal.inv(.5-p/2,0,1)).toFixed(precision)
+			ul=(jStat.normal.inv(.5+p/2,0,1)).toFixed(precision)
+		}
+		document.getElementById("betweenX").innerHTML="P(<strong>"+(ll* stderror + xbar).toFixed(precision)+"</strong>&lt;&Sigma;X&lt;<strong>"+(ul* stderror + xbar).toFixed(precision)+"</strong>)="+p
+	} else if (document.form1.area1[3].checked){
+		if(!useNormal){
+			ll=(jStat.studentt.inv(p/2,df)).toFixed(precision)
+			ul=(jStat.studentt.inv(1-p/2,df)).toFixed(precision)
+		}else{
+			ll=(jStat.normal.inv(p/2,0,1)).toFixed(precision)
+			ul=(jStat.normal.inv(1-p/2,0,1)).toFixed(precision)
+		}
+		tail=true
+		document.getElementById("outsideX").innerHTML="P(&Sigma;X&lt;<strong>"+(ll* stderror + xbar).toFixed(precision)+"</strong> or &Sigma;X&gt;<strong>"+(ul* stderror + xbar).toFixed(precision)+"</strong>)="+p
+	}
+	ctx.fillStyle='white'
+	ctx.fillRect(0,0,w,h)
+	if(!useNormal){
+		distribution="T";
+		a=df;
+		drawDensity(a,b,ll,ul,tail, xbar, stderror,false,"normal")
+//		drawT(ctx,box,df,xbar,stderror,ll,ul,tail) //canvas, bounds, mean, standard deviation, lower limit, upper limit, tail (outside or inside)
+	}else{
+		distribution="Gaussian";
+		a=xbar
+		b=stderror
+		drawDensity(a,b,ll*stderror+xbar,ul*stderror+xbar,tail,0,1,false,"normal")
+//		drawNormal(ctx,box,xbar,stderror,ll*stderror+xbar,ul*stderror+xbar,tail)
+	}	
+	var reason = "n<30"
+	document.getElementById('meanSamp2').innerHTML = xbar
+	document.getElementById('sdSamp2').innerHTML = stderror.toFixed(precision)
+	if (document.getElementById('sampleSD').checked) reason = "&sigma; unknown"
+	document.getElementById("distributionTypeInv").innerHTML="Using T distribution ("+reason+")."
+	if(useNormal) document.getElementById("distributionTypeInv").innerHTML="Using Gaussian distribution (&sigma; known and n &ge;30)."
+	if(document.getElementById('forceNormal').checked) document.getElementById("distributionTypeInv").innerHTML="Using Gaussian distribution (forced)."
+}
+
+function refresh(){
+	setPrecision(document.getElementById('precision').value)
+	if (document.form1.which[0].checked) {
+		probability()
+		} else{
+		inverse()
+		}
+} 
+
+</script>
+
+<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+
+</head>
+
+<body onload="init('normal');loadPrecision();loadColorChoice();linkMenu();setColors();showHideProbs(false);probability()">
+<div id="container">
+		<div id="title" onClick="setColors()">StatPowers</div>
+		<div id="menu"></div>
+		<div class="container">
+<h3>Sampling Distribution (Sum)</h3>
+							<div class="canvasdiv">
+<canvas id="normal" width="490px" height="300" class='zoomable'>
+  <p>Your browser doesn't support canvas. Please update your browser.</p>
+</canvas>
+		<a class="downloadButton topright" href="" onClick="downloadCanvas(this,'normal','samplingdistribution.png');"></a>
+							</div>
+
+<form name="form1">
+
+<div id="parameters"> <strong>Distribution Parameters:</strong><br/>
+  <table  border="0">
+    <tr>
+		<td>Mean (&mu; or x&#772;)</td>
+		<td><input name="xbar" type="number" id="xbar"  value="50" class="smallNumber" onchange="refresh()" /></td>
+	</tr>
+	<tr>
+		<td><input type="radio" name="whichSD" id='sampleSD' checked onClick="document.getElementById('s').disabled='';document.getElementById('sPop').disabled='true';refresh();"><label for="sampleSD">Sample Standard Deviation (s)</label></td>
+		<td><input name="s" type="number" id="s"   min="0.000001"  value="1.5" class="smallNumber" onchange="refresh()" /></td>
+	</tr>
+	<tr>
+		<td><input type="radio" name="whichSD" id='popSD' onClick="document.getElementById('s').disabled='true';document.getElementById('sPop').disabled='';refresh();"><label for="popSD">Population Standard Deviation (&sigma;)</label></td>
+		<td><input name="sPop" type="number" id="sPop"  min="0.000001" value="1.5" class="smallNumber" disabled onchange="refresh()" /></td>
+	</tr>
+	<tr>
+		<td>Sample Size</td>
+		<td><input name="n" type="number" id="n"  min="1" step="1" value="65" class="smallNumber" onchange="refresh()" /></td>
+		
+	</tr>
+	<tr> <td><input type="checkbox" id="forceNormal"  onClick="refresh()"/> <label for="forceNormal">Use Normal Distribution</label></td></tr>
+
+  </table>
+</div>
+
+<div class='container'>
+<h3>Choose Calculator Type</h3>
+	<div class="radio-toolbar">
+		<input type="radio" id="radio1" name="which" checked onClick="document.getElementById('apDiv2').style.display='block';document.getElementById('apDiv1').style.display='none';probability()">
+		<label for="radio1">Probability</label>
+		
+		<input type="radio" id="radio2" name="which" onClick="document.getElementById('apDiv1').style.display='block';document.getElementById('apDiv2').style.display='none';inverse()">
+		<label for="radio2">Percentiles</label>	
+	</div>
+<div class="content">
+	<div id="apDiv1" style="display:none">
+	  <table  border="0">
+	  <tr>
+		<td>Area / Probability</td>
+		<td> <input name="p" type="number" id="p2" class="mediumNumber" value="0.05" onchange="inverse()"/></td>
+		</tr>
+	  </table>
+
+	  <div class="results">
+		<strong>Results:</strong><br>
+		<span id="distributionTypeInv"></span><br>
+		&mu;<sub>X&#772;</sub> = <span id="meanSamp2"></span><br>
+		&sigma;<sub>X&#772;</sub> = <span id="sdSamp2"></span><br>	
+		<table><tr>
+			<td><label><input name="area1" type="radio" id="abovea1" value="above" checked="checked" onclick="inverse()"/>
+			Above:</label></td>
+			<td id="aboveX"></td>
+		</tr><tr>
+			<td><label><input name="area1" type="radio" id="belowa1" value="above"  onclick="inverse()" />
+			Below:</label></td>
+			<td id="belowX"></td>
+		</tr><tr>
+			<td><label><input name="area1" type="radio" id="betweena1" value="above"  onclick="inverse()"/>
+			Middle:</label></td>
+			<td id="betweenX"></td>
+		</tr><tr>
+			<td><label><input name="area1" type="radio" id="outside1" value="above"  onclick="inverse()"/>
+			Tails:</label></td>
+			<td id="outsideX"></td>
+		</tr></table>
+		<button type="button"  value="Recalculate" onclick="inverse()">Recalculate</button>
+	   </div>
+	</div>
+
+	<div id="apDiv2" style="display:block">
+	<span><select id="probType" onchange="showHideProbs(false);probability();">
+			  <option value="above" selected>Above</option>
+			  <option value="below">Below</option>
+			  <option value="between" selected>Between</option>
+			  <option value="tails" >Tails</option>
+			</select>
+	</span>
+	<span>
+		<span id="prob_above" style="display:none;">
+			P(X &ge;     
+			<input type="number" id="above"  value=".5" class="smallNumber" step="1" onchange="probability()"/>)
+		</span>
+		<span id="prob_below" style="display:none;">
+			P(X &le; 
+			<input type="number" id="below"  value=".5" class="smallNumber" step="1" onchange="probability()" />)
+		</span>
+		<span id="prob_between" style="display:none;">
+			P(
+			<input type="number" id="ll"  value=".2" class="smallNumber" step="1" onchange="this.value=Math.min(this.value,document.getElementById('ul').value);probability()" />
+			&le; X &le;
+			<input type="number" id="ul" value=".7" class="smallNumber" step="1" onchange="this.value=Math.max(this.value,document.getElementById('ll').value);probability()" />)
+		</span>
+		<span id="prob_tails" style="display:none;">
+			P(X &le;
+			<input type="number" id="oll"  value=".3" class="smallNumber" step="1" onchange="this.value=Math.min(this.value,document.getElementById('oul').value-1);probability()" />
+			or X &ge; 
+			<input type="number" id="oul" value=".7" class="smallNumber" step="1" onchange="this.value=Math.max(this.value,1+parseInt(document.getElementById('oll').value));probability()" />)
+		</span>
+	</span>
+	<div class="results">
+		<strong>Results:</strong><br />
+		<span id="distributionType"></span><br>
+		&mu;<sub>&Sigma;X</sub> = <span id="meanSamp1"></span><br>
+		&sigma;<sub>&Sigma;X</sub> = <span id="sdSamp1"></span><br>	
+		Probability: <span id="p"></span><br />
+		<button name="draw" type="button"  value="Recalculate" onClick="probability()">Recalculate</button>
+	</div>
+	</div>
+	</div>
+</div>
+</form>
+
+</div>
+</body>
+</html>

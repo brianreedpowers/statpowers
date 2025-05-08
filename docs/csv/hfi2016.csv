@@ -1,0 +1,163 @@
+year,ISO_code,countries,region,pf_expression_control,pf_score
+2016,ALB,Albania,Eastern Europe,5.25,7.596280576
+2016,DZA,Algeria,Middle East & North Africa,4,5.281772109
+2016,AGO,Angola,Sub-Saharan Africa,2.5,6.111324364
+2016,ARG,Argentina,Latin America & the Caribbean,5.5,8.099695682
+2016,ARM,Armenia,Caucasus & Central Asia,4.25,6.912803602
+2016,AUS,Australia,Oceania,7.75,9.184438453
+2016,AUT,Austria,Western Europe,8,9.246948401
+2016,AZE,Azerbaijan,Caucasus & Central Asia,0.25,5.676553478
+2016,BHS,Bahamas,Latin America & the Caribbean,7.25,7.454537846
+2016,BHR,Bahrain,Middle East & North Africa,0.75,6.136069994
+2016,BGD,Bangladesh,South Asia,3.25,5.302600358
+2016,BRD,Barbados,Latin America & the Caribbean,7.5,7.706894465
+2016,BLR,Belarus,Eastern Europe,2.5,6.059028163
+2016,BEL,Belgium,Western Europe,9.25,8.987178587
+2016,BLZ,Belize,Latin America & the Caribbean,6.75,7.430863836
+2016,BEN,Benin,Sub-Saharan Africa,7.25,7.496976295
+2016,BTN,Bhutan,South Asia,5,6.600972815
+2016,BOL,Bolivia,Latin America & the Caribbean,4.25,7.206770015
+2016,BIH,Bosnia and Herzegovina,Eastern Europe,4.25,7.861447145
+2016,BWA,Botswana,Sub-Saharan Africa,5.25,6.876334453
+2016,BRA,Brazil,Latin America & the Caribbean,4.5,6.665977406
+2016,BRN,Brunei Darussalam,South Asia,3.75,4.663699718
+2016,BGR,Bulgaria,Eastern Europe,5.75,8.155539077
+2016,BFA,Burkina Faso,Sub-Saharan Africa,7,7.45533967
+2016,BDI,Burundi,Sub-Saharan Africa,0.75,4.414134427
+2016,KHM,Cambodia,South Asia,3.25,7.238448286
+2016,CMR,Cameroon,Sub-Saharan Africa,4.25,5.330774311
+2016,CAN,Canada,North America,8.25,9.151726642
+2016,CPV,Cape Verde,Sub-Saharan Africa,7.75,7.986583066
+2016,CAF,Central Afr. Rep.,Sub-Saharan Africa,3,5.465632394
+2016,TCD,Chad,Sub-Saharan Africa,2.5,5.50954107
+2016,CHL,Chile,Latin America & the Caribbean,6.75,8.216035341
+2016,CHN,China,East Asia,1.5,5.350820339
+2016,COL,Colombia,Latin America & the Caribbean,3.5,7.021513273
+2016,COD,"Congo, Dem. R.",Sub-Saharan Africa,3.75,4.947256786
+2016,COG,"Congo, Rep. Of",Sub-Saharan Africa,2,6.777867694
+2016,CRI,Costa Rica,Latin America & the Caribbean,8.5,8.165428969
+2016,CIV,Cote d'Ivoire,Sub-Saharan Africa,5.25,7.062542048
+2016,HRV,Croatia,Eastern Europe,5.75,8.456175752
+2016,CYP,Cyprus,Eastern Europe,7.5,8.514393916
+2016,CZE,Czech Rep.,Eastern Europe,8,9.029761414
+2016,DNK,Denmark,Western Europe,8.5,9.325639969
+2016,DOM,Dominican Rep.,Latin America & the Caribbean,4.75,6.942574962
+2016,ECU,Ecuador,Latin America & the Caribbean,3.25,7.550555359
+2016,EGY,Egypt,Middle East & North Africa,1.5,3.894553773
+2016,SLV,El Salvador,Latin America & the Caribbean,5.5,6.917901981
+2016,EST,Estonia,Eastern Europe,9,9.013701218
+2016,ETH,Ethiopia,Sub-Saharan Africa,0.5,5.064089941
+2016,FJI,Fiji,Oceania,6,7.792204395
+2016,FIN,Finland,Western Europe,9,9.294367917
+2016,FRA,France,Western Europe,6.75,8.766802927
+2016,GAB,Gabon,Sub-Saharan Africa,3.75,5.315575222
+2016,GMB,"Gambia, The",Sub-Saharan Africa,1.25,5.302684702
+2016,GEO,Georgia,Caucasus & Central Asia,4.75,7.576535507
+2016,DEU,Germany,Western Europe,7.5,9.235191378
+2016,GHA,Ghana,Sub-Saharan Africa,6.75,7.872177815
+2016,GRC,Greece,Eastern Europe,5.5,7.94676815
+2016,GTM,Guatemala,Latin America & the Caribbean,4.25,6.548245982
+2016,GIN,Guinea,Sub-Saharan Africa,2.75,5.371201607
+2016,GNB,Guinea-Bissau,Sub-Saharan Africa,4,6.859721724
+2016,GUY,Guyana,Latin America & the Caribbean,6,7.041795873
+2016,HTI,Haiti,Latin America & the Caribbean,5.75,7.184442588
+2016,HND,Honduras,Latin America & the Caribbean,1.75,6.386482597
+2016,HKG,Hong Kong,East Asia,5,8.583679591
+2016,HUN,Hungary,Eastern Europe,5.75,8.258945773
+2016,ISL,Iceland,Western Europe,8.75,9.083506216
+2016,IND,India,South Asia,4.5,6.195871335
+2016,IDN,Indonesia,South Asia,5.5,6.38131246
+2016,IRN,Iran,Middle East & North Africa,1,4.532449245
+2016,IRQ,Iraq,Middle East & North Africa,2,3.11602762
+2016,IRL,Ireland,Western Europe,8.5,8.939129404
+2016,ISR,Israel,Middle East & North Africa,6.5,7.544916142
+2016,ITA,Italy,Western Europe,7.5,8.690446317
+2016,JAM,Jamaica,Latin America & the Caribbean,7.75,7.268416093
+2016,JPN,Japan,East Asia,6,8.73377055
+2016,JOR,Jordan,Middle East & North Africa,3.5,6.238666517
+2016,KAZ,Kazakhstan,Caucasus & Central Asia,1.5,6.375675545
+2016,KEN,Kenya,Sub-Saharan Africa,4,6.44553669
+2016,KOR,"Korea, South",East Asia,6.5,8.766349858
+2016,KWT,Kuwait,Middle East & North Africa,4.25,5.630574474
+2016,KGZ,Kyrgyz Republic,Caucasus & Central Asia,3.25,6.247012954
+2016,LAO,Laos,South Asia,1.5,5.863586171
+2016,LVA,Latvia,Eastern Europe,8,8.851068084
+2016,LBN,Lebanon,Middle East & North Africa,4.75,6.429994179
+2016,LSO,Lesotho,Sub-Saharan Africa,4.5,6.68844396
+2016,LBR,Liberia,Sub-Saharan Africa,4.5,6.403401744
+2016,LBY,Libya,Middle East & North Africa,1.25,3.880565623
+2016,LTU,Lithuania,Eastern Europe,8.5,8.821338926
+2016,LUX,Luxembourg,Western Europe,8.75,9.257401822
+2016,MKD,Macedonia,Eastern Europe,3.75,7.413658024
+2016,MDG,Madagascar,Sub-Saharan Africa,4.25,6.835123509
+2016,MWI,Malawi,Sub-Saharan Africa,6.25,7.445213609
+2016,MYS,Malaysia,South Asia,3.75,5.902979954
+2016,MLI,Mali,Sub-Saharan Africa,5.25,6.060929471
+2016,MLT,Malta,Western Europe,7.75,8.977997462
+2016,MRT,Mauritania,Sub-Saharan Africa,5,4.987749776
+2016,MUS,Mauritius,Sub-Saharan Africa,7.5,7.717465632
+2016,MEX,Mexico,Latin America & the Caribbean,2.25,6.796020397
+2016,MDA,Moldova,Eastern Europe,4.75,7.059029525
+2016,MNG,Mongolia,East Asia,7,7.998312553
+2016,MNE,Montenegro,Eastern Europe,5.25,7.630104133
+2016,MAR,Morocco,Middle East & North Africa,3.75,5.986756512
+2016,MOZ,Mozambique,Sub-Saharan Africa,4.75,6.659206645
+2016,MMR,Myanmar,South Asia,2.75,5.463360869
+2016,NAM,Namibia,Sub-Saharan Africa,6.75,7.394915502
+2016,NPL,Nepal,South Asia,4.75,6.91161139
+2016,NLD,Netherlands,Western Europe,8.75,9.39884236
+2016,NZL,New Zealand,Oceania,8,9.284819157
+2016,NIC,Nicaragua,Latin America & the Caribbean,4,6.432494726
+2016,NER,Niger,Sub-Saharan Africa,5.25,5.714520097
+2016,NGA,Nigeria,Sub-Saharan Africa,4.5,5.823617206
+2016,NOR,Norway,Western Europe,9.25,9.342481133
+2016,OMN,Oman,Middle East & North Africa,3.25,5.509055213
+2016,PAK,Pakistan,South Asia,2.5,5.324592448
+2016,PAN,Panama,Latin America & the Caribbean,6.25,7.715240074
+2016,PNG,Pap. New Guinea,Oceania,6.75,7.254948816
+2016,PRY,Paraguay,Latin America & the Caribbean,4,6.974598187
+2016,PER,Peru,Latin America & the Caribbean,5.25,7.720786695
+2016,PHL,Philippines,South Asia,5,6.497526694
+2016,POL,Poland,Eastern Europe,6.5,8.353120455
+2016,PRT,Portugal,Western Europe,8.25,9.043712243
+2016,QAT,Qatar,Middle East & North Africa,3.25,5.525552977
+2016,ROU,Romania,Eastern Europe,6,8.653232499
+2016,RUS,Russia,Eastern Europe,1.5,5.714381665
+2016,RWA,Rwanda,Sub-Saharan Africa,1.5,6.467739051
+2016,SAU,Saudi Arabia,Middle East & North Africa,2,4.438732069
+2016,SEN,Senegal,Sub-Saharan Africa,6.25,6.774187769
+2016,SRB,Serbia,Eastern Europe,4.75,7.847943252
+2016,SYC,Seychelles,Sub-Saharan Africa,6,7.372524335
+2016,SLE,Sierra Leone,Sub-Saharan Africa,5,7.044659152
+2016,SGP,Singapore,South Asia,4.5,7.479423635
+2016,SVK,Slovak Rep.,Eastern Europe,7.75,8.536499891
+2016,SVN,Slovenia,Eastern Europe,8,8.822791467
+2016,ZAF,South Africa,Sub-Saharan Africa,5,7.695143614
+2016,ESP,Spain,Western Europe,6.5,8.758213764
+2016,LKA,Sri Lanka,South Asia,3.75,6.040721833
+2016,SDN,Sudan,Sub-Saharan Africa,1,4.246047171
+2016,SUR,Suriname,Latin America & the Caribbean,6.75,7.788563046
+2016,SWZ,Swaziland,Sub-Saharan Africa,2.5,6.020328657
+2016,SWE,Sweden,Western Europe,8.75,9.334750298
+2016,CHE,Switzerland,Western Europe,9,9.185518099
+2016,SYR,Syria,Middle East & North Africa,0.5,2.511653754
+2016,TWN,Taiwan,East Asia,8,9.041394037
+2016,TJK,Tajikistan,Caucasus & Central Asia,1.75,5.652324579
+2016,TZA,Tanzania,Sub-Saharan Africa,4.5,6.126418693
+2016,THA,Thailand,South Asia,1.75,6.399562601
+2016,TLS,Timor-Leste,South Asia,7.25,6.186449627
+2016,TGO,Togo,Sub-Saharan Africa,5.25,6.72993801
+2016,TTO,Trinidad and Tobago,Latin America & the Caribbean,7.25,6.920446388
+2016,TUN,Tunisia,Middle East & North Africa,5.5,6.577472244
+2016,TUR,Turkey,Middle East & North Africa,1.75,6.092465309
+2016,UGA,Uganda,Sub-Saharan Africa,3.75,6.128889094
+2016,UKR,Ukraine,Eastern Europe,3.75,6.586270408
+2016,ARE,United Arab Emirates,Middle East & North Africa,2.5,5.073350176
+2016,GBR,United Kingdom,Western Europe,7.75,8.995835872
+2016,USA,United States,North America,7,8.747310216
+2016,URY,Uruguay,Latin America & the Caribbean,7.5,8.296141806
+2016,VEN,Venezuela,Latin America & the Caribbean,2.25,5.521448913
+2016,VNM,Vietnam,South Asia,1.75,5.9680076
+2016,YEM,"Yemen, Rep.",Middle East & North Africa,1,2.16655534
+2016,ZMB,Zambia,Sub-Saharan Africa,4,6.007698856
+2016,ZWE,Zimbabwe,Sub-Saharan Africa,3.75,5.170725575

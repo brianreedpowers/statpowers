@@ -1,0 +1,2891 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Population Generator</title>
+		<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+		<script type="text/javascript" src="js/jstat.js"></script>
+		<script type="text/javascript" src="js/commonFunctions.js"></script>
+		<script type="text/javascript" src="js/chartFunctions.js"></script>
+		<script type="text/javascript" src="js/distributionFunctions.js"></script>
+		<script type="text/javascript" src="js/shapiro-wilk.js"></script>
+		<script type="text/javascript" src="js/seedrandom.min.js"></script>
+		<!--script type="text/javascript" src="js/stretchy.js" data-filter=".stretchy, .stretchy *" async></script-->
+		
+		<style>
+		
+
+		
+		table.nowrap td {white-space: nowrap;}
+		
+		.notAButton {  
+			background: none!important;
+			border: none;
+			padding: 0!important;
+			/*optional*/
+			font-family: arial, sans-serif;
+			/*input has OS specific font-family*/
+			color: red;
+			text-decoration: underline;
+			cursor: pointer;
+			margin-left:2px;
+			}
+  
+		textarea{}
+
+		#sampleData:first-line{
+			font-weight: bold; 
+			color: white; 
+			background-color:#444;
+			text-decoration: underline;
+		}
+		
+		#sampleDataTable{
+			overflow: auto;
+			margin:.5em;
+			max-height: 250px;
+		}
+		
+		#sampleDataTable table{
+			border-collapse: collapse;
+			border:1px solid #777;
+		}
+		
+		#sampleDataTable td{
+			border:1px solid #777;
+		}
+
+		#sampleDataTable th{
+			border:1px solid #777;
+		}
+				
+		
+		.placeholder{
+			display:block;
+		}
+		
+		.coeff, .intercept,.epsilon,.var, .catvar, .ln, .exp{
+			border-radius: .4em;
+			font-size:80%;
+			border: 1px solid black;
+			padding:.1em;
+			height:100%;
+			display:inline-block;
+			height:100%;
+		}
+		
+		.term{ height:100%;}
+		.coeff{
+			height:100%;
+			margin-bottom:0px;
+		}
+		
+		.base{
+			position:relative;
+			bottom:-15px;
+		}
+		.exp{
+			font-size:100%;
+			background-color:#dce8ea;
+			max-height:2em;
+			vertical-align:text-top;
+			padding-left:3px;
+			padding-right:3px;
+		}
+		
+		.level, .catvar{
+			background-color:#5acfb2;
+		}
+		
+		.intercept, .coeff {
+			background-color:#b4eef6;
+			padding-left: .2em;
+			padding-right: .2em;
+		}
+		
+		.exponent{
+			font-size:80%;
+			padding:1px;
+			margin:0px;
+			background-color:#b4eef6;
+			vertical-align:top;
+			border-radius: .3em;
+			
+		}
+		.epsilon{
+			background-color:#5da3ec;
+			padding-left:.3em;
+		}
+		
+		.coeff{
+			margin-right:0px;
+			border-radius: .4em 0em 0em .4em;
+			border-right:0px;
+		}
+		
+		.ln{
+			background-color:#a9bcf3;
+		}
+		
+		.ln div{
+			font-size:90%;
+			vertical-align:top;
+		}
+		
+		
+		.var{
+			background-color:#7dd3e0;
+		}
+		
+		.var, .catvar, .epsilon, .base{
+			font-weight:bold;		
+		}
+		
+		.var ~ .var, .var ~.catvar, .catvar~.var, .var~.ln, .catvar~.ln {
+			margin-left:-1px;
+			border-radius: .4em;	
+			border-left:0px;
+			padding-left:-1px;
+		}
+		
+		.coeff + .var, .coeff + .epsilon, .coeff + .catvar, .coeff+.ln{
+			margin-left:0px;
+			border-radius: 0em .4em .4em 0em;
+			border-left:0px;
+		}
+		
+		.lag{
+			font-size: 90%;
+			background-color: orange;
+			border-radius: .4em .4em .4em .4em;
+			border: 1px solid black;
+			position:relative;
+			bottom:-.2em;
+		}
+		
+		
+		#GLMpreview, .LOMpreview{
+			width:auto;
+			max-width:100%;
+			display:flex;
+			flex-direction:row;
+			border:1px solid black;
+			padding-top:0em;
+			height:auto;
+			flex-wrap:wrap;
+		}
+		
+		#GLMpreview div, .LOMpreview div{
+			display:inline-block;
+		}
+		
+		#GLMpreview:hover, .LOMpreview:hover{
+			border-color:orange;
+			background-color:yellow;
+			cursor:text;
+		}
+		
+		.term{
+			display:block;
+		}
+		
+		.lightGrayBorder{
+			background-color:#f0f0f0;
+			border-radius: 0px 0px 5px 5px;
+			border: 1px solid black;
+		}
+
+
+		.strataTable td{
+			border: 1px solid #404040;
+		}
+		
+		.tableCellContainer{
+		}
+		
+		.hideOnBlind{
+		}
+
+		.disabled{
+			color:gray;
+			font-style: italic;
+		}
+
+		#lock {
+			float: right;
+			padding-right: 3px;
+		}
+		
+		#lock img{
+			height:1.2em;
+			cursor: pointer;
+		}
+		#key{
+			display: none;
+		}
+		
+		.fauxbutton{
+			border-radius: 5px 5px 5px 5px;
+		}
+  
+		</style>
+		<script language="javascript">
+			var nSamples = 1
+			var colors = ['black']
+			var distribution = ""
+			var debug=true
+			var dataMessy =[false];
+			var pwStatus = -1 //-1 unset //0 unlocked //1 locked
+									
+			function refresh(){
+				setPrecision(document.getElementById('precision').value)
+				if (debug) document.getElementById('debugDiv').style.display="block"
+//				var d=new Date()
+//				var n=d.getTime()
+			} 
+			
+			var varTypeList = ["categorical","discrete","continuous"]
+			var standardDistributionOptions = [	"uniform",
+												"severe right skew",
+												"moderate right skew",
+												"symmetric unimodal",
+												"moderate left skew",
+												"severe left skew",
+												"bimodal"]
+											// 98: autocorrelated
+											// 99: enumerated
+											// 100: custom
+			var populationName = ""
+			var nVars = 2
+			var varNames = ['last Name','phone']
+			var varHidden =[0,0]
+			var varTypes = [2,1]
+			var varDistType = [[4],[0]]
+			var nLevels=[2,2]
+			let varValues=[[1,2],['iPhone','other']]
+			let varValueProbs=[[[.491,.509]],[[.66,.34]]]
+			let varMinMax = [[[1,10]],[[null,null]]]//index 1: variable index
+													//index 2: dependency index
+													//index 3: 0:min, 1:max
+			var varDepTypes = [0,1] // eg. [0,1,2,3]
+									 //0: independent
+									 //1: discrete conditions
+									 //2: log-odds model
+									 //3: GLM
+			let varDepDetails = [[''],['']] //eg. [[],["v1=2v3=92"],["5.32+2v1+-5v2+s14.5"]]
+			var nConditions = [0,0]
+			var varIndep = [true,false]
+			var varDepOrder = [0,1]
+			var depMatrix=[[0,0],[1,0]]
+			var varPrecision = [2,2]
+			var viewText=true
+
+			var dataSample = []
+			var blind=false
+			
+			var samplingMethod = 0  //0: simple random
+									//1: stratified
+			var strata = []
+			var nStrata = 0
+			// [[number, [[var,level],[var level]]], .....]
+			var popHash = 0
+			
+
+
+/*
+//Discrete variables ***cannot*** be dependent on continuous variables.
+
+//Dependency Type 0: Independent Variable
+If the variable is categorical
+//Dependency Type 1: Dependency on values of categorical & discrete variables only
+//specify the indices of the dependent variables, and the values for this dependency
+//if it is categorical, then you specify the probabilities for THIS dependent distribution 
+//if it is discrete or continuous then specify either:
+	//min & max (distribution type CANNOT change)
+	//or 
+	//an array of probabilities for THIS dependent distribution
+	//or
+//Dependency Type 2: Log-Odds (categorical variable dependent on at least 1 discrete or continuous variable)
+//Dependency Type 3: GLM (Continuous variables only)
+    //the regression equation as a string
+	//5.32+481v1+34v2+34v3=2+-53v3=2+358v3^3+15v1=1v2.1+s14.5
+	+s gives the standard error
+	categorical variables as v2=2 is 1 iff v2 = level 2 (first level is level 1)
+	^ introduces the power of the variable
+	ALL terms are added: if a term has a negative coefficient it must be +-52v2
+	interaction terms v1v2
+*/
+			
+			var varNum = 1
+			var varIndex =varNum-1
+			var currentVarDist = 0
+
+/* ---------------------------------------------------
+   Variables Names & Types
+   ---------------------------------------------------*/
+			function changeNVars(){
+				var oldN = nVars
+				var newN = +document.getElementById('nVars').value;
+				if(newN>oldN){
+//					console.log('increase number of variables '+oldN+' to '+newN)
+					for(var i=oldN; i<newN; i++){
+						varNames[i]='var'+(i+1)
+						varTypes[i]=1
+						varDistType[i]=[0]
+						nLevels[i]=1
+						varValues[i]=['lvl1']
+						varValueProbs[i]=[[1]]
+						varMinMax[i]=[[null,null]]
+						varDepTypes[i]=0
+						varDepDetails[i]=['']
+						nConditions[i]=0
+						varDepOrder[i]=i
+						depMatrix[i]=[]
+						for(var j=0; j<i; j++){
+							depMatrix[j][i]=0
+							depMatrix[i][j]=0
+						}
+						depMatrix[i][i]=0
+						varPrecision[i]=2
+					}				
+				} else if (newN<oldN){
+//					console.log('decrase number of variables '+oldN+' to '+newN)
+					varNames.splice(newN)
+					varTypes.splice(newN)
+					varDistType.splice(newN)
+					nLevels.splice(newN)
+					varValues.splice(newN)
+					varValueProbs.splice(newN)
+					varMinMax.splice(newN)
+					varDepTypes.splice(newN)
+					varDepDetails.splice(newN)
+					nConditions.splice(newN)
+					
+					//Be careful with this one - in case there are any gaps in the dependency order...
+					for(var i=0; i<oldN; i++){
+						while(varDepOrder[i]+1>newN && i<newN){
+							for(var j=i; j<oldN-1;j++)
+								varDepOrder[j]=varDepOrder[j+1]
+						}
+					}
+					varDepOrder.splice(newN)
+					depMatrix.splice(newN)
+					depMatrix[newN-1].splice(newN)
+					varPrecision.splice(newN)
+				}
+				saveNVars()
+//				console.log("varNum="+varNum+" nVars="+nVars)
+				if(varNum>nVars) setVarNum(nVars)
+//				console.log(varDepOrder)
+			}
+   
+			function incrementNVars(){
+				document.getElementById('nVars').value = nVars +1
+				changeNVars();
+				rebuildVarList()
+			}
+
+			function rebuildVarList(){
+				var varList = "<table><tr><th></th><th>Name</th><th>Type</th>"+(blind?"":"<th class='hideOnBlind'>Hidden</th>")+"</tr>"
+				document.getElementById('popName').value=populationName
+				if(blind) document.getElementById('incrNVars').disabled=true
+				if(blind) document.getElementById('popName').disabled=true
+				for(var i = 1; i<=nVars; i++){
+					if(varHidden.length<i) varHidden[i-1]=0
+					if(!(blind && varHidden[i-1]==1)){
+						var varName=(i<=varNames.length?varNames[i-1]:"var"+i)
+						var varType=+(i<=varTypes.length?varTypes[i-1]:1)
+						varList +="<tr><td>"+i+"</td>"
+						varList +="<td><input type='text' size='25' maxlength='25' id='varName"+i+"' "
+						varList +="value='"+varName+"'"
+						varList +=" onChange='saveVarNames();rebuildVarDependencies();rebuildVarChoices();' "+(blind?'disabled':'')+"></td><td> <select id='varType"+i+"' onChange='saveVarNames();rebuildVarDependencies();rebuildVarOptions();'"+(blind?'disabled':'')+">"
+						for(var k=1; k<=varTypeList.length; k++){
+							varList +="<option value="+k+(varType==k?" selected":"")+">"+varTypeList[k-1]+"</option>"
+						}
+						varList +="</select></td>"
+						if(!blind) varList +="<td class='hideOnBlind'><input type='checkbox' id='varHide"+i+"'"+(varHidden[i-1]==1?' checked':'')+" onClick='hideVar("+(i-1)+")'></td>"
+						varList +="</tr>"
+					}
+				}
+				varList+="</table>"
+				document.getElementById("varList").innerHTML=varList
+				checkCatVars()
+				rebuildVarDependencies()
+				rebuildVarChoices()
+				
+				
+				refreshSamplingMethod()
+			}
+			
+			function loadVarNames(){
+				if(typeof varNames !== 'undefined' && varNames.length > 0)
+				for(var i=0; i<nVars; i++){
+					if(typeof varNames[i] !== 'undefined') document.getElementById("varName"+(i+1)).value = varNames[i]
+				}
+			}
+			
+			function hideVar(varIndex){
+				varHidden[varIndex] = (document.getElementById('varHide'+(varIndex+1)).checked?1:0)
+				rebuildVarChoices()
+//				console.log("Var index "+varIndex+" " +varHidden[varIndex])
+			}
+
+/* ---------------------------------------------------
+   Variable Dependency & Ordering
+   ---------------------------------------------------*/
+			
+			function rebuildVarDependencies(){
+				var depString=""
+				for(var i=0; i<nVars; i++){
+					if(isNaN(varDepOrder[i])){ 
+						varDepOrder[i]=i
+					}else if(varDepOrder[i]>=nVars){
+						for(var k=i; k<nVars; k++)
+							varDepOrder[k]=varDepOrder[k+1]
+					}
+				}
+				if(nVars>1){
+					depString="<table class='nowrap'><tr><th></th><th>Var</th><th>Dependencies</th></tr>"
+					//depString+="<tr><td>"
+					for(var i=0; i<nVars; i++){
+						depString+="<tr>"
+						if(i==0) {
+							depString +="<td></td>"
+						}else {
+//						}
+//						if(i>0){
+							depString +="<td><div class='moveUpDown' style='width:1.5em;'>"
+							depString +="<a class='moveUp fauxbutton' style='position:relative; top:-1.5em; width:2.75em;' href='' onClick='moveUp("+i+");return false;'><img src=\"img/updown2.png\" style='height:2em;'></a>"
+//						if(i<nVars-1) depString +="<a class='moveDown fauxbutton' href='' onClick='moveDown("+i+");return false;'>&#9660;</a>"
+						depString += "</div></td>"
+						}
+						depString+="<td>"+varNames[varDepOrder[i]]+"</td><td>"
+
+						if(i>0){
+						//	console.log(i+': var '+varDepOrder[i]+' var Type = '+varTypes[varDepOrder[i]])
+							for(var j=0; j<i; j++){
+						//		console.log(j+': var '+varDepOrder[j]+' var Type = '+varTypes[varDepOrder[j]])
+								var disabled = (varTypes[varDepOrder[i]]==2 && varTypes[varDepOrder[j]]==3)
+	//							if(disabled) console.log('disabled')
+								
+								depString +="<input type='checkbox' onChange='saveDependencyMatrix();rebuildVarOptions()' id='"+varDepOrder[i]+"dep"+varDepOrder[j]+"'"+(disabled?'disabled':'')+" "+(depMatrix[varDepOrder[i]][varDepOrder[j]]==1?'checked':'')+"><span"+(disabled?' class=\"disabled\"':'')+">"+varNames[varDepOrder[j]]+"</span> "
+							}
+						}
+		
+						depString+="</td></tr>"
+					}
+					depString+="</table>"
+				} else {depString="<i>not applicable</i>"}
+				document.getElementById("varDependencies").innerHTML=depString;
+//				reviseDependencyMatrix()
+				rebuildVarOptions()
+			}
+		
+			function moveUp(i){
+			
+			
+				if(i>0){
+				//Don't do anything if variable in space i depends on the variable in space j.
+					if(depMatrix[varDepOrder[i]][varDepOrder[i-1]]>0) return false;
+
+					var j=varDepOrder[i-1]
+					varDepOrder[i-1]=varDepOrder[i]
+					varDepOrder[i]=j
+				}
+//				repairDependencyMatrix();
+//				reviseDependencyMatrix()
+				rebuildVarDependencies();
+//				console.log(varDepOrder)
+
+			}
+			
+			function repairDependencyMatrix(){
+				for(var i=0; i<nVars; i++){
+					for(var j=0; j<nVars; j++){
+						//Can variable i depend on variable j?
+						//No if the order of j is after the order of i
+						//or if i is a discrete and j is continuous
+						if(varDepOrder[j]>=varDepOrder[i] || (varTypes[i]==2 && varTypes[j]==3)) depMatrix[i][j]=0
+					}
+				}
+			}
+			
+			function moveDown(i){
+				if(i<nVars-1){
+					moveUp(i+1)
+				}
+			}			
+		
+/* ---------------------------------------------------
+   Variables Details
+   ---------------------------------------------------*/
+/* 		---------------------------------------------------
+		Drop Down to Choose Variable
+		---------------------------------------------------*/
+			function rebuildVarChoices(){
+				//saveVarNames();
+				var reportVars = ""
+				var varChoices="<select id='selectVar' onChange='setVarNum(this.value);'>"
+				var analyzeVars=""
+				for(var i=1; i<=nVars; i++){
+					varChoices+="<option value='"+i+"' "+(varNum==i?'selected':'')+">"+varNames[i-1]+"</option>"
+					if(varHidden[i-1]==0 || varHidden[i-1]==null) reportVars+="<input type='checkbox' id='reportVar"+(i-1)+"'"+isItChecked('reportVar'+(i-1))+" onChange='refreshSampleDisplay()'><label for='reportVar"+(i-1)+"'>"+varNames[i-1]+"</label><br>\n"
+					
+					if(varHidden[i-1]==0 || varHidden[i-1]==null) analyzeVars+="<input type='checkbox' id='analyzeVar"+(i-1)+"'"+isItChecked('analyzeVar'+(i-1))+" onChange='refreshGroupBy()'><label for='analyzeVar"+(i-1)+"'>"+varNames[i-1]+"</label><br>\n"
+				}
+				varChoices+="</select>"
+				document.getElementById("varChoices").innerHTML=varChoices
+				document.getElementById('reportVars').innerHTML=reportVars
+				document.getElementById('analyzeVars').innerHTML=analyzeVars
+				setVarNum(document.getElementById('selectVar').value)
+			}
+			
+			function isItChecked(varID){
+				var chkd=" checked"
+				if(exists(varID) && !document.getElementById(varID).checked) chkd=""
+				return chkd
+			}
+			
+			function setVarNum(newVarNum){
+				if(newVarNum != varNum){
+					
+					varNum = newVarNum
+					varIndex = varNum-1
+					currentVarDist=0
+					rebuildVarOptions()
+				}
+			}
+			
+/* 		---------------------------------------------------
+		Dependency Details and Conditions
+		---------------------------------------------------*/
+			
+			function addCondition(){
+				nConditions[varNum-1]+=1
+//				console.log('var has '+nConditions[varNum-1]+' conditions')
+				varDepDetails[varNum-1][nConditions[varNum-1]]=[]
+				varValueProbs[varNum-1][nConditions[varNum-1]]=[]
+				varMinMax[varNum-1][nConditions[varNum-1]]=[]
+				
+				var option = document.createElement("option")
+				option.text = "condition "+nConditions[varNum-1]
+				option.value = nConditions[varNum-1]
+				document.getElementById('conditionalSelect').add(option)
+				document.getElementById('conditionalSelect').value=nConditions[varNum-1]
+				currentVarDist = nConditions[varNum-1]
+				loadCondition();
+				saveVarDependencies()
+				changeCondition()
+				updateSaveText()
+			}
+			
+			function removeConditional(vIndex, conditionIndex){
+				for(var j=conditionIndex; j<nConditions[vIndex]; j++)
+				{
+					varMinMax[vIndex][j]=varMinMax[vIndex][j+1]
+					varDepDetails[vIndex][j]=varDepDetails[vIndex][j+1]
+					varValueProbs[vIndex][j]=varValueProbs[vIndex][j+1]
+				}
+				varMinMax[vIndex].splice(nConditions[vIndex])
+				varDepDetails[vIndex].splice(nConditions[vIndex])
+				varValueProbs[vIndex].splice(nConditions[vIndex])
+				
+				document.getElementById('conditionalSelect').remove(nConditions[vIndex])
+				nConditions[vIndex] -=1
+				loadCondition()
+				updateSaveText()
+			}		
+			
+			function loadCondition(){
+				//load the condition values
+				var conditionString = ""
+				var conditionIndex = +document.getElementById('conditionalSelect').value
+				currentVarDist = conditionIndex
+				if (conditionIndex>0){
+					conditionString +="<table><tr><th>Variable</th><th>Value</th></tr>"
+					for(var i=0; i<depMatrix[varNum-1].length; i++){
+						if(depMatrix[varNum-1][i]==1){
+							if(varDistType[i][0]==99){
+								var enumCond = varDepDetails[varNum-1][conditionIndex][i]
+								conditionString +="<tr><td>"+varNames[i]+"</td><td><input type='text' id='v"+i+"' value='"+enumCond+"' onChange='saveVarDependencies()'></td></tr>"
+							
+							} else {
+							conditionString += "<tr><td>"+varNames[i]+"</td><td><select id='v"+i+"' onChange='saveVarDependencies()'>"
+							
+							var minMin = 0, maxMax=0, jMax=0
+							if(varTypes[i]==1||varDistType[i][conditionIndex]==100){
+								jMax = varValues[i].length
+							} else {
+								minMin=varMinMax[i][0][0]
+								maxMax=varMinMax[i][0][1]
+								for(var k=1; k<=nConditions[i]; k++){
+									minMin=Math.min(minMin,varMinMax[i][k][0])
+									maxMax=Math.max(maxMax,varMinMax[i][k][1])
+								}
+								jMax = maxMax-minMin+1
+							}
+							for(var j=0; j<jMax; j++){
+								var val=0
+								var valDisplay = ""
+								if(varTypes[i]==1||varDistType[i][conditionIndex]==100){
+									val=j
+									valDisplay = varValues[i][j]
+								} else {
+									val = minMin+j 
+									valDisplay = val
+								}
+						//		console.log(j+':'+varVal+' ; '+varDepDetails[varNum-1][conditionIndex][i])
+								conditionString+="<option value='"+val+"' "+(varDepDetails[varNum-1][conditionIndex][i]==val?' selected':'')+">"+valDisplay+"</option>"
+							}
+							
+							conditionString+="</select></td></tr>"
+						
+							}
+						}
+					}
+					conditionString +="</table>"
+					conditionString +="<button type='button' class='btn' id='removeCondition' value='remove' onClick='removeConditional("+(varNum-1)+","+conditionIndex+");'>remove</button>"
+				}
+				
+				document.getElementById('condition').innerHTML=conditionString
+			}
+						
+/*  
+Identifies the variable type and dependency
+creates a select to select the type of dependency (if it is dependent)
+creates the empty DIV for conditionPanel
+creates the empty DIV for distributitionOptions
+*/
+			function rebuildVarOptions(){
+				if(isNaN(nLevels[varNum-1])){ 
+//					console.log('nLevels '+(varNum-1)+" is NaN!")
+					nLevels[varNum-1]=1;
+				}
+				
+				var varDepOptions = ""
+				var type = "Categorical"
+				if(varTypes[varNum-1]==2) type="Discrete"
+				if(varTypes[varNum-1]==3) type="Continuous"
+				if(varDepTypes[varNum-1]==0){
+					varDepOptions +="<b>Independent "+type+" Variable</b><br>"
+					//varDepTypes[varNum-1]=0
+					if(varTypes[varNum-1]==3) varDepOptions +="Precision: <input id='varPrecision' type='number' min=0 step=1 max=10 value="+varPrecision[varNum-1]+" class='tinyNumber' onChange='saveVarDetails()'><br>"
+				} else {
+					varDepOptions +="<b>Dependent "+type+" Variable</b><br>"
+					if(varTypes[varNum-1]==3) varDepOptions +="Precision: <input id='varPrecision' type='number' min=0 step=1 max=10 value="+varPrecision[varNum-1]+" class='tinyNumber' onChange='saveVarDetails()'><br>"
+					varDepOptions +="<select id='dependencyType' onChange='saveDepType("+varNum+");rebuildConditionPanel();rebuildDistributionDetails();'>"
+					
+					var dependsOnContinuous = false;
+					for(var j=0; j<nVars; j++){
+						if(depMatrix[varNum-1][j]==1 && varTypes[j]==3) {
+							dependsOnContinuous=true
+							break
+						}
+					}
+				//	if (dependsOnContinuous) console.log("Var "+varNum+" depends on a continuous variable")
+					if(dependsOnContinuous && varTypes[varNum-1]==1) varDepTypes[varNum-1]=2
+					
+					if(!dependsOnContinuous) varDepOptions +="<option value='1'"+(varDepTypes[varNum-1]==1?' selected':'')+">Discrete Dependency</option>"
+					if(varTypes[varNum-1]==1) varDepOptions +="<option value='2'"+(varDepTypes[varNum-1]==2?' selected':'')+">Log-Odds Model</option>"
+					if(varTypes[varNum-1]==3) varDepOptions +="<option value='3'"+(varDepTypes[varNum-1]==3?' selected':'')+">Generalized Linear Model</option>"
+					varDepOptions +="</select>"
+					if(varDepTypes[varNum-1]>0) varDepOptions +="<div id='conditionPanel' class='results'>" +rebuildConditionPanelHTML() + "</div>"
+				}	
+				
+				var varOptions = ""
+				varOptions += varDepOptions
+				varOptions += "<div id='varDistributionDetails'></div>"
+				document.getElementById("varOptions").innerHTML=varOptions
+
+				//for(var varNum=1; varNum<=nVars;varNum++) saveDepType(varNum)
+				//rebuildConditionPanel();
+				rebuildDistributionDetails()
+				loadLevels()
+				loadProbs()
+			}
+			
+			function rebuildDistributionDetails(){
+//				console.log("rebuilding distribution details")
+				var useLogOdds=varDepTypes[varNum-1]==2
+				var useGLM = false
+				var varOptions = ""
+				if(varTypes[varNum-1]==3 && varDepTypes[varNum-1]==3){
+					useGLM=true
+					varOptions += "<div style='width:100%; display:table'>"
+					varOptions += "<label for='GLM' style='display:table-cell; width:1px; white-space:nowrap;'>"+varNames[varNum-1]+"=</label>"
+					varOptions +="<input type='text' id='GLM' style='display:none; width:100%' onChange='saveGLM();refreshFormattedGLM();' onfocusout='showGLMPreview();' value='"+varDepDetails[varNum-1][0]+"'>"
+					varOptions +="<div class='tableCellContainer'><div id='GLMpreview' onClick='hideGLMPreview()'>"+formatGLM(varDepDetails[varNum-1][0])+"</div></div></div>"
+					varOptions +="minimum: <input type='number' placeholder='no bound' class='smallNumber' id='minimum' value="+(varMinMax[varIndex][currentVarDist][0]!=null?varMinMax[varIndex][currentVarDist][0]:"''")+"  onChange='saveVarMinMax("+(varNum-1)+",true)'><br>"
+					varOptions +="maximum: <input type='number' placeholder='no bound' class='smallNumber' id='maximum' value="+(varMinMax[varIndex][currentVarDist][1]!=null?varMinMax[varIndex][currentVarDist][1]:"''")+"  onChange='saveVarMinMax("+(varNum-1)+",true)'><br>"
+				} else {
+//					console.log("variable is not GLM")
+					if(varTypes[varNum-1]!=1){
+//						console.log("variable is not categorical")
+						
+						var distType = varDistType[varNum-1][currentVarDist]
+						varOptions +="distribution: <select id='varDistribution' onChange='saveVarDistType();rebuildMinMaxLevels("+(useLogOdds?'true':'false')+")'>"
+						for(var k=1; k<=standardDistributionOptions.length; k++)
+							varOptions +="<option value="+k+" "+(k==distType?" selected":"")+">"+standardDistributionOptions[k-1]+"</option>"
+						if (varTypes[varNum-1]==3) varOptions += "<option value=98"+(98==distType?" selected":"")+">autocorrelated</option>"
+						if (varTypes[varNum-1]==2 && varDepTypes[varNum-1]==0) varOptions += "<option value=99"+(99==distType?" selected":"")+">enumerated</option>"
+						if (varTypes[varNum-1]==2) varOptions += "<option value=100"+(100==distType?" selected":"")+">custom</option>"
+						varOptions +="</select><br>"
+					}								
+					varOptions +="<div id='distributionMinMaxLevels'></div>"
+				}
+				
+				document.getElementById("varDistributionDetails").innerHTML=varOptions
+				if(!useGLM) rebuildMinMaxLevels(useLogOdds)
+				if(varTypes[varNum-1]==1 || varDistType[varNum-1][currentVarDist]==100) rebuildLevels(varNum, varTypes[varNum-1]==1, useLogOdds)
+
+				
+/*else if (varTypes[varNum-1]>=2){ //========== DISCRETE or CONTINUOUS
+					console.log("variable is discrete or continuous")
+					console.log("variable dependency type="+varDepTypes[varNum-1])
+					if(varDepTypes[varNum-1]==3){
+						varOptions +=varNames[varNum-1]+"=<textarea id='GLM' width='100%' onChange='saveGLM()'>"+varDepDetails[varNum-1][0]+"</textarea>"
+					
+					} else {
+						var distType = varDistType[varNum-1]
+						varOptions +="distribution: <select id='varDistribution' onChange='saveVarDistType();rebuildDiscreteContinuousDistributionDetails()'>"
+						for(var k=1; k<=standardDistributionOptions.length; k++)
+							varOptions +="<option value="+k+" "+(k==distType?" selected":"")+">"+standardDistributionOptions[k-1]+"</option>"
+						if (varTypes[varNum-1]==2) varOptions += "<option value=100"+(100==distType?" selected":"")+">custom</option>"
+						varOptions +="</select><br>"
+						varOptions +="<div id='discreteContinuousDistributionDetails'></div>"
+					}*/
+					//if(varTypes[varNum-1]==2) rebuildDiscreteContinuousDistributionDetails();
+				//}			
+			}
+			
+			function rebuildMinMaxLevels(useLogOdds){
+				var varOptions = ""
+				if(varTypes[varNum-1]==1 || varDistType[varNum-1][currentVarDist]==100){ //====== variable with levels
+					if(varDepTypes[varNum-1]==2){
+						useLogOdds=true					
+					}
+					varOptions +="number of values:"
+					varOptions +="<input id='nLevels' type='number' class='tinyNumber' min='2' step='1' value='"+Math.max(1,nLevels[varNum-1])+"' onChange='rebuildLevels("+varNum+","+(varTypes[varNum-1]==1?'true':'false')+","+(useLogOdds?'true':'false')+")'> <button type='button' value='+' onClick='incrementNLevels("+(useLogOdds?'true':'false')+")'>+</button><br>"
+
+					varOptions +="<div id='varLevels'></div>"
+					if(!useLogOdds) varOptions +="<button type='button' id='scale' value='Scale Probabilities' onClick='scaleProbs("+varNum+");'>Scale Probabilities</button>"
+					document.getElementById("distributionMinMaxLevels").innerHTML=varOptions
+	//						console.log("use log odds? "+useLogOdds)
+					rebuildLevels(varNum,varTypes[varNum-1]==1,useLogOdds);
+				} else if (varDistType[varNum-1][currentVarDist]==98){
+					varOptions += "<div style='width:100%; display:table'>"
+					varOptions += "<label for='GLM' style='display:table-cell; width:1px; white-space:nowrap;'>"+varNames[varNum-1]+"<sub>t</sub>=</label>"
+					varOptions +="<input type='text' id='GLM' style='display:none; width:100%' onChange='saveGLM();refreshFormattedGLM();' onfocusout='showGLMPreview();' value='"+varDepDetails[varNum-1][0]+"'>"
+					varOptions +="<div class='tableCellContainer'><div id='GLMpreview' onClick='hideGLMPreview()'>"+formatGLM(varDepDetails[varNum-1][0])+"</div></div></div>"
+					document.getElementById('distributionMinMaxLevels').innerHTML=varOptions					
+				} else if (varDistType[varNum-1][currentVarDist]==99){
+					varOptions +="first number: <input type='number' class='smallNumber' id='minimum' value="+(varMinMax[varIndex][currentVarDist][0]!=null?varMinMax[varIndex][currentVarDist][0]:"''")+" step=1 onChange='saveVarMinMax()'><br>"	
+					document.getElementById('distributionMinMaxLevels').innerHTML=varOptions					
+				}else{
+					varOptions +="minimum: <input type='number' class='smallNumber' id='minimum' value="+(varMinMax[varIndex][currentVarDist][0]!=null?varMinMax[varIndex][currentVarDist][0]:"''")+"  onChange='saveVarMinMax()'><br>"
+					varOptions +="maximum: <input type='number' class='smallNumber' id='maximum' value="+(varMinMax[varIndex][currentVarDist][1]!=null?varMinMax[varIndex][currentVarDist][1]:"''")+"  onChange='saveVarMinMax()'><br>"
+					document.getElementById('distributionMinMaxLevels').innerHTML=varOptions
+				}
+			}
+									
+			function rebuildConditionPanel(){
+//				console.log('rebuild condition panel')
+				if(exists('conditionPanel')) document.getElementById('conditionPanel').innerHTML = rebuildConditionPanelHTML()
+			}
+
+			function changeCondition(){
+				currentVarDist=+document.getElementById('conditionalSelect').value
+//				saveVarOptions();
+				loadCondition();
+				rebuildDistributionDetails()
+//				loadProbs()
+			}
+
+			function rebuildConditionPanelHTML(){
+				var conditionPanelString=""
+				if(varDepTypes[varNum-1]==1){
+					conditionPanelString ="<select id='conditionalSelect' onChange='changeCondition()'>"
+					conditionPanelString +="<option value=0>default probabilities</option>"
+					for(var i=0; i<nConditions[varNum-1]; i++){
+						conditionPanelString +="<option value="+(i+1)+">condition "+(i+1)+"</option>"
+					}
+					conditionPanelString +="</select> <button type='button' value='+' onClick='addCondition()'>+</button><br>"
+					conditionPanelString +="<div id='condition'></div>"	
+				} else if (varDepTypes[varNum-1]>=2){
+					for(var i=0; i<nVars; i++){
+						if(depMatrix[varNum-1][i]==1){
+							conditionPanelString+="<b>v"+(i+1)+"</b>: "+varNames[i] + " (<i>"+varTypeList[varTypes[i]-1]+"</i>)"
+							if(varTypes[i]==1){
+								conditionPanelString+=" {"
+								for(var k=0; k<varValues[i].length; k++)
+									conditionPanelString+= (k>0?", ":"")+"<b>"+(k+1)+"</b>:"+varValues[i][k]
+								conditionPanelString+="}<br>"
+							} else if (varTypes[i]==2){
+								if(varDistType[i][currentVarDist]==99){
+									conditionPanelString+=" {<b>"
+									for(var k=varMinMax[i][0][0]; k<varMinMax[i][0][0]+3; k++)
+										conditionPanelString+= k+","
+									conditionPanelString+="...</b>}<br>"	
+								
+								} else 	if(varDistType[i][currentVarDist]==100){
+									conditionPanelString+=" {<b>"
+									for(var k=0; k<varValues[i].length; k++)
+										conditionPanelString+= (k>0?", ":"")+varValues[i][k]
+									conditionPanelString+="</b>}<br>"							
+								} else {
+									var minMin = 0, maxMax=0
+									minMin=varMinMax[i][0][0]
+									maxMax=varMinMax[i][0][1]
+									for(var k=1; k<=nConditions[i]; k++){
+										minMin=Math.min(minMin,varMinMax[i][k][0])
+										maxMax=Math.max(maxMax,varMinMax[i][k][1])
+									}
+//									console.log(varMinMax[i])
+									conditionPanelString +=" {<b>"
+									if (maxMax-minMin <=3) {
+										for (var j=minMin; j<=maxMax; j++)
+											conditionPanelString += (j>minMin?", ":"")+(j)
+									}else {
+										conditionPanelString+=minMin+",&#8230;,"+maxMax
+									}
+									conditionPanelString +="</b>}<br>"
+								}
+							
+							} else if (varTypes[i]==3){
+								if(varDepTypes[i]==3){
+									conditionPanelString +=" glm<br>"
+								} else {
+									var minMin = 0, maxMax=0
+									minMin=varMinMax[i][0][0]
+									maxMax=varMinMax[i][0][1]
+									for(var k=1; k<=nConditions[i]; k++){
+										minMin=Math.min(minMin,varMinMax[i][k][0])
+										maxMax=Math.max(maxMax,varMinMax[i][k][1])
+									}								
+									conditionPanelString+=" [<b>"+minMin+", "+maxMax+"</b>]<br>"
+								}
+							}
+						}
+					}
+				}
+				return conditionPanelString
+			}
+						
+			function autoIncrement(){
+			//	console.log("auto increment")
+				var n= Math.round(parseFloat(document.getElementById("nLevels").value))				
+				var x = +document.getElementById("level0").value;
+				if(x=="") x=0;
+				for (var i = 0; i<n; i++){
+					document.getElementById('level'+i).value=x;
+					x++;
+				}
+				saveVarLevelsAndProbs()
+			}
+						
+			function scaleProbs(){
+				if(exists('p0') && varDepTypes[varNum-1]!=2){
+				//	console.log("scaleProbs"+varNum);
+					probSum = 0
+					for(var i=0; i< nLevels[varNum-1]; i++){
+						probSum += +document.getElementById('p'+i).value
+					}
+					for(var i=0; i< nLevels[varNum-1]; i++){
+						document.getElementById('p'+i).value = (probSum>0?document.getElementById('p'+i).value/probSum:1/nLevels[varNum-1])
+					}
+				}
+				saveVarLevelsAndProbs()
+			}
+			
+			function clearInputs(prefix){
+				var n= Math.round(parseFloat(document.getElementById("nLevels").value))	
+				for(var i=0; i<n; i++) document.getElementById(prefix+i).value=""
+				saveVarLevelsAndProbs()
+			}
+			
+			function saveVarOptions(){
+				scaleProbs()
+				varIndex = (+varNum)-1
+				saveVarDetails(varIndex)
+				varNum = +document.getElementById("selectVar").value
+				varIndex = varNum-1
+			}
+			
+			function incrementNLevels(useLogOdds=false){
+//				console.log('rebuild n levels')
+				document.getElementById('nLevels').value = +nLevels[varNum-1]+1
+				rebuildLevels(varNum, varTypes[varNum-1]==1, useLogOdds)
+			}
+
+			function changeNLevels(vIndex, oldN, newN){
+				if(oldN<newN){
+					//console.log('increase number of levels')
+					for(var i=oldN; i<newN; i++){
+						varValues[vIndex][i]=''
+						for(var j=0; j<=nConditions[vIndex]; j++){
+							varValueProbs[vIndex][j][i]=null
+							varMinMax[vIndex][j][i]=[null,null]
+						}
+						//varDepDetails[vIndex][i]=(varDepTypes[vIndex]==1?[]:null)
+					}
+				} else if(oldN>newN){
+					varValues[vIndex].splice(newN)
+					for(var j=0; j<=nConditions[vIndex]; j++){
+						varValueProbs[vIndex][j].splice(newN)
+						varMinMax[vIndex][j].splice(newN)
+					}
+					//varDepDetails[vIndex].splice(newN)
+				}			
+				updateSaveText()
+			}
+			
+			function rebuildLevels(varNum, text, useLogOdds=false){
+				var oldNLevels = nLevels[varNum-1]
+				nLevels[varNum-1]=+document.getElementById("nLevels").value;
+				var newN = nLevels[varNum-1]
+				if(oldNLevels!=newN) changeNLevels(varNum-1,oldNLevels,newN)
+			
+				varLevels ="<table width=100%><tr><th width=30%>Value <button type='button' id='clrVals' onClick='clearInputs(\"level\");' value = 'reset'>reset</button></th><th width=70%>"+(useLogOdds?'Log-Odds':'Probability')+" "
+				if(!useLogOdds) varLevels +="<button type='button' id='clrProbs' onClick='clearInputs(\"p\");' value = 'reset'>reset</button>"
+				varLevels +="</th></tr>"
+				for(var i=0; i<nLevels[varNum-1]; i++){
+//					console.log((varNum-1)+","+i)
+					varLevels +="<tr><td><input id='level"+i+"' "+(text?"type='text' size='20'":"type='number' class='smallNumber'")+" value='"+varValues[varNum-1][i]+"' onChange='saveVarLevelsAndProbs()' placeholder='level "+(i+1)+"'></td><td>"
+					if(useLogOdds){
+						if(!(i==1 && nLevels[varNum-1]==2)){
+							varLevels +="<input width='100%' id='lom"+i+"' onChange='saveLOM()' onfocusout=\"showGLMPreview('lom"+i+"','lomPrev"+i+"');\" value='"+varDepDetails[varNum-1][i]+"' style='width:100%;display:none;'><div class='LOMpreview' onClick=\"hideGLMPreview('lom"+i+"','lomPrev"+i+"');\" id='lomPrev"+i+"' style='display:flex;'>"+formatGLM(varDepDetails[varNum-1][i])+"</div>"
+						} else {
+							varLevels +="(complement)"
+						}
+					}else{
+						var probVal = varValueProbs[varNum-1][currentVarDist][i]
+						if(probVal==null) probVal=''
+						varLevels +="<input type='number' min='0' max='1' step='.01' placeholder='p_"+(i+1)+"' class='smallNumber' id='p"+i+"' value='"+probVal+"' onChange='saveVarLevelsAndProbs()'>"
+					}
+					varLevels+="</td></tr>"
+				}
+				varLevels +="</table>"
+				//console.log(varLevels)
+				document.getElementById("varLevels").innerHTML=(varLevels==null || varLevels==NaN?'':varLevels)
+			}
+			
+			function loadLevels(){
+				if(typeof varValues[varNum-1] !== 'undefined' && varValues[varNum-1].length > 0 && (varTypes[varNum-1]==1 || varTypes[varNum-1]==2 && varDistType[varNum-1]==100))
+				for(var i=0; i<nLevels[varNum-1]; i++){
+				//console.log(i+ " " + varValues[varNum-1][i])
+					if(typeof varValues[varNum-1][i] !== 'undefined') document.getElementById("level"+i).value = varValues[varNum-1][i]
+				}
+			}
+			
+			function loadProbs(){
+				if(typeof varValueProbs[varNum-1][currentVarDist] !== 'undefined' && varValueProbs[varNum-1][currentVarDist].length > 0 && (varTypes[varNum-1]==1 || varTypes[varNum-1]==2 && varDistType[varNum-1]==100))
+				for(var i=0; i<nLevels[varNum-1]; i++){
+					if(typeof varValueProbs[varNum-1][currentVarDist][i] !== 'undefined' && exists('p'+i)) document.getElementById("p"+i).value = varValueProbs[varNum-1][currentVarDist][i]
+					if(exists('lom'+i)) document.getElementById('lom'+i).value = varDepDetails[varNum-1][i]
+				}
+			}
+
+/* ---------------------------------------------------
+   Save User Inputs
+   ---------------------------------------------------*/
+			function saveNVars(){
+				nVars = +document.getElementById('nVars').value
+				updateSaveText();
+			}
+
+			var noCatVars=false
+			
+			function checkCatVars(){
+				noCatVars=true
+				for(var i=1; i<=nVars; i++){
+					if(varTypes[i-1]==1) noCatVars=false
+					if(debug) console.log("noCatVars:"+noCatVars)
+				}
+			}
+			
+			function saveVarNames(){
+				populationName = document.getElementById('popName').value
+				for(var i=1; i<=nVars; i++){
+					varNames[i-1] = document.getElementById("varName"+i).value
+					varTypes[i-1] = +document.getElementById("varType"+i).value
+					if(varTypes[i-1]>1 && varDistType[i-1][currentVarDist]==0) varDistType[i-1][currentVarDist]=1
+			/*		if(varTypes[i-1]>2 && varDistType[i-1]<100){
+						for(var k=0; k<varMinMax[i-1].length; k++){
+							if(varMinMax[i-1][k][0]==null) varMinMax[i-1][k][0]=0
+							if(varMinMax[i-1][k][1]==null) varMinMax[i-1][k][1]=0
+						}
+					}*/
+				}
+				checkCatVars()
+				updateSaveText()
+				refreshSamplingMethod()
+			}
+
+			function refreshSamplingMethod(){
+				if(noCatVars){
+					document.getElementById('sampleMethod').value=0
+					document.getElementById('sampleMethod').disabled=true				
+				} else {
+					document.getElementById('sampleMethod').disabled=false				
+				}
+			}
+
+			
+			function saveDependencyMatrix(){
+				depMatrix=[]
+				for(var i=0; i<nVars; i++){
+					depMatrix[i]=new Array(nVars).fill(0)
+					varIndep[i]=true
+					var depOnContinuous = false
+					for(var j=0; j<nVars; j++){
+						if(exists(i+'dep'+j)) {
+							depMatrix[i][j]= (document.getElementById(i+'dep'+j).checked?1:0)
+						}
+						if(depMatrix[i][j]==1) varIndep[i]=false
+						if(depMatrix[i][j]==1 && varTypes[j]==3) depOnContinuous=true
+					}
+					if(varIndep[i]) {
+						nConditions[i]=0
+						varDepTypes[i]=0
+					} else {
+						if(varDepTypes[i]==0){
+							//variable is not independent any more
+							if(varTypes[i]==3 && depOnContinuous){
+								varDepTypes[i]=3
+							} else {
+//								console.log('change var '+i+" to dep type "+1)
+								varDepTypes[i]=1
+								nConditions[i]=0
+								varDepDetails[i][0]=[]
+							}
+						}
+					}
+				}
+				updateSaveText()
+			}
+					
+			function saveDepType(varNum){
+//				for(var i=0; i<nVars; i++){
+				var oldDepType = varDepTypes[varNum-1]
+				if(exists('dependencyType')) {
+					varDepTypes[varNum-1]=+document.getElementById('dependencyType').value
+				} else {varDepTypes[varNum-1]=0}
+				if(oldDepType!=varDepTypes[varNum-1]){
+					console.log("changed dep type")
+					if(varDepTypes[varNum-1]==0){   //Independent
+						varDepDetails[varNum-1]=null
+					} else if(varDepTypes[varNum-1]==2){
+						if(debug)console.log("Dep Type = 2")
+						varDepDetails[varNum-1]=[]
+						if(varTypes[varNum-1]==1){
+							for(var i=0; i<varValues[varNum-1].length; i++) varDepDetails[varNum-1].push("")
+						}
+					}
+				}
+				
+				updateSaveText()
+			}
+			
+			function saveVarDependencies(){
+				var conditionIndex = +document.getElementById('conditionalSelect').value
+				for(var i=0; i<nVars; i++){
+					var saveValue = null
+					if(exists('v'+i)){
+						if(varDistType[i][conditionIndex]==99) 
+							saveValue = document.getElementById('v'+i).value
+						else
+							saveValue = +document.getElementById('v'+i).value
+					}
+					console.log(i + " " +saveValue)
+					varDepDetails[varNum-1][conditionIndex][i]=saveValue
+				}
+				updateSaveText()
+			}
+			
+			function saveVarDistType(vIndex=varNum-1){
+				var condIndex=currentVarDist
+				varDistType[vIndex][currentVarDist]=(varTypes[vIndex]>1 ? +document.getElementById('varDistribution').value : 0)
+				updateSaveText()
+			}
+			
+			function saveVarLevelsAndProbs(vIndex=varNum-1){
+				if(varTypes[vIndex]==1 || varDistType[vIndex]==100){
+					for(var i=0; i<nLevels[vIndex];i++){
+						//save the levels
+						varValues[vIndex][i]=(varTypes[vIndex]==1?document.getElementById('level'+i).value:+document.getElementById('level'+i).value)
+						//save the probabilities
+						if(varDepTypes[vIndex]<=1){
+							varValueProbs[vIndex][currentVarDist][i]=parseFloat(document.getElementById('p'+i).value)
+						} else {
+							varDepDetails[vIndex][i]=(exists('lom'+i)?document.getElementById('lom'+i).value:'')
+						}
+					}			
+				}
+				updateSaveText()
+			}
+			
+			function saveVarMinMax(vIndex=varNum-1, allowNull=false){
+//				console.log(varMinMax[vIndex])
+				var Min=document.getElementById('minimum').value
+				var Max=(exists('maximum') ? document.getElementById('maximum').value:null)
+				varMinMax[vIndex][currentVarDist][0]=(allowNull && Min==''? null: +Min)
+				varMinMax[vIndex][currentVarDist][1]=(allowNull && Max==''? null: +Max)
+				updateSaveText()
+			}
+			
+			function saveVarDetails(varIndex=varNum-1){
+//				console.log('saving var details!')
+				//console.log('varIndex='+varIndex)
+				//console.log('currentVarDist='+currentVarDist)
+				if(varTypes[varIndex]==3) varPrecision[varIndex]=+document.getElementById('varPrecision').value
+					
+				if(varDepTypes[varIndex]==3){ //GLM
+					saveGLM()
+				} else if (varDistType[varIndex]==98){
+					console.log('save autocorrelation definition');				
+				} else {
+					//console.log('saving non GLM')
+					//save the distribution type
+					saveVarDistType()
+
+					//console.log('var dist type = '+varDistType[varIndex])
+					if(varTypes[varIndex]==1 || varDistType[varIndex]==100){
+						//save the number of values
+						nLevels[varIndex]=+document.getElementById('nLevels').value
+						//console.log('saving all '+nLevels[varIndex]+' levels')
+						//console.log(varValueProbs[varIndex][currentVarDist])
+						saveVarLevelsAndProbs(varIndex)
+					} else if(varTypes[varIndex]>1){
+						saveVarMinMax(varIndex)
+					}
+				}
+				updateSaveText()
+			}
+
+			function saveGLM(){
+	//			console.log('saving GLM')
+				varDepDetails[varNum-1][0]=document.getElementById('GLM').value
+				updateSaveText()
+			}
+			
+			function saveLOM(){
+				for(var i=0; i<nLevels[varNum-1]; i++){
+					if(exists('lom'+i)) varDepDetails[varNum-1][i]=document.getElementById('lom'+i).value
+				}
+				updateSaveText()
+			}
+			
+			function fixModel(model){
+				if(debug)console.log(model)
+				if(model===undefined || model.length==0) return model
+				model=model.replace(/\^-/g,"^_")
+				for (var k=0; k<=9; k++){
+					var str = k+"-"
+					var re = new RegExp(str,"g")
+					model = model.replace(re,k+"+-")
+				}
+				model=model.replace(/lnv/g,"*lnV")
+				model=model.replace(/v/g,"*v")
+				model=model.replace(/V/g,"v")
+				model=model.replace(/\^_/g,"^-")
+				model=model.replace(/\+\*/g,"+1*")
+				model=model.replace(/\-z/,"-1z")
+				if(model.charAt(0)=="*") model="1"+model
+				
+				return model
+			}
+			
+/* ---------------------------------------------------
+   GLM Preview
+   ---------------------------------------------------*/			
+			function showGLMPreview(modelID='GLM',previewID='GLMpreview'){
+				refreshFormattedGLM(modelID,previewID)
+				document.getElementById(previewID).style.display="flex"
+				document.getElementById(modelID).style.display="none"
+			
+			}
+			
+			function hideGLMPreview(modelID='GLM',previewID='GLMpreview'){
+				document.getElementById(previewID).style.display="none"
+				document.getElementById(modelID).style.display="block"
+				document.getElementById(modelID).focus()
+			}
+
+			function refreshFormattedGLM(modelID='GLM',previewID='GLMpreview'){
+				document.getElementById(previewID).innerHTML=formatGLM(document.getElementById(modelID).value)
+			}
+			
+			function formatGLM(model){
+				if(model=="" || model==null || model=="undefined") return "&nbsp;"
+
+				console.log(model)
+				
+				
+				formattedGLM="<div class='placeholder'></div>"
+				var totalModel = model
+				var modelParts = totalModel.split(';')
+				for(var modeli=0; modeli<modelParts.length; modeli++){
+					model = modelParts[modeli]
+					console.log("formatting: "+model)
+					if(modeli>0) formattedGLM+="&nbsp;&nbsp;&nbsp;&nbsp;"
+					formattedGLM+="<div style='display: block;'>"
+					var GLMstring=""
+					
+					
+					model=model.replace(/z/g,"v0")
+					model = fixModel(model)
+					var exp=false
+					if(model.indexOf("exp(")>-1){
+						exp=true
+						model = model.substring(model.indexOf('exp(')+4)
+						if(model.charAt(model.length-1)==")")
+							model = model.substring(0, model.length-1)
+					}
+					var terms = model.split("+")
+					for(var term=0; term < terms.length; term++){	
+						if(term >0) GLMstring+="+"
+						GLMstring+="<div class='term'>"
+						//========= RANDOM ERROR =========//
+						if(terms[term].includes("s") || terms[term].includes("z")){
+							var sd=parseFloat(terms[term].replace("s","").replace("z",""))
+							if(terms[term].replace("s","").replace("z","")=="")sd=1.0
+							GLMstring+="<div class='coeff'>"+sd+"</div><div class='epsilon'>z</div>"
+
+						//========= VARIABLES AND COEFFICIENTS =========//
+						} else if (terms[term].includes("v")){
+							//variable coefficients
+							var vFactors = terms[term].split('*')
+							for(var i=0; i<vFactors.length;i++){
+								var termString = ""
+								var logTrans=false
+								//Just the coefficient
+								if(!vFactors[i].includes("v")){
+									GLMstring += "<div class='coeff'>"+vFactors[i]+"</div>"
+								} else {
+									vFactors[i]=vFactors[i].replace("v","")
+									if(vFactors[i].includes("ln")){
+										logTrans=true
+										vFactors[i]=vFactors[i].replace("ln","")
+									}
+									var factorValue=0
+									var power=1.0
+									
+									var lag=0
+									if(vFactors[i].includes('_')){
+										lag=(vFactors[i].match(/_/g) || []).length;
+									}
+									console.log("lag:"+lag)
+									var lagString=(lag>0?"<div class='lag'>t-"+lag+"</div>":"")
+									//Categorical variable value
+									if(vFactors[i].includes('=') || vFactors[i].includes('<') || vFactors[i].includes('>')){
+										for(var k=0; k<compareStrings.length; k++){
+											if(vFactors[i].includes(compareStrings[k])){
+												var parts = vFactors[i].split(compareStrings[k])
+												var vNum = parseInt(parts[0])
+												var vVal = parseFloat(parts[1])
+												termString += "<div class='catvar'>v<sub>"+vNum+"</sub><div class='level'>"+compareDisplayStrings[k]+vVal+"</div>"
+											break;
+											}
+										}
+//									if(vFactors[i].includes('=')){
+//										var parts = vFactors[i].split('=')
+//										var vNum = parseInt(parts[0])
+//										var vVal = parseInt(parts[1])
+//										termString += "<div class='catvar'>v<sub>"+vNum+"</sub><div class='level'>="+vVal+"</div>"
+									//Discrete or continuous variable
+									} else {
+										var vNum=0
+										if(vFactors[i].includes('^')){
+											power = eval(vFactors[i].split('^').pop())
+											vNum = parseInt(vFactors[i].split('^')[0])
+										} else {
+											vNum = parseInt(vFactors[i])
+										}
+										if(vNum==0){
+											termString += "<div class='epsilon'>z"
+										} else {
+											termString += "<div class='var'>v<sub>"+vNum+"</sub>"
+										}
+																			}
+									if(logTrans){
+										termString = "<div class='ln'>ln"+termString+"</div>"+lagString+"</div>"
+									} else {
+										if(power!=1.0) {
+											termString +=""+lagString+"<div class='exponent'>"+power+"</div></div>"
+										} else termString +=""+lagString+"</div>"
+									}
+									GLMstring+=termString
+								}
+							}
+
+						//========= INTERCEPT =========//
+						} else {
+							//intercept
+							GLMstring+="<div class='intercept'>"+terms[term]+"</div>"
+						}
+						GLMstring+="</div>"
+					}
+					if(exp){
+					GLMstring="<div class='base'>e</div><div class='exp'>"+GLMstring+"</div>"
+	//					formattedGLM=model
+					}
+					
+
+
+					
+					formattedGLM+=GLMstring
+					formattedGLM+="</div>"				
+				}
+				return formattedGLM
+			}
+					
+/* ---------------------------------------------------
+   Generate a Sample
+   ---------------------------------------------------*/
+
+			var myDataSample=[] //this is for temporary samples
+
+			function refreshStrataDiv(){
+				document.getElementById('strata').style.display=(document.getElementById('sampleMethod').value==0?'none':'block')
+				document.getElementById('sampleN').disabled=document.getElementById('sampleMethod').value==1
+			}
+			
+			function addStrata(){
+				nStrata++
+				strata.push([30,[null,null]])
+				refreshStrataList()
+				recalcSS()
+			}
+			
+			function recalcSS(){
+				var sum=0;
+				for(var k=0; k<strata.length; k++) sum+=strata[k][0]
+				document.getElementById('sampleN').value=sum
+			}
+			
+			function setStratumN(i){
+				strata[i][0]=parseInt(document.getElementById('s'+i+'_n').value)
+				recalcSS()
+			}
+			
+			function removeStratum(i){
+				strata.splice(i,1)
+				refreshStrataList();
+				recalcSS()
+			}
+			
+			function removeStrataCond(i,j){
+				strata[i].splice(j+1,1)
+				refreshStrataList();
+			}
+			
+			function addStrataCond(i){
+				strata[i].push([null,null])
+				refreshStrataList();
+			}
+			
+			function setStrataCondVar(i,j){
+				strata[i][j+1][0]=parseInt(document.getElementById('s'+i+'_v'+j).value)
+				refreshStrataList();
+			}
+			
+			function setStrataCondLvl(i,j){
+				strata[i][j+1][1]=parseInt(document.getElementById('s'+i+'_l'+j).value)
+				refreshStrataList();
+			}
+			
+			function refreshStrataList(){
+				console.log("refresh strata list")
+				var nCatVars=0
+				for(var i=0; i<varTypes.length; i++) if(varTypes[i]==1) nCatVars++
+				if(nCatVars==0) return false;
+				var strataList="<table class='strataTable'><tr><th></th><th>Sample Size</th><th>Stratum Conditions</th></tr>"
+				for (var i=0; i<strata.length; i++){
+					var n=getStrataNum(i,0)
+					strataList+="<tr><td><button type='button' value='x' onClick='removeStratum("+i+");'>x</button></td><td><input type='number' min=0, step=1 id='s"+i+"_n' class='smallNumber' value="+(n?n:0)+" onChange='setStratumN("+i+");'></td><td>"
+					var nc = strata[i].length-1
+					for(var j=0; j<nc; j++){
+					strataList+="<select id='s"+i+"_v"+j+"' onChange='setStrataCondVar("+i+","+j+");'"+(j<nc-1?"disabled":"")+">"
+					var svselected=strata[i][1+j][0]
+					for(var k=0; k<varNames.length; k++){
+						//If this variable isn't chosen on the previous conditions so far, then you can list it...
+						var varUsed=false
+						for(var l=0; l<j; l++){
+							//console.log("l="+l+": "+strata[i][l+1])
+							if(l!=j && strata[i][l+1][0]==k) varUsed=true;
+						}
+						if(varTypes[k]==1 && !varUsed) {
+							
+							if(svselected==null) {
+								svselected=k
+								strata[i][1+j][0]=svselected
+							}
+							strataList+="<option value="+k+" "+(k==svselected?'selected':'')+">"+varNames[k]+"</option>"
+						}
+					}
+					strataList+="</select> = <select id='s"+i+"_l"+j+"' onChange='setStrataCondLvl("+i+","+j+");'>"
+					var slselected=strata[i][j+1][1]
+					for(var k=0; k<varValues[svselected].length; k++){
+						if(slselected==null){
+							slselected=k
+							strata[i][j+1][1]=slselected
+						}
+						strataList+="<option value="+k+" "+(k==slselected?'selected':'')+">"+varValues[svselected][k]+"</option>"
+					}
+					
+					strataList+="</select>"
+					if(j>0) strataList+="<button type='button' value='x' onClick='removeStrataCond("+i+","+j+");'>x</button>"
+					strataList+="<br>"
+					}
+					if(strata[i].length<=nCatVars) strataList+="<button type='button' value='add Condition' onClick='addStrataCond("+i+");'"+(strata[i].length>nCatVars?"disabled":"")+">add Condition</button><br>"
+					strataList +="</td></tr>"
+				}
+				strataList+="</table>"
+				document.getElementById("strataList").innerHTML=strataList
+			//	console.log(JSON.stringify(strata))
+			}
+			
+			function getStrataNum(i, j, k=null){
+				if(strata.length<=i || strata[i].length<=j) return false;
+				var returnVal = 0
+				if(k==null) {
+					returnVal = strata[i][j]
+				} else {
+					if(strata[i][j].length<=k) return false;
+					returnVal = strata[i][j][k]
+				}
+				return returnVal
+			}
+
+			function checkValidInervals(s){
+				var intervals = [], j=0, tempNum="", k=0, within=false
+				for (let i = 0; i < s.length; i++) {
+					if(isNumeric(s[i])){
+						tempNum += s[i]
+					} else {
+						if(s[i]=='['){ 
+							intervals.push([])
+							within=true
+						}
+						if(s[i]==']'){
+							intervals[j][k]=(tempNum==""?Infinity:+tempNum)
+							tempNum=""
+							within=false
+							k=0
+						}
+						if(s[i]==',' && within){
+							intervals[j][k]=(tempNum==""?-Infinity:+tempNum)
+							tempNum=""
+							k++
+						}
+						if(s[i]==',' && !within){
+							j++						
+						}
+					}
+				}
+				return intervals
+			}
+
+			function getASample(n, rng, idx=0){
+			
+				var myDataSample = []
+				for(var i=0; i<nVars; i++){
+					myDataSample[i]=[]
+				}
+				for(var k=0; k<n; k++){
+					if(debug) console.log("k="+k)
+					for(var j=0; j<nVars; j++){
+						var i=varDepOrder[j]
+						if(debug)console.log("Sampling Variable "+i)
+						var x=""
+						//if the variable is independent:
+						if(varDepTypes[i]<=1){
+							
+							var condIndex = 0
+							if(/*varIndep[i] || */varDepTypes[i]==0){
+								//don't change condindex
+							} else if (varDepTypes[i]==1){
+								//If it is a discrete dependency (which condition is satisfied)
+								var foundCondition = false 
+								
+								//go through the conditions 1,....
+								for(var vj=1; vj<=nConditions[i] && !foundCondition; vj++){
+									//assume this condition is met...
+									if(debug)console.log("var "+i+" checking condition "+vj)
+									var soFarSoGood=true;
+									//go through the other variable values one by one
+									for (var l=0; l<varDepDetails[i][vj].length; l++){
+										//check to see if the dependency exists
+										if(depMatrix[i][l]==1 && varDepDetails[i][vj][l]!=null){
+											if(debug)console.log("var "+i+" depends on var "+l)
+											if(varTypes[l]==1){
+												var lvl = +varDepDetails[i][vj][l]
+												if(myDataSample[l][k]==varValues[l][lvl]){
+													//don't change soFarSoGood
+												} else {
+													soFarSoGood = false
+													break;
+												}
+											} else if (varTypes[l]==2 && varDistType[l][0]==99){
+												var intervals = checkValidInervals(varDepDetails[i][vj][l])
+												console.log(intervals)
+												var inInterval=false
+												for(var ii=0; ii<intervals.length; ii++){
+													if(intervals[ii][0]==null) intervals[ii][0]=-Math.infinity
+													if(intervals[ii][1]==null) intervals[ii][1]=+Math.infinity
+													if(+myDataSample[l][k]>= intervals[ii][0] && +myDataSample[l][k]<=intervals[ii][1]) inInterval=true
+												}
+												if(!inInterval){
+													soFarSoGood=false
+													break;
+												}
+											} else if (varTypes[l]==2){
+												if(debug)console.log("myDataSample[l][k]="+myDataSample[l][k])
+												if(debug)console.log("varDepDetails[i][vj][l]="+varDepDetails[i][vj][l])
+												if(+myDataSample[l][k] == +varDepDetails[i][vj][l]){
+													//don't change soFarSoGood
+												} else {
+													soFarSoGood = false
+													break;
+												}
+											} else {
+												soFarSoGood=false;
+											}
+										}
+									}
+									if(soFarSoGood){
+										foundCondition=true
+										condIndex = vj
+										if(debug)console.log("condition found: "+vj)
+										break;
+									}
+								}
+							}
+//							console.log("Condition "+condIndex+" satisfied.")
+							if(varTypes[i]==2 && varDistType[i][0]==99){
+								x=/*idx+*/k+varMinMax[i][condIndex][0]
+							
+							}
+							if(varTypes[i]==1 || varTypes[i]==2 && varDistType[i][condIndex]==100){
+								r=rng.quick()
+								//console.log(r)
+								for(var cprob=0, idx=0; cprob<r; idx++){
+									x=varValues[i][idx]
+									cprob += varValueProbs[i][condIndex][idx]
+									//console.log(x + " " + cprob + (cprob >= r ?">":"<")+r)
+								}
+							} else if (varTypes[i]==2){
+							//if it is discrete
+								var dist=varDistType[i][condIndex]
+		//						console.log(dist)
+								var min=varMinMax[i][condIndex][0]
+								var max=varMinMax[i][condIndex][1]
+//								console.log(min+",...,"+max)
+								if(dist==1){//uniform
+									r=rng.quick()
+									x=min+Math.floor(r*(max-min+1))
+									if(x>max) x=max
+								} else if (dist == 4) {//binomial
+									var p=.5
+									var bN = max-min
+									r=rng.quick()
+									for(var cprob=0, idx=0; cprob<r; idx++){
+										cprob = jStat.binomial.cdf(idx,bN,p)
+										x=min+idx
+									}
+								} else if (dist >=2 && dist <=6){
+									do{
+										var inRange=false
+										r=rng.quick()
+										if(dist==4){
+											x=Math.round(jStat.norm.inv(r,(max+min)/2,(max-min)/6)) 
+										} else	if (dist==3 || dist==5){
+											x=Math.round((dist==3?min:max) +(dist==3?1:-1)*Math.exp(jStat.normal.inv(r,0,.5))/4.5*(max-min),0)
+										} else if (dist==2 || dist==6){
+											x=Math.round((dist==2?min:max) +(dist==2?1:-1)*Math.exp(jStat.normal.inv(r,0,1))/15*(max-min),0)
+										}
+										if(x>=min && x<=max) inRange=true
+									} while(!inRange)
+								} else if(dist==7){
+//									var p=.25 + (rng.quick()>.5?.5:0)
+//									var bN = max-min
+		//							if(k==0)console.log(bN + " " + p)
+//									r=rng.quick()
+//									for(var cprob=0, idx=0; cprob<r; idx++){
+//										cprob = jStat.binomial.cdf(idx,bN,p)
+//										x=min+idx
+//									}
+									var inRange=false
+									do{
+										r=rng.quick()
+										var mu=min+(.25 + (rng.quick()>.5?.5:0))*(max-min)
+										x=Math.round(jStat.normal.inv(r, mu, (max-min)/12),0)
+										if(x>=min && x<=max) inRange=true
+									} while(!inRange)									
+									
+								}/*else if (dist==100){
+								}*/
+							} else if (varTypes[i]==3){
+							//if it is continuous
+								var dist=varDistType[i][condIndex]
+								var min=varMinMax[i][condIndex][0]
+								var max=varMinMax[i][condIndex][1]
+								if(dist==1){                      //uniform
+									r=rng.quick()
+									x=min+(r*(max-min))
+									if(x>max) x=max
+								} else if (dist>=2 && dist <= 7) {//skewed or unimodal
+									var inRange=false
+									do{
+										r=rng.quick()
+										if(dist==4){
+											x=jStat.normal.inv(r,(min+max)/2, (max-min)/6)
+										} else if (dist==3 || dist==5){
+											x=(dist==3?min:max) +(dist==3?1:-1)*Math.exp(jStat.normal.inv(r,0,.5))/4.5*(max-min)
+										} else if (dist==2 || dist==6){
+											x=(dist==2?min:max) +(dist==2?1:-1)*Math.exp(jStat.normal.inv(r,0,1))/15*(max-min)
+										} else if(dist==7){
+											var mu=min+(.25 + (rng.quick()>.5?.5:0))*(max-min)
+											x=jStat.normal.inv(r, mu, (max-min)/12)
+										}
+										if(x>=min && x<=max) inRange=true
+									} while(!inRange)
+								} else if (dist==98){            //autocorrelated
+									var ACmodel = varDepDetails[i][0]
+									var ACmodelparts = ACmodel.split(";")
+									r=rng.quick()
+									x=parseFloat(evaluateLinearModel(ACmodelparts[Math.min(k, ACmodelparts.length-1)],k,r,myDataSample).toFixed(varPrecision[i]))
+								
+								}
+								x=parseFloat(x.toFixed(varPrecision[i]))
+							}
+						} else if (varDepTypes[i]==2){
+						//if it is a categorical variable dependent on a mixture of variables 
+						//use the log-odds							
+							var logOdds=[]
+							var p=[]
+							var sumP=0
+							for(var li=0; li<(varValues[i].length==2?1:varDepDetails[i].length); li++){
+								if(debug)console.log("calculating log-odds "+li)
+								r=rng.quick()
+								logOdds[li]=evaluateLinearModel(varDepDetails[i][li],k,r,myDataSample)
+								p[li] = Math.exp(logOdds[li])/(1+Math.exp(logOdds[li]))
+								sumP+=p[li]
+							}
+							if(varValues[i].length==2){
+								p[1]=1-p[0]
+							} else {
+								for(var pi=0; pi<p.length; pi++){
+									p[pi] *= 1.0/sumP
+								}
+							}
+							r=rng.quick()
+							//console.log(r)
+							for(var cprob=0, idx=0; cprob<r; idx++){
+								x=varValues[i][idx]
+								cprob += p[idx]
+								//console.log(x + " " + cprob + (cprob >= r ?">":"<")+r)
+							}
+						} else if(varDepTypes[i]==3){
+						//Or it can use a GLM
+					//if it is a continuous variable using a generalized linear model		
+							r=rng.quick()
+							//console.log("random number = "+r)
+							var ACmodel = varDepDetails[i][0]
+							var ACmodelparts = ACmodel.split(";")
+							var modelToUse = ACmodelparts[Math.min(ACmodelparts.length-1, k)]
+							
+							
+							x=parseFloat(evaluateLinearModel(modelToUse,k,r,myDataSample).toFixed(varPrecision[i]))
+//							x=parseFloat(evaluateLinearModel(varDepDetails[i][0],k,r,myDataSample).toFixed(varPrecision[i]))
+							if(varMinMax[i][0][0]!=null) x=Math.max(varMinMax[i][0][0],x)
+							if(varMinMax[i][0][1]!=null) x=Math.min(varMinMax[i][0][1],x)
+						}						
+						myDataSample[i][k]=x
+					}
+				}
+				return myDataSample
+			}
+
+			function sample(){
+				showAnalyzeButton()
+				var n = +document.getElementById('sampleN').value				
+				var seed = document.getElementById('seed').value
+				var myRng = (seed==''? new Math.seedrandom():new Math.seedrandom(seed))
+
+				dataSample = []
+				for(var i=0; i<nVars; i++){
+					dataSample[i]=[]
+				}
+				
+				var killLoop=0
+				if(document.getElementById('sampleMethod').value==0 || strata.length==0){
+					dataSample = getASample(n,myRng)
+				}else{
+					var idx=0
+					var collected=[]
+					for(var i=0; i<strata.length; i++) collected[i]=0
+					while(idx<n){
+						var oneSample = getASample(1,myRng, idx)
+
+						//----
+				//		idx++
+						//----
+						//console.log(JSON.stringify(oneSample))
+						for(var i=0; i<strata.length; i++){
+							if(collected[i]<strata[i][0]){
+								var allGood=true
+								for(var cond=1; cond<strata[i].length; cond++){
+									var condVarNum = strata[i][cond][0]
+									var condLevel = strata[i][cond][1]
+									var condValue = varValues[condVarNum][strata[i][cond][1]]
+									//console.log(oneSample[condVarNum][0])
+									//console.log(condVarNum + " " + condLevel + " " + condValue)
+								
+									if(oneSample[condVarNum][0]!=condValue) {
+										allGood=false;
+										break;
+									}
+								}
+
+
+								if(allGood){
+									for(var vi=0; vi<oneSample.length; vi++){
+										dataSample[vi].push(oneSample[vi][0])
+									}
+									collected[i]++
+									idx++
+									break;
+								}
+							
+							}
+							killLoop++
+							if(killLoop>100000) {
+								idx=n
+								alert("Not possible to fulfill strata quotas")
+							}
+						}
+					}
+				}
+			
+
+//output the sample data				
+				var sampleOutput = dataSampleToString(dataSample)
+				document.getElementById('sampleData').value=sampleOutput
+				document.getElementById('sampleDataTable').innerHTML=dataSampleToTable(dataSample)
+				document.getElementById('saveSampleButton').disabled=false	
+			}
+
+			function saveSampleData(){
+				var ext = (document.getElementById('sep').value==1?"txt":"csv")
+				var safeName = (document.getElementById('popName').value==''?"":document.getElementById('popName').value.replace(/[^a-z0-9]/gi, '_')+"_")
+				download(document.getElementById('sampleData').value, safeName+"sample."+ext, "text/plain;charset=utf-8")
+			}
+			
+			var compareStrings = ["!=","<=",">=","=","<",">"]
+			var compareDisplayStrings = ["&#8800;","&#8804;","&#8805;","=","&#x3c;","&#x3e;"]
+			var evaluateStrings = ["!=","<=",">=","==","<",">"]
+
+			function evaluateLinearModelFromVector(model, xVector=[], r=0, xLagVectors=[]){
+				if(debug)console.log(xLagVectors)
+				if(model== undefined || model.length==0) return 0
+				if(debug) console.log(model)
+				model=model.replace(/z/g,"v0")
+				model=fixModel(model)
+				if(debug) console.log("Evaluate Model "+model+" from vector"+xVector)
+				if(xVector.length==0){
+					for(var i=0; i<nVars; i++) xVector[i]=1
+				}
+				var y=0
+				var exp = false
+				if(model.indexOf("exp(")>-1){
+					exp=true
+					model = model.substring(model.indexOf('exp(')+4)
+					if(model.charAt(model.length-1)==")")
+						model = model.substring(0, model.length-1)
+				}
+				
+				var terms = model.split("+")
+				if(debug) console.log(terms)
+				
+				
+				
+				for(var term=0; term < terms.length; term++){			
+					//========= RANDOM ERROR =========//
+					if(terms[term].includes("s") || terms[term].includes("z")){
+						var sd=parseFloat(terms[term].replace("s","").replace("z",""))
+						if(terms[term].replace("s","").replace("z","")=="")sd=1.0
+						if(debug) console.log("sd="+sd)
+						if(debug) console.log(y+" + "+jStat.normal.inv(r,0,sd)+" = ")
+						y += jStat.normal.inv(r,0,sd)
+						r=(r*11)%1
+
+					//========= VARIABLES AND COEFFICIENTS =========//
+					} else if (terms[term].includes("v")){
+						//variable coefficients
+						//var containsCoefficient = (terms[term].indexOf('v')>0)
+						var vFactors = terms[term].split('*')
+						if(debug) console.log(vFactors)
+						var t=1.0;
+						for(var i=0; i<vFactors.length;i++){
+							var logTrans=false
+							//Just the coefficient
+							if(!vFactors[i].includes("v")){
+								if(vFactors[i]=="-") {
+									t*=-1.0;
+								}else{
+									t*= parseFloat(vFactors[i])
+								}
+							} else {						
+								vFactors[i]=vFactors[i].replace("v","")
+								if(vFactors[i].includes("ln")){
+									logTrans=true
+									vFactors[i]=vFactors[i].replace("ln","")
+								}
+								var factorValue=0
+								var power=1.0
+								var lag=0
+								if(vFactors[i].includes('_')){
+									lag=(vFactors[i].match(/_/g) || []).length;
+								}
+								
+								
+								//Categorical variable value
+								if(vFactors[i].includes('=') || vFactors[i].includes('<') || vFactors[i].includes('>')){
+									for(var k=0; k<compareStrings.length; k++){
+										if(vFactors[i].includes(compareStrings[k])){
+											var parts = vFactors[i].split(compareStrings[k])
+											var vNum = parseInt(parts[0])
+											var vVal = parseFloat(parts[1])
+											var xVal=(lag==0?xVector[vNum-1]:xLagVectors[lag-1][vNum-1])
+											if(varTypes[vNum-1]==1){
+												if(debug)console.log(xVal+evaluateStrings[k]+(vVal-1) + ":"+eval(xVal+evaluateStrings[k]+(vVal-1)))
+												factorValue = (eval(xVal+evaluateStrings[k]+(vVal-1))?1:0)
+											} else {
+												if(debug)console.log(xVal+evaluateStrings[k]+(vVal) + ":"+eval(xVal+evaluateStrings[k]+(vVal)))
+												factorValue = (eval(xVal+evaluateStrings[k]+vVal)?1:0)
+											}	
+											break;
+										}
+									}
+								//Discrete or continuous variable
+								} else {						
+									var vNum=0
+									if(vFactors[i].includes('^')){
+										power = eval(vFactors[i].split('^').pop())
+										if(debug) console.log(power)
+										//console.log(Math.pow(3,power))
+										vNum = parseInt(vFactors[i].split('^')[0])
+									} else {
+										vNum = parseInt(vFactors[i])
+									}
+									if(vNum==0){
+										factorValue = jStat.normal.inv(r,0,1)
+										r=(r*11)%1									
+									} else {
+										factorValue = (lag==0?xVector[vNum-1]:(xLagVectors.length<lag?0:xLagVectors[lag-1][vNum-1]))//xVector[vNum-1]									
+									}
+									if(factorValue==0 && power<0) factorValue=1.0
+								}
+								if(logTrans){
+									t *= Math.log(factorValue)
+								} else {
+									t *= Math.pow(factorValue,power)
+								}
+							}
+							if(debug) console.log("t="+t);
+						}
+						y+=t
+					//========= INTERCEPT =========//
+					} else {
+						//intercept
+						if(debug) console.log("intercept="+parseFloat(terms[term]))
+						y += parseFloat(terms[term])
+					}
+
+				}
+				if(exp) y = Math.exp(y)
+				return y			
+			}
+			
+			function evaluateLinearModel(model,k,r, dataMatrix){
+				if(debug)console.log("Time to evaluate a GLM")
+				//r is the random number from 0 to 1
+				//k is the row of the observation index
+				var xVector = []
+				var xLagVectors = []
+				var lags=0
+				var lagstr = "_"
+				while(model.includes(lagstr)){
+					lags++
+					lagstr +="_"
+				}
+				
+				if(debug) console.log(dataMatrix)
+				for(var lag=1; lag <=lags && k-lag>=0; lag++){
+					var lagVec = []
+					for(var i=0; i<nVars; i++) lagVec[i]=dataMatrix[i][k-lag]
+					xLagVectors.push(lagVec)
+				}
+				for(var i=0; i<nVars; i++){
+					var x=(dataMatrix[i][k]===undefined?0:dataMatrix[i][k])
+					if(debug) console.log("i="+i+": "+x)
+					xVector[i]=x
+					if(varTypes[i]==1){
+						for(var j=0; j<varValues[i].length; j++){
+							if(x==varValues[i][j]){
+								xVector[i]=j;
+								break;
+							}
+						}
+					}
+				}
+				if(debug) console.log("x vector is "+xVector)
+				var y=evaluateLinearModelFromVector(model, xVector, r, xLagVectors)
+				return y
+			}
+
+			function dataSampleToTable(dataSample){
+				if(debug) console.log(JSON.stringify(dataSample))
+				var sampleOutput = "<table>"
+				var n=dataSample[0].length
+				for(var rw=0; rw<=n; rw++){
+					sampleOutput+="<tr>"
+					for(var j=0; j<dataSample.length; j++){
+						var i=j//varDepOrder[j]
+						if(varHidden[i]!=1 && document.getElementById('reportVar'+i).checked){
+							if(rw==0) {
+								sampleOutput += "<th>"+varNames[i]+"</th>"
+							} else {
+								sampleOutput += "<td>"+dataSample[i][rw-1]+"</td>"
+							}
+						}
+					}
+					sampleOutput+="</tr>"
+				}
+				sampleOutput +="</table>"
+				return sampleOutput
+			}
+			
+			function changeSampleDisplay(){
+				document.getElementById("sampleDataTextarea").style.display=(document.getElementById("displayTable").checked?"none":"block")
+				document.getElementById("sampleDataTable").style.display=(document.getElementById("displayTable").checked?"block":"none")
+			
+			}
+			
+			function refreshSampleDisplay(){
+				changeSampleDisplay()
+				document.getElementById('sampleDataTable').innerHTML=dataSampleToTable(dataSample)
+				refreshSampleText()
+			}
+			
+			function dataSampleToString(dataSample){
+//				if(debug) console.log(JSON.stringify(dataSample))
+				var sampleOutput = ""
+				var n=dataSample[0].length
+				var delineator = "\t"
+				if(document.getElementById('sep').value==2) delineator=","
+				for(var rw=0; rw<=n; rw++){
+					for(var j=0; j<dataSample.length; j++){
+						var i=j//varDepOrder[j]
+						if(varHidden[i]!=1 && document.getElementById('reportVar'+i).checked){
+							if(rw==0) {
+								sampleOutput += varNames[i]+(j<dataSample.length-1?delineator:"")
+							} else {
+								sampleOutput += dataSample[i][rw-1] + (j<dataSample.length-1?delineator:"")
+							}					
+						}
+					}
+					if(rw<n) sampleOutput+="\n"
+				}
+				return sampleOutput
+			}
+		
+			function refreshSampleText(){
+				var sampleOutput = dataSampleToString(dataSample)
+				document.getElementById('sampleData').value=sampleOutput				
+			}
+		
+/* ---------------------------------------------------
+   New Population, Load, Save, Share
+   ---------------------------------------------------*/		
+			function initializePopulation(loadDefault=false, allowURL=true){
+				varNum=1
+				currentVarDist=0
+				popHash=0
+				pwStatus=-1
+				blind=false 
+				var param = {};
+				var s = window.location.search.substring(1).split('&');
+				if(debug) console.log(s)
+				var foundPop=false
+				for (var i = 0; i < s.length; ++i) {
+					var parts = s[i].split('=');
+					param[parts[0]] = parts[1];
+					if(parts[0]=="pop") foundPop=true
+				}
+				if(allowURL && foundPop){
+					blind=true
+					loadPopulation(decodeURIComponent(param["pop"]))
+					pwStatus=1
+					for(var i=0; i<s.length; i++){
+						if(s[i]=="blind=false") blind=false
+					}
+				} else if(loadDefault){
+					populationName="College Students in USA"
+					nVars = 2
+					varNames = ['last Name','phone']
+					varHidden=[0,0]
+					varTypes = [1,1]
+					varDistType = [[0],[0]]
+					nLevels=[2,2]
+					varValues=[['A-K','L-Z'],['iPhone','other']]
+					varValueProbs=[[[.491,.509]],[[.66,.34]]]
+					varMinMax = [[[null,null]],[[null,null]]]
+					varDepTypes = [0,0]
+					varDepDetails = [[''],['']]
+					nConditions = [0,0]
+					varIndep = [true,true]
+					varDepOrder = [0,1]
+					depMatrix=[[0,0],[0,0]]	
+					varPrecision=[2,2]
+					createRandomKey()
+				} else {
+//				console.log('new')
+					populationName=""
+					nVars = 1
+					varNames = ['var1']
+					varHidden =[0]
+					varTypes = [1]
+					varDistType = [[0]]
+					nLevels=[2]
+					varValues=[['lvl1','lvl2']]
+					varValueProbs=[[[.5,.5]]]
+					varMinMax = [[[null,null]]]
+					varDepTypes = [0]
+					varDepDetails = [[]]
+					nConditions = [0]
+					varIndep = [true]
+					varDepOrder = [0]
+					depMatrix=[[0]]
+					varPrecision=[2]
+					document.getElementById('nVars').value=1
+					changeNVars()
+					createRandomKey()
+				}
+				refreshKeyImg()
+				blindPanels()
+			}
+			
+			function blindPanels(){
+				document.getElementById('btnSave').disabled=blind
+				document.getElementById('headerVarDep').checked=!blind 
+				document.getElementById('headerVarDep').disabled=blind 
+				document.getElementById('headerVarDetails').checked=!blind 
+				document.getElementById('headerVarDetails').disabled=blind 	
+				document.getElementById('nVars').disabled=blind
+				document.getElementById('popName').disabled=blind
+				document.getElementById('incrNVars').disabled=blind
+				rebuildVarList()
+				var arrayOfElements=document.getElementsByClassName('hideOnBlind');
+				for (var i=0; i<arrayOfElements.length;i++){
+					arrayOfElements[i].style.display=(blind?"none":"block");
+				}
+			}
+			
+			function checkErrors(){
+				var errorString = ""
+
+				for(var i = 0; i<nVars; i++){
+					if(varNames[i]==''){
+						errorString += "<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+l+", \"varName"+(i+1)+"\");' value='(blank)'>: variable name undefined<br>"
+					}
+			
+					//Variable Name duplicate
+					for (var j=0; j<i; j++){
+						if(varNames[i]==varNames[j]){
+							errorString += "<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+l+", \"varName"+(i+1)+"\");' value='"+varNames[i]+condStr+"'>: duplicate variable name<br>"
+						}
+					}
+					for(var jj = 0; jj<varDistType[i].length; jj++){
+						if(varTypes[i]==1 || varDistType[i][jj]==100){
+	//						console.log("var "+i+" is categorical...")
+							if(varDepTypes[i]==2){
+								var errorPresent = [false,false,false,false]
+								var lLink = [-1,-1,-1,-1]
+								for(var k=0; k<varValues[i].length; k++){
+									//Level value missing
+									if(varValues[i][k]==''){
+										errorPresent[2]=true
+										lLink[2]=k
+									}
+									//LOM Undefined
+									if(!(varValues[i].length==2 && k==1) && (varDepDetails[i][k]=="" || varDepDetails[i][k]=="undefined")) {
+										errorPresent[0]=true
+										lLink[0]=k
+									} else if(!(varValues[i].length==2 && k==1) && isNaN(evaluateLinearModelFromVector(varDepDetails[i][k]))){
+									//LOM Syntax Error
+										errorPresent[1]=true
+										lLink[1]=k
+									}
+								}
+							
+								//Dependent Variable Missing from Model
+								//Unallowed Variable in Model
+								condStr = "(lvl"+lLink[0]+")"
+								if(errorPresent[0]) errorString +="<input type='button' 	class='notAButton' onClick='goToVar("+(i+1)+","+lLink[0]+");' value='"+varNames[i]+condStr+"'>: Log-Odds Model undefined<br>"	
+								condStr = "(lvl"+lLink[1]+")"
+								if(errorPresent[1]) errorString +="<input type='button' 	class='notAButton' onClick='goToVar("+(i+1)+","+lLink[0]+");' value='"+varNames[i]+condStr+"'>: Log-Odds Model syntax error<br>"
+								if(errorPresent[2]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+",0,\"level"+lLink[2]+"\");' value='"+varNames[i]+"'>: not all "+(varTypes[i]==1?'levels':'values')+" defined<br>"		
+							} else {
+								var errorPresent = [false,false,false,false]
+								var errorPresent = [false,false,false,false]
+								var lLink = [-1,-1,-1,-1]
+								for (var k=0; k<varValues[i].length; k++){
+								//console.log("varValues["+i+"]["+k+"]="+varValues[i][k])
+									if(!(varTypes[i]==2 && varValues[i][k]==0) && (varValues[i][k] == null || varTypes[i]==2 && isNaN(varValues[i][k]))){
+										errorPresent[0]=true
+										lLink[0]=k
+										//console.log(varValues[i][k] + " is not valid")
+									}
+									if(varValues[i][k] == "" && varValues[i][k]!=0){
+										errorPresent[1]=true
+										lLink[0]=k
+									}
+									for(var j=0; j<k; j++){
+										if (varValues[i][k]==varValues[i][j]){
+											errorPresent[2]=true
+											lLink[2]=k
+										}
+									}
+								}
+								
+								for(var l=0; l<varValueProbs[i].length; l++){
+									var conditionErrorPresent = [false,false,false,false,false]
+									var probSum=0
+									var plink=[-1,-1,-1,-1,-1]
+									for(var k=0; k<varValues[i].length; k++){
+										if(varDepTypes[i]<=1){
+	//										console.log(i+" "+l+" "+k+":"+varValueProbs[i][l][k])
+											if(isNaN(varValueProbs[i][l][k]) || varValueProbs[i][l][k]==null){
+												conditionErrorPresent[0]=true
+												plink[0]=k
+											}
+											if(varValueProbs[i][l][k]<0){ 
+												conditionErrorPresent[1]=true
+												plink[1]=k
+											}
+											if(varValueProbs[i][l][k]>1){ 
+												conditionErrorPresent[2]=true
+												plink[2]=k
+											}
+											probSum+=varValueProbs[i][l][k]
+											
+										}
+									}
+									var condStr=""
+									if(varValueProbs[i].length>1){
+										if(l==0) condStr="(default)"
+										if(l>0) condStr="(cond"+l+")"
+									}
+									
+									for(var k=0; k<l; k++){
+										if(varDepDetails[i][k].toString()==varDepDetails[i][l].toString()) conditionErrorPresent[4]=true
+									
+									}
+									if(probSum<.999 || probSum>1.001) conditionErrorPresent[3]=true
+									if(conditionErrorPresent[0]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+l+",\"p"+(plink[0])+"\");' value='"+varNames[i]+condStr+"'>: undefined probability<br>"
+									if(conditionErrorPresent[1]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+l+",\"p"+(plink[1])+"\");' value='"+varNames[i]+condStr+"'>: probability &lt; 0<br>"
+									if(conditionErrorPresent[2]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+l+",\"p"+(plink[2])+"\");' value='"+varNames[i]+condStr+"'>: probability &gt; 1<br>"
+									if(conditionErrorPresent[3]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+l+");' value='"+varNames[i]+condStr+"'>: probabilities don't sum to 1<br>"
+									if(conditionErrorPresent[4]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+l+");' value='"+varNames[i]+condStr+"'>: duplicate conditions<br>"
+								}
+
+
+								//console.log(errorPresent)
+								if(errorPresent[0] || errorPresent[1]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+",0,\"level"+lLink[0]+"\");' value='"+varNames[i]+"'>: not all "+(varTypes[i]==1?'levels':'values')+" defined<br>"
+								if(errorPresent[2]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+",0,\"level"+lLink[2]+"\");' value='"+varNames[i]+"'>: duplicate "+(varTypes[i]==1?'levels':'values')+"<br>"
+							}
+						} 
+
+						
+						
+						if ((varTypes[i]==2 && varDistType[i][jj]!=100) || varTypes[i]==3){
+	//						console.log("var "+i+" is discrete continuous...")
+							if(varDepTypes[i]<=1){
+								if(varMinMax[i].length==0){
+									errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+",0,\"minimum\");' value='"+varNames[i]+condStr+"'>: min/max undefined<br>"												
+								}
+								for(var l=0; l<varMinMax[i].length; l++){
+									var conditionErrorPresent = [false,false,false,false,false]
+									if(varDistType[i][jj]==99){
+										if(varMinMax[i][l][0]==0){}
+										if((varMinMax[i][l][0]!=0 && (varMinMax[i][l][0]=='' || varMinMax[i][l][0]===null))) conditionErrorPresent[5]=true
+									} else if (varDistType[i][jj]==98){
+									
+									} else {
+										if(isNaN(varMinMax[i][l][0]) || varMinMax[i][l][0]=='' || varMinMax[i][l][0]===null) conditionErrorPresent[0]=true
+										if(!isNaN(varMinMax[i][l][0]) && varMinMax[i][l][0]==0) conditionErrorPresent[0]=false
+										if(isNaN(varMinMax[i][l][1]) || varMinMax[i][l][1]=='' || varMinMax[i][l][1]===null) conditionErrorPresent[1]=true
+										if(!isNaN(varMinMax[i][l][1]) && varMinMax[i][l][1]==0) conditionErrorPresent[1]=false
+										if(!conditionErrorPresent[0] && !conditionErrorPresent[1] &&
+										varMinMax[i][l][0]>varMinMax[i][l][1]) conditionErrorPresent[2]=true
+										
+									}
+									var condStr=""
+									if(varMinMax[i].length>1){
+										if(l==0) condStr="(default)"
+										if(l>0) condStr="(cond"+l+")"
+									}
+									
+									for(var k=0; k<l; k++){
+										if(varDepDetails[i][k]!=null && varDepDetails[i][l].toString!=null && varDepDetails[i][k].toString()==varDepDetails[i][l].toString()) conditionErrorPresent[4]=true
+									}
+									if(conditionErrorPresent[0]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+l+",\"minimum\");' value='"+varNames[i]+condStr+"'>: undefined minimum<br>"
+									if(conditionErrorPresent[1]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+l+",\"maximum\");' value='"+varNames[i]+condStr+"'>: undefined maximum<br>"
+									if(conditionErrorPresent[2]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+l+",\"minimum\");' value='"+varNames[i]+condStr+"'>: minimum &gt; maximum<br>"
+									if(conditionErrorPresent[4]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+l+");' value='"+varNames[i]+condStr+"'>: duplicate conditions<br>"
+									if(conditionErrorPresent[5]) errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+l+",\"minimum\");' value='"+varNames[i]+condStr+"'>: undefined first number<br>"
+								}
+							} else if (varDepTypes[i]==3){
+								if(exists(varDepDetails[i][0]) && (varDepDetails[i][0]=="" || varDepDetails[i][0].length==0)) {
+									errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+0+");' value='"+varNames[i]+"'>: GLM undefined<br>"
+								} else if(isNaN(evaluateLinearModelFromVector(varDepDetails[i][0]))){
+								//GLM Syntax Error
+									errorString +="<input type='button' class='notAButton' onClick='goToVar("+(i+1)+","+0+");' value='"+varNames[i]+"'>: GLM syntax error<br>"
+								}
+								//Dependent variable missing
+								
+								
+								//unallowed variable in model 
+							}
+
+	//						console.log(errorPresent)
+
+						}
+					
+					}
+				}
+//				console.log("errors:"+errorString)
+			
+				if(errorString!='') {
+					errorString = "<div class='errors'><b>Errors:</b><br>"+errorString+"</div>"
+					document.getElementById('sampleButton').disabled=true;
+				}else{
+					document.getElementById('sampleButton').disabled=false;
+				}
+				document.getElementById('popErrors').innerHTML=errorString
+			}
+			
+			function goToVar(varNumber=1, condIndex=0, focusElmt=''){
+				document.getElementById('selectVar').value=varNumber
+				setVarNum(varNumber)
+				
+				if(exists('conditionalSelect')){
+					document.getElementById('conditionalSelect').value=condIndex 
+					changeCondition()
+				}
+				
+				if(focusElmt!=''){
+					document.getElementById(focusElmt).focus()
+				}
+			}	
+			
+			function updateSaveText(){
+				checkErrors()
+				if(viewText) document.getElementById('saveText').value=generateText(true)
+			}
+
+			function generateText(labels=false){
+				var textContent=""
+				textContent += (labels?"populationName:":"")+JSON.stringify(populationName) + "\n"
+				textContent += (labels?"nVars:":"")+nVars + "\n"
+				textContent += (labels?"varNames:":"")+JSON.stringify(varNames) + "\n"
+				textContent += (labels?"varTypes:":"")+JSON.stringify(varTypes) + "\n"
+				textContent += (labels?"varDepOrder:":"")+JSON.stringify(varDepOrder) + "\n"
+				textContent += (labels?"depMatrix:":"")+JSON.stringify(depMatrix) + "\n"
+				textContent += (labels?"varDistTypes:":"")+JSON.stringify(varDistType) + "\n"
+				textContent += (labels?"varDepTypes:":"")+JSON.stringify(varDepTypes) + "\n"
+				textContent += (labels?"nConditions:":"")+JSON.stringify(nConditions) + "\n"
+				textContent += (labels?"varDepDetails:":"")+JSON.stringify(varDepDetails) + "\n"
+				textContent += (labels?"varMinMax:":"")+JSON.stringify(varMinMax) + "\n"
+				textContent += (labels?"nLevels:":"")+JSON.stringify(nLevels) + "\n"
+				textContent += (labels?"varValues:":"")+JSON.stringify(varValues) + "\n"
+				textContent += (labels?"varValueProbs:":"")+JSON.stringify(varValueProbs) + "\n"
+				textContent += (labels?"varPrecision:":"")+JSON.stringify(varPrecision) + "\n"
+				textContent += (labels?"popHash:":"")+JSON.stringify(popHash) + "\n"
+				textContent += (labels?"varHidden:":"")+JSON.stringify(varHidden) + "\n"
+				return textContent
+			}
+			
+			function savePopulation(){
+				var textContent = generateText()
+				download(textContent, populationName+" population.txt", "text/plain;charset=utf-8");
+			}
+				
+			function download(data, filename, type) {
+				var file = new Blob([data], {type: type});
+				if (window.navigator.msSaveOrOpenBlob) // IE10+
+					window.navigator.msSaveOrOpenBlob(file, filename);
+				else { // Others
+					var a = document.createElement("a"),
+							url = URL.createObjectURL(file);
+					a.href = url;
+					a.download = filename;
+					document.body.appendChild(a);
+					a.click();
+					setTimeout(function() {
+						document.body.removeChild(a);
+						window.URL.revokeObjectURL(url);  
+					}, 0); 
+				}
+			}
+
+			function newPopulation(confirm=false){
+				if(confirm){
+					resetNewButton()
+					initializePopulation(false,false)
+					document.getElementById('nVars').value=+nVars
+					varNum=1
+					currentVarDist=0
+					rebuildVarList()
+					//loadProbs()
+					if(viewText) document.getElementById('saveText').value=generateText()
+
+				} else {
+					document.getElementById('newButton1').style.display="none"
+					document.getElementById('newButton2').style.display="inline"
+					setTimeout(resetNewButton, 3000)
+				}
+			}
+			
+			function resetNewButton(){
+				document.getElementById('newButton2').style.display="none"
+				document.getElementById('newButton1').style.display="inline"
+			}
+			
+			function loadPopulation(popText){
+				var lines = popText.trim().split('\n')
+				populationName = JSON.parse(lines[0])
+				nVars = +JSON.parse(lines[1])
+				varNames = JSON.parse(lines[2])
+				varTypes = JSON.parse(lines[3])
+				varDepOrder = JSON.parse(lines[4])
+				depMatrix = JSON.parse(lines[5])
+				varDistType = JSON.parse(lines[6])
+				varDepTypes = JSON.parse(lines[7])
+				nConditions = JSON.parse(lines[8])
+				varDepDetails = JSON.parse(lines[9])
+				varMinMax = JSON.parse(lines[10])
+				nLevels = JSON.parse(lines[11])
+				varValues = JSON.parse(lines[12])
+				varValueProbs = JSON.parse(lines[13])
+				if(lines.length>=15) varPrecision = JSON.parse(lines[14])
+				if(lines.length>=16){
+					popHash = JSON.parse(lines[15])
+				} else {
+					popHash = hashCode(Math.random())
+				}
+				if(lines.length>=17){
+					varHidden = JSON.parse(lines[16])
+				} else {
+					varHidden = new Array(nVars.length)
+					for(var i=0; i<varHidden.length; i++){
+						varHidden[i]=0
+					}
+				}
+				//Update and bring it to the current format
+				for(var i=0; i<varDistType.length; i++){
+					if(!Array.isArray(varDistType[i])) varDistType[i]=[varDistType[i]]
+					if(varDistType[i].length <= nConditions[i]){
+						for(var j=varDistType[i].length;j<=nConditions[i];j++){
+							varDistType[i][j]=varDistType[i][j-1]
+						}
+					}
+				}
+
+
+				//console.log("popHash: "+popHash)
+				varNum=1
+				//if(popHash==0) {resetKey(-1)} else {resetKey(1)}
+				currentVarDist=0
+				document.getElementById('inputfile').value=null
+				document.getElementById('popName').value=populationName;
+				document.getElementById('nVars').value=nVars
+				rebuildVarList()
+				updateSaveText()
+			}
+		
+			function sharePopulation(){
+				var textContent= encodeURIComponent(generateText())
+				var myURL = window.location.href.split('?')[0].replace(/#/g,"")+"?pop="+textContent;
+				var tinyURLlong="http://tinyurl.com/api-create.php?url=" + encodeURIComponent(myURL)
+				getTinyURL(myURL)			
+			}
+			
+/* 	----------------------------------------------------------
+	Other Functions
+	----------------------------------------------------------*/
+
+
+			function refreshGroupBy(){
+				showAnalyzeButton()
+				var nVarsToAnalyze =0
+				var varIndexToAnalyze=null
+				for(var i=0; i<nVars; i++){
+					if(isItChecked('analyzeVar'+i)==" checked" && varHidden[i]==0) {
+						nVarsToAnalyze++
+						varIndexToAnalyze=i
+					}
+				}
+				//console.log(nVarsToAnalyze + " : "+varIndexToAnalyze)
+				var groupByOptions="<option value=-1>none</option>"
+				if(nVarsToAnalyze==1 && varTypes[varIndexToAnalyze]!=1){
+					for(var k=0; k<varNames.length; k++){
+						//If this variable isn't chosen on the previous conditions so far, then you can list it...
+						if(varTypes[k]==1) {
+							groupByOptions+="<option value="+k+">"+varNames[k]+"</option>"
+						}
+					}					
+				}
+				document.getElementById('groupBy').innerHTML=groupByOptions
+			}
+
+			function showAnalyzeButton(){
+				document.getElementById('analyzeChoice').style.display="none"
+				document.getElementById('analyzeButton').style.display="inline-block"
+			}
+			
+			function hideAnalyzeButton(){
+				document.getElementById('analyzeChoice').style.display="inline-block"
+				document.getElementById('analyzeButton').style.display="none"
+			}
+
+			function analyzeSample(option=""){
+				//console.log(varHidden)
+				var varIndexToAnalyze=[]
+				for(var i=0; i<nVars; i++){
+					if(isItChecked('analyzeVar'+i)==" checked" && varHidden[i]==0) {
+						varIndexToAnalyze.push(i)
+					}
+				}
+
+			
+				//one variable selected	
+				if(varIndexToAnalyze.length==1){
+					var k=varIndexToAnalyze[0]
+					//it is qualitative
+					if(varTypes[varIndexToAnalyze[0]]==1){
+						if(option=="var"){
+							dataString=""
+							for(var i=0; i<dataSample[k].length; i++) dataString += (i>0?";":"")+dataSample[k][i]
+							dataString = dataString.replace(/ /g,"_")
+							openData("descriptiveStatsQualitative.html",["name1","data1"],[varNames[varIndexToAnalyze[0]],dataString],varNames[varIndexToAnalyze[0]],true)
+						} else if (option=="ts"){
+							dataString=""
+							for(var i=0; i<dataSample[k].length; i++) dataString += (i>0?";":"")+dataSample[k][i]
+							dataString = dataString.replace(/ /g,"_")
+							openData("timeSeries.html",["name1","data1"],[varNames[varIndexToAnalyze[0]],dataString],varNames[varIndexToAnalyze[0]],true)
+						} else {
+							hideAnalyzeButton()
+						}
+					} else {
+					//it is quantitative
+						//group by none
+						if(document.getElementById('groupBy').value==-1){
+							if(option=="var"){
+								dataString=""
+								for(var i=0; i<dataSample[k].length; i++) dataString += (i>0?" ":"")+dataSample[k][i]
+								openData("descriptiveStats.html",["varName1","data1"],[varNames[varIndexToAnalyze[0]],dataString],varNames[varIndexToAnalyze[0]],true)
+							} else if (option=="ts"){
+								dataString=""
+								for(var i=0; i<dataSample[k].length; i++) dataString += (i>0?";":"")+dataSample[k][i]
+								dataString = dataString.replace(/ /g,"_")
+								openData("timeSeries.html",["name1","data1"],[varNames[varIndexToAnalyze[0]],dataString],varNames[varIndexToAnalyze[0]],true)
+							} else {
+								hideAnalyzeButton()
+							}
+						} else {
+						//group by something
+							var groups=[]
+							var dataStrings=[]
+							var groupBy=parseInt(document.getElementById('groupBy').value)
+							for(var i=0; i<dataSample[k].length; i++) {
+								var grp=dataSample[groupBy][i]
+								var grpIdx=null
+								for(var j=0; j<groups.length; j++){
+									if(groups[j]==grp) {
+										grpIdx=j
+										break
+									}
+								}
+								if(grpIdx==null){
+									groups.push(grp) 
+									grpIdx=groups.length-1
+									dataStrings[grpIdx]=""
+								}
+								dataStrings[grpIdx] +=dataSample[k][i]+" "
+							}
+							targets=[]
+							dataStringArray=[]
+							for(var i=0; i<groups.length; i++){
+								targets.push("name"+(i+1))
+								targets.push("data"+(i+1))
+								dataStringArray.push(groups[i])
+								dataStringArray.push(dataStrings[i])
+							}
+							var page="descriptiveStats.html"
+							if(groups.length==2) page="descriptiveStats2Sample.html"
+							if(groups.length>=3) {
+								page="descriptiveStatsNSample.html"
+								targets.push("nSamples")
+								dataStringArray.push(groups.length)
+								}
+							if(groups.length>10) {
+								alert("too many groups")
+								return false;
+							}
+							console.log(page)
+							console.log(targets)
+							console.log(dataStringArray)
+							openData(page,targets,dataStringArray,varNames[varIndexToAnalyze[0]] + (groupBy>-1?(" by "+varNames[groupBy]):""),true)
+						}
+					}
+				
+				//two variables selected
+				} else if (varIndexToAnalyze.length==2){
+					//both quantitative
+					if(varTypes[varIndexToAnalyze[0]]!=1 && varTypes[varIndexToAnalyze[1]]!=1){
+						targets=["name1","name2","data1"]
+						dataStrings=[varNames[varIndexToAnalyze[0]],varNames[varIndexToAnalyze[1]]]
+						var dataString = ""
+						for(var i=0; i<dataSample[varIndexToAnalyze[0]].length; i++) {
+							if(i>0) dataString+="\n"
+							dataString +=dataSample[varIndexToAnalyze[0]][i]+" " + dataSample[varIndexToAnalyze[1]][i]
+						}
+						dataStrings.push(dataString)
+						openData("dependentSamples.html",targets,dataStrings,varNames[varIndexToAnalyze[0]] + " + "+varNames[varIndexToAnalyze[1]],true)
+					} else if (varTypes[varIndexToAnalyze[0]]==1 && varTypes[varIndexToAnalyze[1]]==1){					
+					//both qualitative
+						targets=["rowVarName","colVarName","name1","name2","data1"]
+						dataStrings=[varNames[varIndexToAnalyze[0]],varNames[varIndexToAnalyze[1]],varNames[varIndexToAnalyze[0]],varNames[varIndexToAnalyze[1]]]
+						var dataString = ""
+						for(var i=0; i<dataSample[varIndexToAnalyze[0]].length; i++) {
+							if(i>0) dataString+="\n"
+							dataString +=dataSample[varIndexToAnalyze[0]][i]+"\t" + dataSample[varIndexToAnalyze[1]][i]
+						}
+						dataStrings.push(dataString)
+						openData("contingencyTable.html",targets,dataStrings,varNames[varIndexToAnalyze[0]] + " + "+varNames[varIndexToAnalyze[1]],true)
+				
+				
+					} else {
+					//one quantitative and one qualitative
+						targets=["nCovars","name1","name2","data1"]
+						dataStrings=[1,varNames[varIndexToAnalyze[0]],varNames[varIndexToAnalyze[1]]]
+						var dataString=""
+						for(var i=0; i<dataSample[varIndexToAnalyze[0]].length; i++) {
+							if(i>0) dataString+="\n"
+							dataString +=dataSample[varIndexToAnalyze[0]][i]+"\t" + dataSample[varIndexToAnalyze[1]][i]
+						}
+						dataString = dataString.replace(/ /g,"_")
+						dataStrings.push(dataString)
+						openData("multipleRegression.html",targets,dataStrings,varNames[varIndexToAnalyze[0]] + " + "+varNames[varIndexToAnalyze[1]],true)
+					}
+				//three or more variables selected
+				} else if (varIndexToAnalyze.length>=3){
+					targets=["nCovars"]
+					dataStrings=[varIndexToAnalyze.length-1]
+					for (var k=0; k<varIndexToAnalyze.length; k++){
+						targets.push("name"+(k+1))
+						dataStrings.push(varNames[varIndexToAnalyze[k]])
+					}
+					targets.push("data1")
+					var dataString=""
+					for(var i=0; i<dataSample[varIndexToAnalyze[0]].length; i++) {
+						if(i>0) dataString+="\n"
+						for(var j=0; j<varIndexToAnalyze.length; j++){
+							if(j>0)dataString +="\t"
+							dataString +=dataSample[varIndexToAnalyze[j]][i]
+						}
+					}
+					dataString = dataString.replace(/ /g,"_")
+					dataStrings.push(dataString)
+					openData("multipleRegression.html",targets,dataStrings,"Multiple Variable Analysis",true)				
+				
+				
+				
+				}
+			}
+			
+			function toggleDisplay(id){
+				var x = document.getElementById(id);
+				  if (x.style.display === "none") {
+					x.style.display = "block";
+				  } else {
+					x.style.display = "none";
+				  }						
+			}
+			
+			function updateKey(){
+				var enteredKey = document.getElementById('keyInput').value
+				var encryptedKey = hashCode(enteredKey)
+				var resultMessage = ""
+
+				if(pwStatus==-1){
+				//If status = -1 and a new key is entered, make it status zero and encrypt the key
+					//Make a "key set" message
+					if(encryptedKey!=0)
+					pwStatus=0
+					popHash=encryptedKey
+					resultMessage = "Key set."
+				} else if(pwStatus==0){
+				//If the status is 0 and the key is deleted, then make the status -1 and make a "key unset" message
+					if(encryptedKey==0){
+						pwStatus=-1
+						popHash=encryptedKey
+						resultMessage = "Key un-set."
+					} else {
+						//If the status is 0 and the key is changed, encrypt it, save it and make a "Key set" message
+						popHash = encryptedKey
+						resultMessage = "Key changed."
+					}
+				} else if(pwStatus==1){
+					if(encryptedKey == popHash){
+				//If status is 1 and the key entered is a match, then change status to zero
+						pwStatus=0
+						resultMessage = "Correct key."
+						//Status = "Population Unlocked"
+						//Turn off blinding
+						blind=false
+						blindPanels()
+					} else {
+				//Otherwise make a "wrong key" message
+						resultMessage = "Wrong key."
+					}
+				}
+				//console.log(enteredKey+ " "+resultMessage)
+				document.getElementById('keyStatus').innerHTML=resultMessage
+				refreshKeyImg()
+			}
+			
+			function refreshKeyImg(){
+				var imgFile = "unset.png"
+				if(pwStatus==0) imgFile = "unlocked.png"
+				if(pwStatus==1) imgFile = "locked.png"
+				document.getElementById('lockImg').src="img/"+imgFile
+			}
+			
+			function hashCode(plainText) {
+				var hash = 0;
+				if (plainText == 0) {
+					return hash;
+				}
+				for (var i = 0; i < plainText.length; i++) {
+					var char = plainText.charCodeAt(i);
+					hash = ((hash<<5)-hash)+char;
+					hash = hash & hash; // Convert to 32bit integer
+				}
+				return hash;
+			}
+			
+			function createRandomKey(){
+				var key=Math.round(Math.random()*10000000,0)
+				document.getElementById('keyInput').value=key
+				updateKey()
+			}
+			
+			function resetKey(newStatus){
+				pwStatus=newStatus; 
+				document.getElementById('keyInput').value=""
+				document.getElementById('keyStatus').innerHTML=""
+				if(newStatus==0) document.getElementById('keyInput').placeholder="Enter New Key"
+				if(newStatus==1) document.getElementById('keyInput').placeholder="Enter Key"
+				refreshKeyImg()
+			}
+			
+		</script>
+
+
+		</head>
+	
+	<body onload="loadPrecision();loadColorChoice();linkMenu();setColors();initializePopulation(false);rebuildVarList()">
+		<span class="measure" id="secretMeasure"></span>
+		<div id="container">
+		
+		
+			<div id="title" onClick="setColors()">StatPowers</div>
+			<div id="menu" style="min-height:1.4em;"></div>
+			<form name="form1">
+				<div id="file" class="container">
+					File 
+					<button type='button' id='newButton1' value="new" onClick="newPopulation()">new</button>
+					<button type='button' id='newButton2' value="confirm" onClick="newPopulation(true)" style="display:none;">confirm</button>
+					<button type="button" id='btnSave' value="save" onClick="savePopulation()">save</button>
+					<input type='file' name='inputfile' id='inputfile' size='5' accept=".txt" style="color:transparent; width:100px">
+	    <script type="text/javascript"> 
+        document.getElementById('inputfile') 
+            .addEventListener('change', function() { 
+              
+            var fr=new FileReader(); 
+            fr.onload=function(){ 
+				initializePopulation(false,false)
+                loadPopulation(fr.result);
+				resetKey(0);
+            } 
+              
+            fr.readAsText(this.files[0]); 
+        }) 
+    </script>
+					<button type="button" value="share" onClick="sharePopulation()">share</button><span id='dataLink'></span><iframe id="frmFile" style="display: none;"></iframe>
+					<span id="lock"><img id='lockImg' src="img/unset.png" onclick="toggleDisplay('key')"></span>
+					<div id='key' style='display:none;'>Key: <input id='keyInput' onChange="updateKey()" placeholder="input Keyphrase"><span id="keyStatus"></span></div>
+				</div>
+
+				<div class="container" >
+					<input type="checkbox" checked id="headerVariables" class="css-checkbox">
+					<label for="headerVariables" class="css-label">Variables</label>
+					<div class="content css-content">
+						<div class='helpDiv minimized'>
+							<a  onClick='toggle(this);' class='expander'>?</a>
+							<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+							<span>Enter the population name and select the number of variables.<br>
+							If you want to remove a variable, you just reduce the number of variables - variables are always removed from the end of the list. Each variable must be named and assigned a type:<br>
+							<ul><li>Categorical: descriptive variables with a finite number of levels</li>
+							<li>Discrete: Integer variables</li>
+							<li>Continuous: Decimal variables</li>
+							</ul></span>
+						</div>
+						Population Name: <input id='popName' size=45 onChange='saveVarNames()'><br>
+						Number of Variables	
+						<script>
+						document.write("<input id=\"nVars\" type=\"number\" class=\"tinyNumber\" min=\"1\" max=\"10\" step=\"1\" value=\""+nVars+"\" onChange=\"changeNVars();rebuildVarList()\">")
+						</script>
+						<button type='button' class='btn' id='incrNVars' value="+" onClick="incrementNVars()">+</button>
+						<br>
+						<div id="varList"></div>
+					</div>
+				</div>
+				
+				<div class="container">
+					<input type="checkbox" id="headerVarDep" class="css-checkbox">
+					<label for="headerVarDep" class="css-label">Variable Dependencies </label>
+					<div class="content css-content">
+						<div class='helpDiv minimized'>
+							<a  onClick='toggle(this);' class='expander'>?</a>
+							<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+							<span>Order the variables. Independent variables should be at the top of the list.<br> A variable can only depend of the values of variables above it in the list. </span>
+						</div>
+						<div id='varDependencies' style="overflow-x: auto"></div>
+					</div>
+				</div>
+				
+				<div class="container">
+					<input type="checkbox" id="headerVarDetails" class="css-checkbox">
+					<label for="headerVarDetails" class="css-label">Variable Details</label>
+					<div class="content css-content">
+						<div class='helpDiv minimized'>
+							<a  onClick='toggle(this);' class='expander'>?</a>
+							<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+							<span>Select a variable. Depending on the variable type, you will have different options:<br>
+							<b>Independent Variables</b> will be the simplest. <ul><li><b>Categorical</b>: Specify the number of levels, name the levels and define the probability for each level. If the probabilities don't add up to 1, click "Scale Probabilities" to fix them.
+							<li><b>Discrete</b>: For distribution shapes (uniform, skew, symmetric) you just specify the minimum and maximum value. For a custom distribution, specify the number of values possible, define the values and the associated probabilities. If the probabilities don't add up to 1, click "Scale Probabilities" to fix them.
+							<li><b>Continuous</b>: Select a distribution shape, as with a discrete variable.
+							</ul>
+							For <b>Dependent variables</b> things get more complicated. 
+							<ul><li><b>Categorical</b>: You may specify discrete dependency or a log-odds model. For discrete dependencies, dependent on categorical and discrete variables, you create a dependency, specify the precise values of the dependency variables. For a log-odds model, you specify a log-odds model for each level of the categorical variable. For 2 levels, the second level will be the complement. For 3+ levels, the probabilities will be scaled at the time of sampling so they all add up to 1. Syntax details below.
+							<li><b>Discrete</b>: You may only define discrete depenencies. All dependencies must have the same distribution type (e.g. uniform, symmetric, custom)
+							<li><b>Continuous</b>: You may select either discrete dependencies (As long as no variable dependencies are continuous) or a generalized linear model.
+							</ul>
+							<b>Linear model syntax</b><br>
+							Terms should be separated by <b>+</b> or <b>-</b><br>
+							Error term is in the form <b>&sigma;z</b> (e.g. 5.2z)<br>
+							Variable transformations allowed: log (e.g. <b>lnv3</b>) or power (e.g. <b>v4^2</b>, <b>v2^.5</b>)<br>
+							Interaction terms are in the form <b>vivj</b> (e.g. <b>5v1v3</b>)<br>
+							Entire model may be in the exponent by surrounding with <b>exp(...)</b> (e.g. <b>exp(5+2v1+2.3z)</b>)<br>
+							Examples:
+<pre>4+2v1+3.5z
+4+2v1+3v2-.23v1v2+.4z
+exp(5-v1+2z)
+3+2lnv1+3lnv2+55z
+</pre>
+							</span>
+						</div>
+						<div id='varChoices'></div>
+						<div id='varOptions'></div>
+						<div id='popErrors'></div>
+					</div>
+				</div>
+
+				<div class="container">
+					<input type="checkbox" id="headerSampling" class="css-checkbox" checked>
+					<label for="headerSampling" class="css-label">Sampling</label>
+					<div class="content css-content">
+					
+						<div class="container">
+							<input type="checkbox" id="headerSamplingOptions" class="css-checkbox">
+							<label for="headerSamplingOptions" class="css-label sub">Sampling Options</label>
+							<div class="content css-content lightGrayBorder">
+								<strong>Variables To Report</strong>
+								<div id='reportVars'>
+								</div>
+								<hr>
+								<strong>Sampling Method</strong>
+								<select id='sampleMethod' onChange='refreshStrataDiv()'>
+									<option value=0>Simple Random</option>
+									<option value=1>Stratified</option>
+								</select>
+								<div id='strata' style='display:none;'>
+									<div id='strataList'>
+									
+									</div>								
+									<button type='button' value='add stratum' onClick='addStrata();'>add stratum</button>
+								</div>
+							</div>
+						</div>
+						<div class='options'>
+							Random Number Seed: <input type='number' id='seed' placeholder='optional' class='smallNumber'>
+							<input type=checkbox id="displayTable" checked onClick="changeSampleDisplay()">
+							<label for="displayTable">Display as Table</label><br>
+							Sample Size: <input  type="number" id="sampleN" value="30" class="tinyNumber" min="1" step="1"/> 
+							<select id='sep' onChange='refreshSampleText()'><option value=1>Tab Separated</option><option value=2 selected>Comma Separated</option></select>
+							<button TYPE=button VALUE="Sample" id='sampleButton' onClick="saveVarOptions();sample()">Sample</button> 
+							<button type='button' value = "Save" id='saveSampleButton' onClick='saveSampleData();' disabled>Save</button><br/>
+						</div>
+						<div id="sampleDataTextarea" style="display:none;">
+						<textarea id="sampleData" rows=10 wrap="off" style="overflow: auto; width:100%;" class="mediumTextArea" readonly></textarea>
+						</div>
+						<div id="sampleDataTable" class='results'></div>
+
+						<div class="container">
+							<input type="checkbox" id="headerAnalysisOptions" class="css-checkbox">
+							<label for="headerAnalysisOptions" class="css-label sub">Analysis</label>
+							<div class="content css-content lightGrayBorder">
+								<strong>Analyze Variables:</strong>
+								<div id='analyzeVars'>
+								</div>
+								<hr>
+								<strong>Group By:</strong>
+								<select id='groupBy' onChange='showAnalyzeButton()'>
+									<option value=-1>none</option>
+								</select>
+								<button type='button' id='analyzeButton' value='analyze' onClick='analyzeSample();'>analyze</button>
+								<span id='analyzeChoice' style="display:none">
+									<button type='button' value='analyzeAsVar' onClick='analyzeSample("var");'>as variable</button>
+									<button type='button' value='analyzeAsTS' onClick='analyzeSample("ts");'>as time series</button>
+								</span>
+							</div>
+						</div>
+
+						
+					</div>
+				</div>
+				<div id='debugDiv' style="display:none"><textarea style="width:100%;background-color:#DDD" rows=25 id='saveText' disabled></textarea></div>
+			</form>
+		</div>
+	</body>
+</html>			
+<script>
+//fixInputSizes()
+</script>

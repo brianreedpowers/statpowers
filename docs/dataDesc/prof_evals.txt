@@ -1,0 +1,203 @@
+Professor evaluations and beauty
+Description
+Data set from a paper on professor evaluations and beauty scores.
+
+Usage
+prof_evals
+Format
+A data frame with 463 observations on the following 64 variables.
+
+tenured
+Tenured indicator.
+
+profnumber
+Professor number.
+
+minority
+Minority.
+
+age
+Age.
+
+beautyf2upper
+A numeric vector.
+
+beautyflowerdiv
+A numeric vector.
+
+beautyfupperdiv
+A numeric vector.
+
+beautym2upper
+A numeric vector.
+
+beautymlowerdiv
+A numeric vector.
+
+beautymupperdiv
+A numeric vector.
+
+btystdave
+A numeric vector.
+
+btystdf2u
+A numeric vector.
+
+btystdfl
+A numeric vector.
+
+btystdfu
+A numeric vector.
+
+btystdm2u
+A numeric vector.
+
+btystdml
+A numeric vector.
+
+btystdmu
+A numeric vector.
+
+class1
+Class 1.
+
+class2
+Class 2.
+
+class3
+Class 3.
+
+class4
+Class 4.
+
+class5
+Class 5.
+
+class6
+Class 6.
+
+class7
+Class 7.
+
+class8
+Class 8.
+
+class9
+Class 9.
+
+class10
+Class 10.
+
+class11
+Class 11.
+
+class12
+Class 12.
+
+class13
+Class 13.
+
+class14
+Class 14.
+
+class15
+Class 15.
+
+class16
+Class 16.
+
+class17
+Class 17.
+
+class18
+Class 18.
+
+class19
+Class 19.
+
+class20
+Class 20.
+
+class21
+Class 21.
+
+class22
+Class 22.
+
+class23
+Class 23.
+
+class24
+Class 24.
+
+class25
+Class 25.
+
+class26
+Class 26.
+
+class27
+Class 27.
+
+class28
+Class 28.
+
+class29
+Class 29.
+
+class30
+Class 30.
+
+courseevaluation
+Course evaluation.
+
+didevaluation
+Did evaluation.
+
+female
+Female indicator.
+
+formal
+Formal.
+
+fulldept
+Full department.
+
+lower
+Lower.
+
+multipleclass
+Multiple class.
+
+nonenglish
+Non-English.
+
+onecredit
+One credit.
+
+percentevaluating
+Percent evaluating.
+
+profevaluation
+Professor evaluation.
+
+students
+Students
+
+tenuretrack
+Tenure-track indicator.
+
+blkandwhite
+Black and white.
+
+btystdvariance
+Beauty standard variance.
+
+btystdavepos
+Beauty standard average position.
+
+btystdaveneg
+Beauty standard average negative.
+
+Source
+Hamermesh DS, Parker A. 2005. "Beauty in the classroom: Instructors pulchritude and putative pedagogical productivity". Economics of Education Review 24.4:369-376.

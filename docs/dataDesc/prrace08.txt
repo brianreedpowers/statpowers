@@ -1,0 +1,35 @@
+Election results for the 2008 U.S. Presidential race
+Description
+Election results for the 2008 U.S. Presidential race
+
+Usage
+prrace08
+Format
+A data frame with 51 observations on the following 7 variables.
+
+state
+State name abbreviation
+
+state_full
+Full state name
+
+n_obama
+Number of votes for Barack Obama
+
+p_obama
+Proportion of votes for Barack Obama
+
+n_mc_cain
+Number of votes for John McCain
+
+p_mc_cain
+Proportion of votes for John McCain
+
+el_votes
+Number of electoral votes for a state
+
+Details
+In Nebraska, 4 electoral votes went to McCain and 1 to Obama. Otherwise the electoral votes were a winner-take-all.
+
+Source
+Presidential Election of 2008, Electoral and Popular Vote Summary, retrieved 2011-04-21.

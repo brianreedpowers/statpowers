@@ -1,0 +1,376 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Distribution: Continuous</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<script type="text/javascript" src="js/commonFunctions.js"></script>
+<script type="text/javascript" src="js/chartFunctions.js"></script>
+<script type="text/javascript" src="js/distributionFunctions.js"></script>
+<script type="text/javascript" src="js/jstat.js"></script>
+<script type="text/javascript" src="js/math.js"></script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script language="javascript">
+var a=0
+var b=0
+debug=false
+
+let distribution = getUrlParameter('f');
+if(distribution=="") distribution="Gaussian"
+
+function clearFields() {
+//	document.getElementById("belowX").innerHTML=""
+//	document.getElementById("aboveX").innerHTML=""
+//	document.getElementById("betweenX").innerHTML=""
+//	document.getElementById("outsideX").innerHTML=""
+}
+
+function fixLB(){
+	document.getElementById('a').value = Math.min(+document.getElementById('a').value,+document.getElementById('b').value-.0001)
+}
+function fixUB(){
+	document.getElementById('b').value = Math.max(+document.getElementById('b').value,+document.getElementById('a').value+.0001)
+}
+
+function init() {		
+	var params = "<table  border='0'><tr><td>"
+	if(distribution=="exponential"){
+		params+="Rate (&lambda;)</td><td><input type='number' id='lambda'  min='0.0001' value='3' class='mediumNumber'  onchange='refresh();' /></td>"
+		document.title="Distribution: Exponential"
+		document.getElementById("pageTitle").innerHTML="Exponential Distribution Calculator"
+	} else if (distribution=='uniform'){
+		params+="Lower Bound (a)</td><td><input type='number' id='a'  value='0' width='50px' onchange='fixLB();refresh();' class='mediumNumber'  /></td>    </tr>    <tr>      <td>Upper Bound (b)</td>      <td><input type='number' id='b'  value='1' class='mediumNumber'  onchange='fixUB();refresh();' />"
+		document.title="Distribution: Continuous Uniform"
+		document.getElementById("pageTitle").innerHTML="Continuous Uniform Distribution Calculator"
+	} else if(distribution=="chiSq"){
+		params+="Degrees of Freedom</td><td><input type='number' id='df'  min='1' value='3' step='1' class='mediumNumber' onchange='refresh();' /></td>"
+		document.title="Distribution: Chi Squared"
+		document.getElementById("pageTitle").innerHTML="Chi Squared Distribution Calculator"
+	} else if(distribution=='F'){
+		params+="Numerator Degrees of Freedom</td><td><input type='number' id='df1'  min='1' value='16' step='1' class='mediumNumber'  onchange='refresh();' /></td></tr><tr><td>Denominator Degrees of Freedom</td><td><input type='number' id='df2'  min='1' value='5' step='1' class='mediumNumber'  onchange='refresh();' />"
+		document.title="Distribution: F"
+		document.getElementById("pageTitle").innerHTML="F Distribution Calculator"
+	} else if(distribution=='Gaussian'){
+		params+="Mean (&mu;)</td><td><input type='number' id='mean' value='0' class='mediumNumber'  onchange='refresh();' /></td></tr><tr><td>SD (&sigma;)</td><td><input type='number' id='sd'  min='0.001' value='1'  class='mediumNumber'  onchange='refresh();' />"
+		document.title="Distribution: Gaussian (Normal)"
+		document.getElementById("pageTitle").innerHTML="Gaussian (Normal) Distribution Calculator"
+	} else if(distribution=='log-normal'){
+		params+="Mean (&mu;) of ln(X)</td><td><input type='number' id='mean' value='0' max=10 class='mediumNumber'  onchange='refresh();' /></td></tr><tr><td>SD (&sigma;) of ln(X)</td><td><input type='number' id='sd'  min='0.001' value='.25' step=.01 class='mediumNumber'  onchange='refresh();' />"
+		document.title="Distribution: Log-Normal"
+		document.getElementById("pageTitle").innerHTML="Log-normal Distribution Calculator"
+	} else if(distribution=='T'){
+		params+="Degrees of Freedom</td><td><input type='number' id='df'  min='1' value='3' step='1' class='mediumNumber' onchange='refresh();' /></td>"
+		document.title="Distribution: Student's t"
+		document.getElementById("pageTitle").innerHTML="Student's t Distribution Calculator"
+	} else if(distribution=='Gamma'){
+		params+="Shape (k)</td><td><input type='number' id='shape' value='2' class='mediumNumber' min='0.001' onchange='refresh();' /></td></tr><tr><td>Scale (&theta;)</td><td><input type='number' id='scale'  min='0.001' value='2'  class='mediumNumber'  onchange='refresh();' />"
+		document.title="Distribution: Gamma"
+		document.getElementById("pageTitle").innerHTML="Gamma Distribution Calculator"
+	} else if(distribution=='Beta'){
+		params+="Shape (&alpha;)</td><td><input type='number' id='alpha' value='2' class='mediumNumber' min='0.001' onchange='refresh();' /></td></tr><tr><td>Shape (&beta;)</td><td><input type='number' id='beta'  min='0.001' value='2'  class='mediumNumber'  onchange='refresh();' />"
+		document.title="Distribution: Beta"
+		document.getElementById("pageTitle").innerHTML="Beta Distribution Calculator"
+	} else if(distribution=='Tukey'){
+		params+="k </td><td><input type='number' id='k' value='2' class='mediumNumber' min='2' onchange='refresh();' /></td></tr><tr><td>DF (&nu;)</td><td><input type='number' id='df'  min='0.001' value='2'  class='mediumNumber'  onchange='refresh();' />"
+		document.title="Distribution: Studentized Range"
+		document.getElementById("pageTitle").innerHTML="Studentized Range Distribution Calculator"
+	} else if(distribution=='Weibull'){
+		params+="Shape (&alpha;)</td><td><input type='number' id='alpha' value='2' class='mediumNumber' min='0.01' onchange='refresh();' /></td></tr><tr><td>Scale (&beta;)</td><td><input type='number' id='beta'  min='0.001' value='2'  class='mediumNumber'  onchange='refresh();' />"
+		document.title="Distribution: Weibull"
+		document.getElementById("pageTitle").innerHTML="Weibull Distribution Calculator"
+	}else if(distribution=='Pareto'){
+		params+="Shape (&alpha;)</td><td><input type='number' id='shape' value='2' class='mediumNumber' min='0.01' onchange='refresh();' /></td></tr><tr><td>Scale (&theta;)</td><td><input type='number' id='scale'  min='0.001' value='2'  class='mediumNumber'  onchange='refresh();' />"
+		document.title="Distribution: Pareto"
+		document.getElementById("pageTitle").innerHTML="Pareto Distribution Calculator"
+	}
+	params+="</td></tr></table>"
+	
+	document.getElementById('distributionParams').innerHTML=params
+	setParams();
+	
+	document.getElementById('wikiLink').innerHTML="<i><a href="+getWikiLink()+">Wikipedia entry</a></i>"
+}
+
+function setParams(){
+	if(distribution=='exponential'){
+		a = 1
+		b = 1/parseFloat(document.getElementById("lambda").value)
+	} else if (distribution=='uniform'){
+		a = parseFloat(document.getElementById("a").value)
+		b = parseFloat(document.getElementById("b").value)
+	} else if (distribution=='chiSq'){
+		a = parseFloat(document.getElementById("df").value)
+	} else if (distribution=='F'){
+		a = parseFloat(document.getElementById("df1").value)
+		b = parseFloat(document.getElementById("df2").value)
+	} else if (distribution=='Gaussian' || distribution=='log-normal'){
+		a = parseFloat(document.getElementById("mean").value)
+		b = parseFloat(document.getElementById("sd").value)
+	} else if (distribution=='T'){
+		a = parseFloat(document.getElementById("df").value)
+	} else if (distribution=='Gamma'){
+		a = parseFloat(document.getElementById("shape").value)
+		b = parseFloat(document.getElementById("scale").value)
+	} else if (distribution=='Beta'){
+		a = parseFloat(document.getElementById("alpha").value)
+		b = parseFloat(document.getElementById("beta").value)
+	} else if (distribution=='Tukey'){
+		a = parseFloat(document.getElementById("k").value)
+		b = parseFloat(document.getElementById("df").value)
+	} else if (distribution=='Weibull'){
+		a = parseFloat(document.getElementById("alpha").value)
+		b = parseFloat(document.getElementById("beta").value)
+	}else if (distribution=='Pareto'){
+		a = parseFloat(document.getElementById("shape").value)
+		b = parseFloat(document.getElementById("scale").value)
+	}
+}
+
+function probability() {	
+	var pField = document.getElementById("p")
+	var tail = false
+	var p = 0
+	var pString=""
+	if(document.getElementById('probType').value=='above') {
+		ll = parseFloat(document.getElementById("above").value)
+		ul=999999
+		p=1-cdf(ll,a,b)
+		pString="P(X&gt;"+ll+")="
+	} else if (document.getElementById('probType').value=='below'){
+		ul = parseFloat(document.getElementById("below").value)
+		ll = -999999
+		p = cdf(ul,a,b)
+		pString="P(X&lt;"+ul+")="
+	} else if (document.getElementById('probType').value=='between'){
+		ll = parseFloat(document.getElementById("ll").value)
+		ul = parseFloat(document.getElementById("ul").value)
+		p = cdf(ul,a,b) - cdf(ll,a,b)
+		pString="P(" +ll+"&lt;X&lt;"+ul+")="
+	}
+	else if (document.getElementById('probType').value=='tails'){
+		tail = true
+		ll = parseFloat(document.getElementById("oll").value)
+		ul = parseFloat(document.getElementById("oul").value)
+		p = 1-(cdf(ul,a,b) - cdf(ll,a,b))
+		pString="P(X&lt;"+ll+" or X&gt;"+ul+")="
+	}	
+
+	drawDensity(a,b,ll,ul,tail,0,1,false,"densityFunction",document.getElementById('graphType').value=='pdf') 
+	pField.innerHTML=pString+"<strong>"+(p).toFixed(precision)+"</strong>"
+}
+
+function inverse() {
+	clearFields()
+	var ll, ul, x1,x2 
+	ctx.clearRect(0,0,w,h)
+	tail = false
+	var p = parseFloat(document.getElementById("p2").value)
+	var x1 = inv(p,a,b)
+	
+	if (document.getElementById('percType').value=="upper") {
+		ul=99999999999
+		ll=+(inv(1-p,a,b)).toFixed(precision)
+		document.getElementById("invResults").innerHTML="P(X&gt;<strong>"+ll+"</strong>)="+p
+	} else if (document.getElementById('percType').value=="lower"){
+		ll=-9999999999
+		ul=+(x1).toFixed(precision)
+		document.getElementById("invResults").innerHTML="P(X&lt;<strong>"+ul+"</strong>)="+p
+	} else if (document.getElementById('percType').value=="middle"){
+		ll=(inv(.5-p/2,a,b)).toFixed(precision)
+		ul=(inv(.5+p/2,a,b)).toFixed(precision)
+		document.getElementById("invResults").innerHTML="P(<strong>"+ll+"</strong>&lt;X&lt;<strong>"+ul+"</strong>)="+p
+	} else if (document.getElementById('percType').value=="tails"){
+		ll=(inv(p/2,a,b)).toFixed(precision)
+		ul=(inv(1-p/2,a,b)).toFixed(precision)
+		tail=true
+		document.getElementById("invResults").innerHTML="P(X&lt;<strong>"+ll+"</strong> or X&gt;<strong>"+ul+"</strong>)="+p
+	}
+	ctx.fillStyle = "white";
+	ctx.fillRect(0,0,w,h)
+	drawDensity(a,b,ll,ul,tail,0,1,false,"densityFunction",document.getElementById('graphType').value=='pdf')
+}
+
+function refresh(){
+	setPrecision(document.getElementById('precision').value)
+	setParams()
+	if (document.form1.which[0].checked) {
+		probability()
+		} else{
+		inverse()
+	}
+	refreshPDFdisplay()
+	refreshProps()
+} 
+
+function sampleOne(){
+	return +(inv(Math.random(),a,b)).toFixed(precision)
+}
+
+
+
+
+function refreshPDFdisplay(){
+	var pdfString = generatePDF(a,b)
+	document.getElementById('pdfDisplay').innerHTML=pdfString
+	MathJax.typeset()
+}
+
+function refreshProps(){
+	var distProps = getProperties(a,b)
+	for(var i=0; i<distProps.length; i++) if(isNumeric(distProps[i])) distProps[i]=fixed(distProps[i])
+	var propTable = "<table>"
+	propTable += "<tr><td>Mean</td><td>"+distProps[0]+"</td></tr>"
+	propTable += "<tr><td>Variance</td><td>"+distProps[1]+"</td></tr>"
+	propTable += "<tr><td>SD</td><td>"+distProps[2]+"</td></tr>"
+	propTable += "</table>"
+	document.getElementById('moments').innerHTML=propTable
+}
+
+</script>
+
+<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+
+</head>
+
+<body onload="loadPrecision();loadColorChoice();linkMenu();init();setColors();showHideProbs(false);probability()">
+<div id="container">
+		<div id="title" onClick="setColors()">StatPowers</div>
+		<div id="menu"></div>
+		<div class="container">
+<h3 id="pageTitle">Continuous Distribution Calculator</h3>
+View: <select id="graphType" onchange="probability();">
+<option value="pdf" selected>density</option>
+<option value="cdf">cumulative distribution</option>
+</select>
+							<div class="canvasdiv">
+<canvas id="densityFunction" width="496" height="300" class='zoomable'>
+  <p>Your browser doesn't support canvas. Please update your browser.</p>
+</canvas>
+		<a class="downloadButton topright" href="" onClick="downloadCanvas(this,'densityFunction','densityFunction.png');"></a>
+							</div>
+
+<form name="form1">
+
+<div id="parameters"> <strong>Distribution Parameters:</strong><br/>
+<div id="distributionParams">
+</div>
+</div>
+
+
+<div class="container" >
+	<input type="checkbox" id="headerProps" class="css-checkbox">
+	<label for="headerProps" class="css-label">Distribution Properties</label>
+	<div  id="distributionProperties" class="content css-content">
+<!--div class="container"-->
+	<div class='results'>
+		<div id='pdfDisplay'></div>
+		<div id='moments'></div>
+		<div id='wikiLink'></div>		
+		</div>
+	</div>
+</div>
+
+<div class='container'>
+<h3>Choose Calculator Type</h3>
+	<div class="radio-toolbar">
+		<input type="radio" id="radio1" name="which" checked onClick="document.getElementById('apDiv2').style.display='block';document.getElementById('apDiv1').style.display='none';probability()">
+		<label for="radio1">Probability</label>
+		
+		<input type="radio" id="radio2" name="which" onClick="document.getElementById('apDiv1').style.display='block';document.getElementById('apDiv2').style.display='none';inverse()">
+		<label for="radio2">Percentiles</label>	
+	</div>
+<div class="content">
+	<div id="apDiv1" style="display:none">
+	  <table  border="0">
+	  <tr>
+		<td>
+			<select id="percType" onchange="inverse();">
+			  <option value="upper" selected>Upper tail</option>
+			  <option value="lower">Lower tail</option>
+			  <option value="middle" selected>Middle</option>
+			  <option value="tails" >Two Tails</option>
+			</select>
+		
+		</td>
+		<td>Area / Probability</td>
+		<td> <input name="p" type="number" id="p2" class="mediumNumber" value="0.05" step = ".01" max=".999" min=".001" onchange="inverse()"/></td>
+		</tr>
+	  </table>
+
+	  <div class="results">
+		<strong>Results:</strong>
+		<div id='invResults'></div>
+		<!--table><tr>
+			<td><label><input name="area1" type="radio" id="abovea1" value="above" checked="checked" onclick="inverse()"/>
+			Above:</label></td>
+			<td id="aboveX"></td>
+		</tr><tr>
+			<td><label><input name="area1" type="radio" id="belowa1" value="above"  onclick="inverse()" />
+			Below:</label></td>
+			<td id="belowX"></td>
+		</tr><tr>
+			<td><label><input name="area1" type="radio" id="betweena1" value="above"  onclick="inverse()"/>
+			Middle:</label></td>
+			<td id="betweenX"></td>
+		</tr><tr>
+			<td><label><input name="area1" type="radio" id="outside1" value="above"  onclick="inverse()"/>
+			Tails:</label></td>
+			<td id="outsideX"></td>
+		</tr></table>
+		<button type="button"  value="Recalculate" onclick="inverse()">Recalculate</button-->
+	   </div> 
+			
+			
+	  
+	</div>
+	<div id="apDiv2" style="display:block">
+	<span><select id="probType" onchange="showHideProbs(false);probability();">
+			  <option value="above" selected>Above</option>
+			  <option value="below">Below</option>
+			  <option value="between" selected>Between</option>
+			  <option value="tails" >Tails</option>
+			</select>
+	</span>
+	<span>
+		<span id="prob_above" style="display:none;">
+			P(X &ge;     
+			<input type="number" id="above"  value=".5" class="smallNumber" step="1" onchange="probability()"/>)
+		</span>
+		<span id="prob_below" style="display:none;">
+			P(X &le; 
+			<input type="number" id="below"  value=".5" class="smallNumber" step="1" onchange="probability()" />)
+		</span>
+		<span id="prob_between" style="display:none;">
+			P(
+			<input type="number" id="ll"  value=".2" class="smallNumber" step="1" onchange="fixBounds('ll','ul',true);probability()" />
+			&le; X &le;
+			<input type="number" id="ul" value=".7" class="smallNumber" step="1" onchange="fixBounds('ll','ul',false);probability()" />)
+		</span>
+		<span id="prob_tails" style="display:none;">
+			P(X &le;
+			<input type="number" id="oll"  value=".3" class="smallNumber" step="1" onchange="fixBounds('oll','oul',true);probability()" />
+			or X &ge; 
+			<input type="number" id="oul" value=".7" class="smallNumber" step="1" onchange="fixBounds('oll','oul',false);probability()" />)
+		</span>
+	</span>
+		<div class="results">
+					<strong>Results:</strong><br />
+			Area (probability) <span id="p"></span>
+			<br />
+			<!--button name="draw" type="button"  value="Recalculate" onClick="probability()" />Recalculate</button-->
+		</div>
+	</div>
+</div>
+</div>
+<div class="container" id="sampling-container">
+
+</div>
+</form>
+</div>
+</body>
+<script>
+buildPanel("sampling","Sampling")
+</script>
+</html>

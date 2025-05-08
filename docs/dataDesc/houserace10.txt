@@ -1,0 +1,86 @@
+Election results for the 2010 U.S. House of Represenatives races
+Description
+Election results for the 2010 U.S. House of Represenatives races
+
+Usage
+houserace10
+Format
+A data frame with 435 observations on the following 24 variables.
+
+id
+Unique identifier for the race, which does not overlap with other 2010 races (see govrace10 and senaterace10)
+
+state
+State name
+
+abbr
+State name abbreviation
+
+num
+District number for the state
+
+name1
+Name of the winning candidate
+
+perc1
+Percentage of vote for winning candidate (if more than one candidate)
+
+party1
+Party of winning candidate
+
+votes1
+Number of votes for winning candidate
+
+name2
+Name of candidate with second most votes
+
+perc2
+Percentage of vote for candidate who came in second
+
+party2
+Party of candidate with second most votes
+
+votes2
+Number of votes for candidate who came in second
+
+name3
+Name of candidate with third most votes
+
+perc3
+Percentage of vote for candidate who came in third
+
+party3
+Party of candidate with third most votes
+
+votes3
+Number of votes for candidate who came in third
+
+name4
+Name of candidate with fourth most votes
+
+perc4
+Percentage of vote for candidate who came in fourth
+
+party4
+Party of candidate with fourth most votes
+
+votes4
+Number of votes for candidate who came in fourth
+
+name5
+Name of candidate with fifth most votes
+
+perc5
+Percentage of vote for candidate who came in fifth
+
+party5
+Party of candidate with fifth most votes
+
+votes5
+Number of votes for candidate who came in fifth
+
+Details
+This analysis in the Examples section was inspired by and is similar to that of Nate Silver's district-level analysis on the FiveThirtyEight blog in the New York Times: https://fivethirtyeight.com/features/2010-an-aligning-election
+
+Source
+MSNBC.com, retrieved 2010-11-09.

@@ -1,0 +1,1136 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Contingency Table</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+		<link rel="stylesheet" type="text/css" href="styles/tln.min.css"/>
+		<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+		<script type="text/javascript" src="js/tln.min.js"></script>
+		<script type="text/javascript" src="js/jstat.js"></script>
+		<script type="text/javascript" src="js/commonFunctions.js"></script>
+		<script type="text/javascript" src="js/chartFunctions.js"></script>
+
+		
+		
+<script language="javascript">
+
+function chiSqIndep(){
+	if(document.getElementById("headerIndep").checked==false)return false;
+	var nRows = parseInt(document.getElementById('nRows').value)
+	var nCols = parseInt(document.getElementById('nCols').value)
+	var O=[]
+	var E=[]
+	var N=0
+	for(var row = 1; row <=nRows; row++){
+		var rowArray = []
+		for (var col=1; col<=nCols; col++){
+			rowArray.push(parseFloat(document.getElementById('r'+row+'c'+col).value))
+			N+=parseFloat(document.getElementById('r'+row+'c'+col).value)
+		}
+		O.push(rowArray)
+	}
+	for(var row = 1; row <=nRows; row++){
+		var rowArray = []
+		for (var col=1; col<=nCols; col++){
+			var colTotal = 0
+			var rowTotal = 0
+			for(var k=1; k<=nCols; k++){
+				rowTotal += parseFloat(document.getElementById('r'+row+'c'+k).value)
+			}
+			for(var k=1; k<=nRows; k++){
+				colTotal += parseFloat(document.getElementById('r'+k+'c'+col).value)
+			}
+		
+			rowArray.push( colTotal * rowTotal / N)
+		}
+		E.push(rowArray)
+	}
+	var chiSq = 0
+	var nLTfive = 0
+	var nLTone = 0
+	for(var row = 1; row <=nRows; row++){
+		for (var col=1; col<=nCols; col++){
+			chiSq += Math.pow(O[row-1][col-1] - E[row-1][col-1],2)/E[row-1][col-1]
+			if(E[row-1][col-1]<5)nLTfive++
+			if(E[row-1][col-1]<1)nLTone++
+			
+		}
+	}
+	var df = (nRows-1)*(nCols-1)
+	
+	var outputString = "<div style=\"overflow:auto;\">"
+	outputString += "<table>\n"
+	for(var row = 0; row <=nRows; row++){
+		outputString += "<tr>"
+		for (var col=0; col<=nCols; col++){
+			if(row==0){
+				if(col==0){ 
+					outputString +="<th>Expected</td>"
+				} else {
+					outputString +="<th nowrap>"+document.getElementById('colHead'+col).value+"</td>"
+				}
+			} else {
+				if(col==0){ 
+					outputString +="<th nowrap>"+document.getElementById('rowHead'+row).value+"</td>"				
+				} else {
+					outputString +="<td class='centered'>"+E[row-1][col-1].toFixed(precision) +"</td>"				
+				}				
+			}
+		}
+		outputString +="</tr>\n"
+	}
+	outputString +="</table>\n"
+	outputString +="</div>\n"
+	outputString +="H<sub>0</sub>: Column and row variables are independent<br>\n H<sub>1</sub>: Column and row variables are dependent<br>\n"
+	outputString += "<hr>"
+	outputString += "<b>Chi Squared Test</b><br>"
+	if(nLTone>0 || nLTfive/(nRows*nCols) >.20) outputString +="<i>Expected Cell counts too small; Chi squared approximation may be bad.</i><br>"
+	outputString += "&chi;<sup>2</sup> = "+chiSq.toFixed(precision)+"<br>\n";
+	outputString += "d.f. = "+df+"<br>\n";
+	var alpha = parseFloat(document.getElementById("sigLevel").value)
+	var findCritical = (document.getElementById("sigLevel").value != "")
+	if(findCritical) outputString += "Critical Value: &chi;<sup>2</sup>* = " + jStat.chisquare.inv(1-alpha,df).toFixed(precision)+"<br>\n"
+	outputString += "<i>p</i>-value = "+ (1-jStat.chisquare.cdf(chiSq,df)).toFixed(precision)+"<br>\n";
+
+//---------------------- Fisher's Exact testType
+// In the future upgrade this to the more efficient algorithm
+//  An Algorithm for Finding the Exact Significance Levels of r × c Continge
+
+	var results = fisherExactTest(O)
+	outputString += "<hr>"
+	outputString += "<b>Fisher's Exact Test</b><br>"
+	if(results[0]){
+		outputString += "P<sub>Obs</sub>: "+fixed(results[1]) + "<br>"
+		outputString += "Permutations: "+results[2] + "<br>"
+		outputString += "<i>p</i>-value: "+fixed(results[0])
+	} else {
+		if(results[1]==1) outputString += "<i>Zero row; Fix contingency table and re-run</i>"
+		if(results[1]==2) outputString += "<i>Zero column; Fix contingency table and re-run</i>"
+		if(results[1]==3 || results[1]>1000000) outputString += "<i>&gt;1M permutations; calculation halted.</i>"
+		if(results[1]==4) outputString += "<i>Number of permutations too high.</i>"
+	
+	}
+	
+	document.getElementById('indepOutput').innerHTML=outputString
+}
+
+function cardinality(m,n,r, c){
+	if(m==2 && n==2){
+		return (Math.min(r[0],c[0]) - Math.max(0,c[0]-r[1])+1)
+	} else if(m==2 && n>2){
+		var sum=0
+		var K=cardinality(2, 2, r, c.slice(0,2))
+		for(var k=0; k< K; k++){
+			// a11(k) = Math.max(0,c[0]-r[1])+k
+			var a11 = Math.max(0, c[0]-r[1])+k
+			var a21 = c[0]-a11
+			var rprime=[r[0]-a11, r[1]-a21]
+			var cprime=c.slice(1)
+			sum += cardinality(m, n-1,rprime, cprime)
+		}
+		return sum
+	} else if(m>2 && n>2){
+		var K=Rn(n,r,c)
+		var N= jStat.sum(r)
+		var sum=0
+		for(var k=0; k<K; k++){
+			var a11 = Math.max(0, r[0]+c[0]-N)+k
+			var rprime=r.slice(1)
+			var cprime=c.slice()
+			for(var j=0; j<n;j++){
+				cprime[j] -= a1j
+			}			
+			sum += cardinality(m-1, n, rprime, cprime)
+		}
+		return sum	
+	}
+}
+
+function Rn(n,r,c){
+	var N = jStat.sum(r)
+	if(n==2){
+		return (Math.min(r[0],c[0])-Math.max(0, r[0]+c[0]-N)+1)
+	} else {
+		var sum=0;
+		var K = Rn(2,r,c)
+		for(var k=0; k<K; k++){
+			var a11 = Math.max(0, r[0]+c[0]-N)+k
+			var cprime=c.slice(1)
+			var rprime=r.slice()
+			rprime[0]=[r[0]-a11]
+			sum += Rn(n-1, rprime, cprime)
+		}
+		
+	}
+
+}
+
+function M(r,c){
+
+
+}
+
+
+function fisherExactTest(Y){
+	var permutes=0
+	var pvalue = 0
+	var pSum =0
+	var r=[], c=[], N=0
+	for(var i=0; i<Y.length; i++) r[i]=0
+	for(var j=0; j<Y[0].length; j++) c[j]=0
+
+	for(var i=0; i<Y.length; i++){
+		for(var j=0; j<Y[0].length; j++){
+			N    += Y[i][j]
+			r[i] += Y[i][j]
+			c[j] += Y[i][j]
+		}
+	}
+	for(var i=0;i<r.length; i++) if(r[i]==0) return [false,1]
+	for(var j=0;j<c.length; j++) if(c[j]==0) return [false,2]
+
+//	var nPermutations = cardinality(r.length, c.length, r,c)
+//	var nPermutations = M(r,c)
+	if(N/(r.length*c.length)>100) return [false, 4]
+
+
+	var result = contingencyLikelihood(Y,r,c,N)
+	var pObs=result[0]
+	
+	var m=r.length, n=c.length
+	var M = (m-1)*(n-1) // paper uses "m"
+	//Initialize the algorithm
+	
+	
+	var z=[], s=[], t=[], v=[],l=[],u=[]
+	//First Table
+	for(var k=0; k<M; k++){
+		var i=k%(m-1)
+		var j=Math.floor(k/(m-1))
+		s[k]=(i==0?0:s[k-1]+z[k-1])
+		t[k]=(j==0?0:t[k-(m-1)]+z[k-(m-1)])
+		v[k]=0
+		for(var rw=0; rw<i; rw++) v[k]+=r[rw]
+		for(var cl=0; cl<j; cl++) v[k]+=c[cl]
+		for(var kk=j*(m-1); kk<k; kk++) v[k]-=t[kk]		
+		l[k]=Math.max(0,v[k]+c[j]-s[k]+r[i]-t[k]-N)
+		u[k]=Math.min(c[j]-s[k], r[i]-t[k])
+		z[k]=l[k]
+	}
+	do{
+		do{
+			var pOFz = PofZ(z,r,c,s,t,v,N)
+			permutes++
+			if(permutes>1000000) return [false,3]
+			if(pOFz <= pObs+.00000000001) pvalue += pOFz
+			if(!isNaN(pOFz)) pSum += pOFz
+			//2.0 Let zm = zm+1
+			z[M-1]++ 
+		} while(z[M-1] <= u[M-1])
+		var K = M-1
+		do {
+			K--
+			if(K==-1){
+				return [pvalue, pObs, permutes]
+			}
+			z[K]++	
+		} while(z[K] > u[K])
+		for(var k=K+1; k<M; k++){
+			var i=k%(m-1)
+			var j=Math.floor(k/(m-1))
+			s[k]=(i==0?0:s[k-1]+z[k-1])
+			t[k]=(j==0?0:t[k-(m-1)]+z[k-(m-1)])
+			v[k]=0
+			for(var rw=0; rw<i; rw++) v[k]+=r[rw]
+			for(var cl=0; cl<j; cl++) v[k]+=c[cl]
+			for(var kk=j*(m-1); kk<k; kk++) v[k]-=t[kk]
+			l[k]=Math.max(0,v[k]+c[j]-s[k]+r[i]-t[k]-N)
+			u[k]=Math.min(c[j]-s[k], r[i]-t[k])
+			z[k]=l[k]
+		}
+	} while (true);
+}
+
+function contingencyLikelihood(Y,r,c,N){
+	var m=r.length //rows
+	var n=c.length //columns
+	var z=[], s=[], t=[], v=[]
+	for(var k=0; k<(m-1)*(n-1); k++){
+		var i=k%(m-1)
+		var j=Math.floor(k/(m-1))
+		s[k]=(i==0?0:s[k-1]+z[k-1])
+		t[k]=(j==0?0:t[k-(m-1)]+z[k-(m-1)])
+		v[k]=0
+		for(var rw=0; rw<i; rw++) v[k]+=r[rw]
+		for(var cl=0; cl<j; cl++) v[k]+=c[cl]
+		for(var kk=j*(m-1); kk<k; kk++) v[k]-=t[kk]		
+		z[k]=Y[i][j]
+	}
+
+	var P1=PofZ(z,r,c,s,t,v,N)
+	return [P1]
+}
+
+function PofZ(z,r,c,s,t,v,N){
+	var P=1.0
+	for (var k=0; k<z.length; k++){
+		var i=k%(r.length-1)
+		var j=Math.floor(k/(r.length-1))
+		P*=jStat.combination(c[j]-s[k], z[k])*jStat.combination(N-v[k]-c[j]+s[k],r[i]-t[k]-z[k])/jStat.combination(N-v[k],r[i]-t[k])
+	}
+	return P;
+}
+
+function refreshPropRowChoices(){
+	var nRows = parseInt(document.getElementById('nRows').value)
+	var choiceString=""
+	for(var i=1; i<=nRows; i++){
+		choiceString +="<option value="+i+">"+document.getElementById('rowHead'+i).value+"</option>"
+	}
+	document.getElementById('rowPropSelect').innerHTML=choiceString;
+}
+
+function refreshGrpNames(){
+	var sel=document.getElementById('colASelect')
+	document.getElementById('colGrpA').innerHTML=(sel.options.length>0?sel.options[sel.selectedIndex].text:"A")
+	var sel2=document.getElementById('colBSelect')
+	document.getElementById('colGrpB').innerHTML=(sel2.options.length>2?sel2.options[sel2.selectedIndex].text:"B")
+
+}
+
+var aSelected=-1
+function refreshPropTestColChoices(groupA=false){
+	var optionsGroupB=""
+	var optionsGroupA=""
+	aSelected=(aSelected==-1?1:document.getElementById('colASelect').value)
+//	if(document.getElementById('colASelect').innerHTML='') aSelected=1
+	var nCols = parseInt(document.getElementById('nCols').value)
+	for(var i=1; i<=nCols;i++){
+		optionsGroupA +="<option value="+i+">"+document.getElementById('colHead'+i).value+"</option>"
+		if(i!=aSelected) optionsGroupB +="<option value="+i+">"+document.getElementById('colHead'+i).value+"</option>"
+	}
+	if(groupA) document.getElementById('colASelect').innerHTML=optionsGroupA
+	document.getElementById('colBSelect').innerHTML=optionsGroupB
+}
+
+function propTest(){
+	var p0=parseFloat(document.getElementById("p0").value)
+	document.getElementById("p1").innerHTML=document.getElementById("p0").value
+	var testType = document.getElementById("hyppropIneq").selectedIndex;
+	var nRows = parseInt(document.getElementById('nRows').value)
+	var outputString =""
+	var rowPropChoice = +document.getElementById('rowPropSelect').value
+	var colPropChoiceA = +document.getElementById('colASelect').value
+	var colPropChoiceB = +document.getElementById('colBSelect').value
+
+	if(colPropChoiceA==0)return;
+
+	var n1=0, n2=0
+	var x1=+document.getElementById('r'+rowPropChoice+'c'+colPropChoiceA).value
+	var x2=+document.getElementById('r'+rowPropChoice+'c'+colPropChoiceB).value
+
+	for(var i=1; i<=nRows; i++){
+		n1 += +document.getElementById('r'+i+'c'+colPropChoiceA).value
+		n2 += +document.getElementById('r'+i+'c'+colPropChoiceB).value
+	}
+	var pHat1 = x1/n1;
+	var pHat2 = x2/n2;
+	
+	var nameA=document.getElementById('colHead'+colPropChoiceA).value
+	var nameB=document.getElementById('colHead'+colPropChoiceB).value
+	
+	outputString += "<strong><span class='Name1' id='hypPropOutputName1'>"+nameA +"</span></strong></br>\n" 
+	outputString += "Successes (x<sub>"+nameA+"</sub>) = " + x1 + "</br>\n"
+	outputString += "Sample size (n<sub>"+nameA+"</sub>) = " + n1 + "</br>\n"
+	outputString += "Sample Proportion (p&#770;<sub>"+nameA+"</sub>) = " + +pHat1.toFixed(precision) + "</br>\n"
+	outputString += "<strong><span class='Name2' id='hypPropOutputName2'>"+nameB +"</span></strong></br>\n" 
+	outputString += "Successes (x<sub>"+nameB+"</sub>) = " + x2 + "</br>\n"
+	outputString += "Sample size (n<sub>"+nameB+"</sub>) = " + n2 + "</br>\n"
+	outputString += "Sample Proportion (p&#770;<sub>"+nameB+"</sub>) = " + +pHat2.toFixed(precision) + "</br><hr>\n"
+	var pPooled = (x1+x2)/(n1+n2)
+	var z= (pHat1-pHat2-p0)/Math.sqrt( pPooled*(1-pPooled) *((1/n1) + (1/n2)))
+	
+	var pValue=0
+	
+	var ineqStr = "&lt;"
+	if(testType==1) {ineqStr = "&gt;"} else if (testType==2) {ineqStr = "&ne;"}
+	outputString += "H<sub>0</sub>: &pi;<sub>"+nameA+"</sub>-&pi;<sub>"+nameB+"</sub> = "+p0 + "</br>\n"
+	outputString += "H<sub>1</sub>: &pi;<sub>"+nameA+"</sub>-&pi;<sub>"+nameB+"</sub> "+ineqStr+" "+p0 + "</br>\n"
+	outputString += "Z stat: "+z.toFixed(precision)+"</br>\n"
+	
+/*	if(findCritical){
+		if(testType==0){
+			criticalT = jStat.normal.inv(alpha,0,1)
+			outputString += "Rejection region: Z<"
+			}else if(testType==1) {
+			criticalT = jStat.normal.inv(1-alpha,0,1)
+			outputString += "Rejection region: Z>"
+			}else if(testType==2) {
+			criticalT = jStat.normal.inv(1-alpha/2,0,1)
+			outputString += "Rejection region: |Z|>"
+		}
+		outputString += +criticalT.toFixed(precision) +"</br>\n"
+	}*/
+	var pValue=0
+	if(testType==0){
+		pValue = jStat.normal.cdf(z,0,1)
+		}else if(testType==1) {
+		pValue = 1-jStat.normal.cdf(z,0,1)
+		}else if(testType==2) {
+		if (z<0) z=-z
+		pValue = 2*jStat.normal.cdf(-z,0,1)
+	}
+	outputString += "Approximate (normal) <i>p</i>-value: "+ +pValue.toFixed(precision) +"</br><hr>\n"
+	
+	var alpha = parseFloat(document.getElementById("sigLevel").value)
+	var UBapprox = jStat.normal.inv(1-alpha/2,pHat1-pHat2,Math.sqrt(pHat1*(1-pHat1)/n1 +pHat2*(1-pHat2)/n2))
+	var LBapprox = jStat.normal.inv(alpha/2,pHat1-pHat2,Math.sqrt(pHat1*(1-pHat1)/n1 +pHat2*(1-pHat2)/n2))
+	outputString +=  +fixed((1-alpha)*100)+"% confidence interval for &pi;<sub>"+nameA+"</sub>-&pi;<sub>"+nameB+"</sub><br>\n"
+	outputString += "Approximate (normal): (" +(LBapprox.toFixed(precision)) + ", " + +(UBapprox.toFixed(precision)) + ")</br>\n"
+
+	
+	
+	document.getElementById('propTestOutput').innerHTML=outputString;
+
+
+}
+
+function propDiff(){
+	var nRows = parseInt(document.getElementById('nRows').value)
+	var nCols = parseInt(document.getElementById('nCols').value)
+	var outputString =""
+	if(nRows==2 && nCols ==2){
+		var n11 = parseFloat(document.getElementById('r1c1').value)
+		var n22 = parseFloat(document.getElementById('r2c2').value)
+		var n12 = parseFloat(document.getElementById('r1c2').value)
+		var n21 = parseFloat(document.getElementById('r2c1').value)
+		var n = n11+n22+n12+n21
+		if(n12 >0 || n21 >0){
+			var mcNemarZ = Math.abs(n12-n21)/Math.sqrt(n12+n21)
+			var mcNemarChiSq = Math.pow(mcNemarZ,2)
+			var pVal = 2*jStat.normal.cdf(-Math.abs(mcNemarZ),0,1)
+			var A=document.getElementById('colHead1').value
+			var B=document.getElementById('rowHead1').value
+			outputString +="H<sub>0</sub>: &pi;<sub>"+A+"</sub>=&pi;<sub>"+B+"</sub><br>\n H<sub>1</sub>: &pi;<sub>"+A+"</sub>&ne;&pi;<sub>"+B+"</sub><br>\n"
+			outputString +="p&#770;<sub>"+A+"</sub> = "+fixed((n11+n21)/n)+"<br>\n"
+			outputString +="p&#770;<sub>"+B+"</sub> = "+fixed((n11+n12)/n)+"<br>\n"
+			outputString +="<strong>McNemar Test</strong><br>\n"
+			
+			var N = n12+n21
+			var p_binom = Math.min(1,2*jStat.binomial.cdf(Math.min(n12, n21),N, .5))
+			outputString += "Exact binomial <i>p</i>-value: "+fixed(p_binom)+"<br>\n"
+			
+			outputString += "Z stat = "+mcNemarZ.toFixed(precision)+"<br>\n"
+			outputString += "&chi;<sup>2</sup> stat = "+mcNemarChiSq.toFixed(precision)+"<br>\n"
+			outputString += "<i>p</i>-value = "+pVal.toFixed(precision)+"<br>\n"
+
+			mcNemarZ = (Math.abs(n12-n21)-1)/Math.sqrt(n12+n21)
+			mcNemarChiSq = Math.pow(mcNemarZ,2)
+			pVal = 2*jStat.normal.cdf(-Math.abs(mcNemarZ),0,1)
+			outputString +="<strong>Edwards Continuity Correction</strong><br>\n"
+			outputString += "Z stat = "+mcNemarZ.toFixed(precision)+"<br>\n"
+			outputString += "&chi;<sup>2</sup> stat = "+mcNemarChiSq.toFixed(precision)+"<br>\n"
+			outputString += "<i>p</i>-value = "+pVal.toFixed(precision)+"<br>\n"
+	
+		} else {
+			outputString = "Test is undefinded for 0 observations in both (2,1) and (1,2).<br>\n"
+		
+		}
+	
+	} else {
+		outputString = "Test is only valid for a 2&times;2 table.<br>\n"
+	}
+	document.getElementById('propDiffOutput').innerHTML=outputString;
+}
+
+function refresh(){
+	setPrecision(document.getElementById('precision').value)
+	refreshPropRowChoices();
+	refreshPropTestColChoices(true);
+	refreshGrpNames();
+	chiSqIndep()
+	propDiff()
+	propTest()
+	mosaicPlot()
+	barCharts()
+	marginals()
+}
+ 
+function refreshInputs(){
+	var nRows = parseInt(document.getElementById('nRows').value)
+	var nCols = parseInt(document.getElementById('nCols').value)
+	var outputString = "<table class='condTable'>\n"
+	for(var row = 0; row <=nRows; row++){
+		outputString += "<tr>"
+		for (var col=0; col<=nCols; col++){
+			if(row==0){
+				if(col==0){ 
+					outputString +="<th><button onClick=\"transpose()\">Transpose</button></th>"
+				} else {
+					var cellValue = "Col Level "+col
+					if(exists('colHead'+col)){ cellValue = document.getElementById('colHead'+col).value }
+					outputString +="<td class='colHeader'>"+(col>1?"<a class='moveBtn lt' href='JavaScript:shiftCol("+(col-1)+")'>	&#9664;</a>":"")+"<input type='text' id='colHead"+col+"' value='"+cellValue+"' size='10' onChange='refresh()'>"+(col<nCols?"<a  class='moveBtn rt' href='JavaScript:shiftCol("+col+")'>	&#9654;</a>":"")+"</td>"
+				}
+			} else {
+				if(col==0){ 
+					var cellValue = "Row Level "+row
+					if(exists('rowHead'+row)) cellValue = document.getElementById('rowHead'+row).value
+					outputString +="<th class='rowHeader'>"+"<div class='relativeHolder'><div class='swatch' style='background-color:"+customColors[row-1]+"' onClick='selectColor(this,"+(row-1)+")'></div></div>"+(row>1?"<a class='moveBtn tp' href='JavaScript:shiftRow("+(row-1)+")'>	&#9650;</a>":"")+"<input type='text' id='rowHead"+row+"' value='"+cellValue+"' size='10	' onChange='refresh()'>"+(row<nRows?"<a class='moveBtn bt' href='JavaScript:shiftRow("+(row)+")'>	&#9660;</a>":"")+"</th>"				
+				} else {
+					var id="r"+row+"c"+col
+					var cellValue = 0
+					if(exists(id)) cellValue = parseFloat(document.getElementById(id).value)
+					if (cellValue == null) cellValue = 0
+					outputString +="<td><input type='number' id='"+id+"' min='0' step='1' required='true' value='"+cellValue+"' size='10' onChange='refresh()'></td>"				
+				}				
+			}
+		}
+		outputString +="</tr>\n"
+	}
+	outputString +="</table>\n"
+	document.getElementById('contingencyTable').innerHTML=outputString;
+}
+
+
+function marginals(){
+	var nRows = parseInt(document.getElementById('nRows').value)
+	var nCols = parseInt(document.getElementById('nCols').value)
+	var mType=parseInt(document.getElementById('marginalsType').value)
+	var rowSums=[]
+	var colSums=[]
+	var total=0
+	for(var row = 1; row <=nRows; row++){
+		for (var col=1; col<=nCols; col++){
+			if(row==1) colSums[col-1]=0
+			if(col==1) rowSums[row-1]=0
+			var freq=parseFloat(document.getElementById('r'+row+'c'+col).value)
+			colSums[col-1]+=freq
+			rowSums[row-1]+=freq
+			total+=freq
+		}
+	}
+
+	var outputString = "<div style=\"overflow:auto;\">"
+	outputString += "<table>\n"
+	for(var row = 0; row <=nRows+(mType==3?0:1); row++){
+		outputString += "<tr>"
+		for (var col=0; col<=nCols+(mType==4?0:1); col++){
+			if(row==0){
+				if(col==0){ 
+					outputString +="<th> </th>"
+				}else if (col==nCols+1){
+					outputString +="<th class='total'>Total</th>"
+				} else {
+					outputString +="<th nowrap>"+document.getElementById('colHead'+col).value+"</th>"
+				}
+			} else if(row==nRows+1){
+				if (col==0){
+					outputString +="<th class='total'>Total</th>"	
+				} else if(col==nCols+1)	{
+					outputString +="<td class='total'>"+(mType==1?total:1) +"</td>"
+				} else {
+					outputString +="<td class='total'>"+(mType==1?colSums[col-1]:(mType==2?(colSums[col-1]/total).toFixed(precision):1)) +"</td>"
+				}
+			} else {
+				if(col==0){ 
+					outputString +="<th nowrap>"+document.getElementById('rowHead'+row).value+"</th>"	
+				} else if (col==nCols+1){
+					outputString += "<td class='total'>"+(mType==1?rowSums[row-1]:(mType==2?(rowSums[row-1]/total).toFixed(precision):1)) + "</td>"
+				} else {
+					var freq=parseFloat(document.getElementById('r'+row+'c'+col).value)
+					var x=0
+					if(mType==1){
+					x=freq
+					} else if(mType==2){
+					x=freq/total
+					} else if(mType==3){
+					x=freq/rowSums[row-1]
+					} else {
+					x=freq/colSums[col-1]
+					}
+				
+					outputString +="<td class='centered'>"+(mType==1?x:x.toFixed(precision)) +"</td>"				
+				}				
+			}
+		}
+		outputString +="</tr>\n"
+	}
+	outputString +="</table>\n"
+	outputString +="</div>\n"
+	document.getElementById('marginals').innerHTML=outputString
+
+//	document.getElementById('marginals').innerHTML+="WOW"
+
+	
+}
+
+function onlyUnique(value, index, self) { 
+    return self.indexOf(value) === index;
+}
+
+function transpose(){
+	var dataString="";
+	document.getElementById("name1").value = document.getElementById("colVarName").value
+	document.getElementById("name2").value = document.getElementById("rowVarName").value
+	var nRows = parseInt(document.getElementById('nRows').value)
+	var nCols = parseInt(document.getElementById('nCols').value)
+	//console.log(nRows+ "x" +nCols)
+	for(var i=1; i<=nRows; i++){
+		for(var j=1; j<=nCols; j++){
+			var freq = parseInt(document.getElementById("r"+i+"c"+j).value)
+			for(var n=0; n<freq;n++){
+				dataString+=document.getElementById("colHead"+j).value+"\t"+document.getElementById("rowHead"+i).value    + ((i<nRows || j<nCols || n<freq-1) ?"\n":"")
+			}
+		}
+	}
+	//alert(dataString)
+	document.getElementById("data1").value=dataString
+	generateTableFromData()
+//	temp=[]
+//	for(var i=1; i<=nRows; i++)
+//		temp[i-1]=document.getElementById("colHead"+i).value
+//	for(var j=1; j<=nCols; j++)
+	
+}
+
+function generateTableFromData(){
+	document.getElementById("rowVarName").value = document.getElementById("name1").value
+	document.getElementById("colVarName").value = document.getElementById("name2").value
+	var varAdata = getColumn(1,false)
+	var varBdata = getColumn(2,false)
+	var varAlevels =varAdata.filter( onlyUnique );
+	var varBlevels =varBdata.filter( onlyUnique );
+//	alert(varAlevels)
+//	alert(varBlevels)
+	document.getElementById('nRows').value = varAlevels.length
+	document.getElementById('nCols').value = varBlevels.length
+	refreshInputs();
+	for(var i=1; i<=varAlevels.length; i++){
+		document.getElementById("rowHead"+i).value = varAlevels[i-1]
+		for(var j=1; j<=varBlevels.length; j++){
+			if(i==1) document.getElementById("colHead"+j).value = varBlevels[j-1]
+			document.getElementById('r'+i+'c'+j).value=0
+		}
+	}
+	for(var k=0; k<varAdata.length; k++){
+		var elmt = "r"
+		for(var i=1; i<=varAlevels.length; i++){
+			if(varAdata[k]==varAlevels[i-1]){
+				elmt += i;
+				break;
+			}
+		}
+		elmt += "c"
+		for(var j=1; j<=varBlevels.length; j++){
+			if(varBdata[k]==varBlevels[j-1]){
+				elmt += j;
+				break;
+			}
+		}
+		document.getElementById(elmt).value = parseInt(document.getElementById(elmt).value)+1
+	}
+	refresh();
+}
+
+
+function generateDataFromTable(){
+	var dataString="";
+	document.getElementById("name1").value = document.getElementById("rowVarName").value
+	document.getElementById("name2").value = document.getElementById("colVarName").value
+	var nRows = parseInt(document.getElementById('nRows').value)
+	var nCols = parseInt(document.getElementById('nCols').value)
+	for(var i=1; i<=nRows; i++){
+		for(var j=1; j<=nCols; j++){
+			var nCell=parseInt(document.getElementById("r"+i+"c"+j).value)
+			for(var n=0; n<nCell;n++){
+				var lastRow = (i==nRows && j==nCols && n==nCell-1)
+				dataString+=document.getElementById("rowHead"+i).value +"\t"+ document.getElementById("colHead"+j).value  + (!lastRow?"\n":"")
+			}
+		}
+	}
+	document.getElementById("data1").innerHTML=dataString
+}
+
+function swapCells(id1, id2){
+//	console.log(id1 + " " +id2)
+	var tmpStr=document.getElementById(id1).value
+	document.getElementById(id1).value = document.getElementById(id2).value
+	document.getElementById(id2).value = tmpStr
+}
+
+function shiftCol(col){
+	var nRows = parseInt(document.getElementById('nRows').value)
+	var nCols = parseInt(document.getElementById('nCols').value)
+	swapCells('colHead'+col, 'colHead'+(col+1))
+	for(var row=1; row<=nRows; row++){
+		swapCells('r'+row+'c'+col, 'r'+row+'c'+(col+1))
+	}
+	refresh()
+}
+
+function shiftRow(row){
+	var nRows = parseInt(document.getElementById('nRows').value)
+	var nCols = parseInt(document.getElementById('nCols').value)
+	swapCells('rowHead'+row, 'rowHead'+(row+1))
+	for(var col=1; col<=nCols; col++){
+		swapCells('r'+row+'c'+col, 'r'+(row+1)+'c'+col)
+	}
+	refresh()
+}
+var permuteBy=''
+function refreshPermPropOptions(){
+	if (document.getElementById('permuteBy').value!=permuteBy){
+		permuteBy=document.getElementById('permuteBy').value
+		var nRows = parseInt(document.getElementById('nRows').value)
+		var nCols = parseInt(document.getElementById('nCols').value)
+		var max=(permuteBy=='row'?nRows:nCols)
+		
+		var optionString=""
+		for(var i=0; i<max; i++){
+			optionString += "<option value="+(i+1)+">"+document.getElementById(permuteBy+"Head"+(i+1)).value+"</option>"
+		}
+		document.getElementById('permutationProportion').innerHTML=optionString
+	}
+}
+
+var simulatedFreq=[]
+
+function shuffle(array) {
+  var currentIndex = array.length,  randomIndex;
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+    // And swap it with the current element.
+    [array[currentIndex], array[randomIndex]] = [
+      array[randomIndex], array[currentIndex]];
+  }
+  return array;
+}
+
+function recalcPermutations(){
+	var nRows = parseInt(document.getElementById('nRows').value)
+	var nCols = parseInt(document.getElementById('nCols').value)
+	//We will calculate the frequency total for each column
+	var cTots=[],rTots=[]
+	for(var i=0; i<nRows; i++){
+		for(j=0; j<nCols; j++){
+			if(i==0) cTots[j]=0
+			if(j==0) rTots[i]=0
+			var val=+document.getElementById('r'+(i+1)+'c'+(j+1)).value
+			cTots[j]+=val
+			rTots[i]+=val
+		}
+	}
+	
+	var vArray=[]
+	for(var j=0; j<nCols;j++){
+		for(var i=0; i<cTots[j]; i++) vArray.push(j+1)
+	}
+	//we will create an array of values of each column number
+	//we will then shuffle the array
+
+
+	//We will calculate the frequency total for each row
+	//we will go throught the shuffled array one by one
+	//fill in row/col as appropriate until that row is full, then more to the next row
+//	console.log(rTots)
+//	console.log(cTots)
+//	console.log(vArray)
+	//return;
+
+	var n = document.getElementById('nPerms').value
+	simulatedFreq=new Array(n)
+	for(var k=0; k<n; k++){
+		simulatedFreq[k]=[]
+		for (var i=0; i<nRows; i++){
+			simulatedFreq[k][i]=[]
+			for (var j=0; j<nCols; j++) simulatedFreq[k][i][j]=0
+		}
+//		console.log(simulatedFreq)
+		var shufArray=shuffle(vArray.slice())
+		for(var i=1; i<=nRows; i++){
+			for(var l=0; l<rTots[i-1];l++){
+				simulatedFreq[k][i-1][shufArray.pop()-1]++
+			}
+		}
+//		console.log(simulatedFreq)
+/*			for(var i=0; i<
+			var curRow=1
+			var curRowCount=0
+			for(var l=0; l<shufArray.length; l++){
+				
+			
+			}
+			
+			
+			for(var j=1; j<=nCols; j++){
+				var N = document.getElementById('r'+i+'c'+j).value
+				for(var l=0; l<N; l++){
+					var K=(permuteBy=='col'?nRows:nCols)
+					var RAND=Math.floor(Math.random()*K)
+					if(permuteBy=='col'){
+					//this means that we will maintain column totals
+					//for each column, get the number in that cell
+					//then randomly add it to a row in that column in the simulatedFreq
+					//repeat for each column
+						simulatedFreq[k][RAND][j-1]++
+					}else{
+						simulatedFreq[k][i-1][RAND]++
+					}
+				}
+			}
+		}*/
+	}
+	refreshPermutations()
+}
+
+function refreshPermutations(){
+	var propObserve = document.getElementById('permutationProportion').value
+	var nRows = parseInt(document.getElementById('nRows').value)
+	var nCols = parseInt(document.getElementById('nCols').value)
+	
+	var outputTable="<table>"
+	outputTable +="<tr>"
+	for(var i=0; i<(permuteBy=='col'?nRows:nCols); i++){
+		outputTable += "<th>"+document.getElementById((permuteBy=='row'?'col':'row')+"Head"+(i+1)).value+"</th>"
+	}
+	outputTable+="</th>"
+	
+	for (var k=0; k<simulatedFreq.length; k++){
+		var numerator=[], denominator=[]
+		var max=(permuteBy=='col'?nRows:nCols)
+		for(var i=1; i<=max; i++){
+			for(var j=1; j<=(permuteBy=='col'?nRows:nCols); j++){
+				if(i==1){
+					denominator[j-1]=0
+				}
+				var val=(permuteBy=='row'?simulatedFreq[k][i-1][j-1]:simulatedFreq[k][j-1][i-1])
+				if(i==propObserve){
+					numerator[j-1]=val
+				}
+				denominator[j-1]+=val
+			}
+		}
+//		console.log(numerator)
+//		console.log(denominator)
+		outputTable+="<tr>"
+		for(var i=0; i<numerator.length; i++){
+			outputTable+="<td>"
+			var p=0
+			if(denominator[i]!=0) p=numerator[i]/denominator[i]
+			outputTable+=fixed(p)
+			outputTable+="</td>"
+		}
+		outputTable+="</tr>"
+	}
+	
+	
+	
+	outputTable+="</table>"
+	document.getElementById('permutationOutput').innerHTML=outputTable
+}
+
+function refreshAfterConfirmColor(){
+	refreshInputs()
+	barCharts()
+	mosaicPlot()
+}
+</script>
+
+
+<style>
+table {
+  table-layout: fixed; 
+}
+th {
+	white-space:nowrap;
+/*  position:absolute;
+  *position: relative; /*ie7*/
+  left:0; */
+}
+/*.outer {position:relative}
+.inner {
+  overflow-x:scroll;
+  overflow-y:visible;
+  margin-left:105px;
+}*/
+
+th input,td.colHeader input{
+	background-color:#F5F5F5; border:1px solid; border-top: 1px solid gray; border-left:1px solid gray;
+	border-bottom:1px solid #FAFAFA;border-right:solid #FAFAFA;
+	}
+
+#transposeButton{width:106px; border:1px;}
+
+td input[type=number]{
+    width: 106px;
+}
+#contingencyTable input[type=text]{
+	width:106px;
+	}
+	
+#permutationOutput table{border-spacing:0;}
+#permutationOutput td{border: 1px solid gray;}
+
+}
+#indepOutput table,#marginals table {border-spacing: 0;}	
+#indepOutput th, #indepOutput td, #marginals th, #marginals td { 
+	border-right: 1px solid #BBB;
+	border-bottom:1px solid #BBB;
+	padding:.2em; 
+}
+.total {
+	background-color:rgba(0,0,0,.1);
+}
+.condTable{border:0px;
+			border-collapse: collapse;
+			margin-bottom:1em;}
+.condTable td{border:0px;}
+
+.colHeader, .rowHeader{
+	position:relative;
+}
+
+.moveBtn{
+	position:absolute;
+	display:none;
+	text-decoration:none;
+	color:black;
+	background-color:#EEE;
+	border:1px solid black;
+	padding:1px;
+	z-index:100;
+}
+
+.colHeader:hover  .moveBtn, .rowHeader:hover .moveBtn{
+	display:block;
+}
+
+.tp{
+	left:40%;
+	right:40%;
+	top:-1.2em;
+}
+.bt{
+	left:40%;
+	right:40%;
+	bottom:-1.4em;
+}
+
+.lt{
+	top:0px;
+	bottom:0px;
+	left:-1em;
+}
+.rt{
+	bottom:0px;
+	top:0px;
+	right:-1em;
+}
+
+
+</style>
+
+</head>
+
+<body onload="loadPrecision();loadColorChoice();linkMenu();setColors();TLN.append_line_numbers('data1');enableTab('data1');refreshInputs();parseDataFromURLQual2V();refreshPermPropOptions();refreshPropRowChoices();	refreshPropTestColChoices(true);">
+	<div id="container">
+		<div id="title" onClick="setColors()">StatPowers</div>
+		<div id="menu"></div>
+		<form name="form1">
+
+<div class="container" >
+	<input type="checkbox" checked name="headerDataEntry" id="headerDataEntry" class="css-checkbox">
+	<label for="headerDataEntry" class="css-label">Data Entry</label>
+	<div class="css-content">
+	<div class="radio-toolbar">
+		<input type="radio" name="whichEntry" id="whichEntry1" checked onClick="document.getElementById('contingencyTableArea').style.display='block';document.getElementById('dataArea').style.display='none';generateTableFromData();">
+		<label for="whichEntry1"> Contingency Table</label>
+		<input type="radio" name="whichEntry" id="whichEntry2" onClick="document.getElementById('contingencyTableArea').style.display='none';document.getElementById('dataArea').style.display='block';generateDataFromTable();">
+		<label for="whichEntry2"> Data</label>
+	</div>
+		<div class="content">
+		<div id="contingencyTableArea" class="content">
+		<table width=100% class="condTable"><tr><td width=50%>
+			Row Variable:<br> <input id="rowVarName" onChange="refresh()" value='varA'> 
+		</td><td width=50%>
+			Column Variable:<br> <input id="colVarName" onChange="refresh()" value='varB'>
+		</td></tr>
+		<td>
+		Levels: <input id="nRows" type="number" class="tinyNumber" min="2" max="50" step="1" value="2" required="true" onChange="refreshInputs();refresh();" />
+		</td><td>
+		Levels: <input id="nCols" type="number" class="tinyNumber" min="2" max="50" step="1" value="2" required="true" onChange="refreshInputs();refresh();" />
+		</td></tr></table> 
+		<div class="outer">
+		<div id="contingencyTable" class="inner" style="overflow-x:auto;overflow-y:hidden;height:auto;">
+			<table class='condTable'>
+			<tr>
+				<th><button onClick="transpose()"/>Transpose</button></th>
+				<td class='colHeader'><input type="text" id="colHead1" value="Col Level 1" size="11" onChange="refresh()"></td>
+				<td class='colHeader'><input type="text" id="colHead2" value="Col Level 2" size="11" onChange="refresh()"></td>
+			</tr>
+			<tr>
+				<th><div class='swatch' style='background-color:red'></div><input type="text" id="rowHead1" value="Row Level 1" size="11" onChange="refresh()"></th>
+				<td><input type="number" id="r1c1" min="0" step="1" required="true" value='4' onChange="refresh()"/></td>
+				<td><input type="number" id="r1c2" min="0" step="1" required="true" value='5' onChange="refresh()" /></td>
+			</tr>
+			<tr>
+				<th><div class='swatch' style='background-color:blue'></div><input type="text" id="rowHead2" value="Row Level 2" size="11" onChange="refresh()"></th>
+				<td><input type="number" id="r2c1" min="0" step="1" required="true" value='6' onChange="refresh()"/></td>
+				<td><input type="number" id="r2c2" min="0" step="1" required="true" value='7' onChange="refresh()"/></td>
+			</tr>
+			</table>
+		</div>
+		</div>
+					
+		</div>
+		<div id="dataArea" style="display:none;">
+			Enter paired data separated by comma, semicolon, or tab.<br>
+			Each pair should be placed on a new line.<br>
+			<span style="color:red">Variables:</span> 
+			<div style="position:relative;height:10px;">
+				<input type="text" id="name1" value="varA" size="20" maxlength="25" onchange="" style="position:absolute; left:49px; width:195px;"/>
+				<input type="text" id="name2" value="varB" size="20" maxlength="25" onchange="" style="position:absolute; left:249px;width:195px;" />
+			</div>
+			
+			<div id="wrapper">
+				<textarea name="data1" id="data1" class="niceCols grid twocol" rows=6 cols=60 onkeydown="if(event.keyCode===9){var v=this.value,s=this.selectionStart,e=this.selectionEnd;this.value=v.substring(0, s)+'\t'+v.substring(e);this.selectionStart=this.selectionEnd=s+1;return false;}"
+				style="position:absolute; left:49px;"></textarea>
+			</div>
+		
+		</div>
+
+		<button TYPE=button VALUE="Calculate Now" onClick="refresh()"/>Calculate Now</button>
+		<button TYPE=button VALUE="Share Data" onClick="makeURLQual2V()"/>Share Data</button>
+		<div id="dataLink" ></div><iframe id="frmFile" style="display: none;"></iframe>
+		</div>		
+	</div>
+</div>
+
+<div class="container">
+	<input type="checkbox" id="headerMarginal" class="css-checkbox" onClick="marginals()">
+	<label for="headerMarginal" class="css-label">Marginals</label>
+	<div class="content css-content">
+	
+		Marginals: <select id="marginalsType" onchange="marginals();">
+		<option value="1" selectetd>Frequencies</option>
+		<option value="2" >Proportions</option>
+		<option value="3" >Row Proportions</option>
+		<option value="4" >Column Proportions</option>
+	</select>
+
+	
+	<div id="marginals" class="results outer">
+
+	</div>
+	</div>
+</div>
+
+<div class="container">
+	<h3>Charts</h3>
+	<div>
+		<input type="checkbox" id="headerBarCharts" class="css-checkbox" onClick="barCharts()">
+		<label for="headerBarCharts" class="css-label sub">Bar Charts</label>
+		<div class="content css-content">
+			<div class='options'>
+			<input type="checkbox" id="stacked" onclick="barCharts()"> Stacked Bars</br>
+			<input type="checkbox" id="proportions" onclick="barCharts()"> Proportions</br>
+			<input type="checkbox" id="barLegend" onclick="barCharts()" checked='true'> Legend
+			</div>
+			<div class="canvasdiv">
+			<canvas id="barCharts" width="490" height="300" class='zoomable'>
+				<p>Your browser doesn't support canvas. Please update your browser.</p>
+			</canvas>
+			<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'barCharts','barCharts.png');"></a>
+			</div>
+		</div>
+	</div>
+	<div>
+		<input type="checkbox" id="headerMosaicPlot" class="css-checkbox" onClick="mosaicPlot()">
+		<label for="headerMosaicPlot" class="css-label sub">Mosaic Plot</label>
+		<div class="content css-content">
+			<div class="canvasdiv">
+			<canvas id="mosaicPlot" width="490" height="300" class='zoomable'>
+				<p>Your browser doesn't support canvas. Please update your browser.</p>
+			</canvas>
+			<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'mosaicPlot','mosaicPlot.png');"></a>
+			</div>
+		</div>
+	</div>
+</div>
+<div class='container'>
+<h3>Statistical Inference</h3>
+
+<div id="commonHYP" class="content">
+	Significance Level (&alpha;, optional)
+	<input type="number" id="sigLevel" value="0.05" class="smallNumber" min="0" max="1" step=".01" onchange="propTest();chiSqIndep();propDiff();" />
+</div>
+<div>
+	<input type="checkbox" name="headerIndep" id="headerIndep" class="css-checkbox" onClick="chiSqIndep()">
+	<label for="headerIndep" class="css-label">Test for Independence</label>
+	<div class="content css-content">
+	<div id="independence" class="content">
+		<div id="indepOutput" class="results">
+		</div>
+	</div>
+	</div>
+</div>
+<div>
+	<input type="checkbox" name="headerPropTest" id="headerPropTest" class="css-checkbox" onClick="refreshPropTestColChoices(true);propTest()">
+	<label for="headerPropTest" class="css-label">Inference for Proportion Difference</label>
+	<div class="content css-content">
+		<div id="propTest" class="content">
+			Row to Test: <select id='rowPropSelect' onChange='propTest();'></select>
+			<table  border="0">
+				<tr><td>H<sub>0</sub>: &pi;<sub><select id='colASelect' onChange='refreshPropTestColChoices(false);refreshGrpNames();propTest();'></select></sub>-&pi;<sub><select id='colBSelect' onChange='refreshGrpNames();propTest();'></select></sub> </td><td>=</td><td> <input name="p0" type="number" id="p0" value="0" class="smallNumber" min="0" max="1" step="0.01" onchange="document.getElementById('p1').innerHTML=this.value;propTest();" /></td></tr>
+				<tr><td>H<sub>1</sub>: &pi;<sub id='colGrpA'>A</sub>-&pi;<sub id='colGrpB'>B</sub> </td>
+					<td><select id="hyppropIneq" onchange="propTest();">
+						<option value="l">&lt;</option>
+						<option value="g">&gt;</option>
+						<option value="ne" selected>&ne;</option>
+					</select></td>
+				<td id="p1">0</td></tr>
+			</table>
+			<div id="propTestOutput" class="results">
+			</div>
+		</div>
+	</div>
+</div>
+<div>
+	<input type="checkbox" name="headerProp" id="headerProp" class="css-checkbox" onClick="propDiff()">
+	<label for="headerProp" class="css-label">Test Correlated Proportions</label>
+	<div class="content css-content">
+		<div id="propDiff" class="content">
+			<div id="propDiffOutput" class="results">
+			</div>
+		</div>
+	</div>
+</div>
+<div>
+	<input type="checkbox" id="headerPerm" class="css-checkbox" onClick="propDiff()">
+	<label for="headerPerm" class="css-label">Permutations</label>
+	<div class="content css-content">
+		<div id="permutationContent" class="content">
+			 
+			
+			Number of Permutations: <input id='nPerms' type=number class='smallNumber' min=1 step=1 value=1> <button type='button' value='go!' onClick='recalcPermutations();'>go!</button><br>
+			<select id='permuteBy' onChange="refreshPermPropOptions();recalcPermutations()">
+				<option value='row'>Row</option>
+				<option value='col'>Column</option>
+			</select> Proportion to Observe:
+			<select id='permutationProportion' onChange='refreshPermutations()'>
+			</select>
+			<div id="permutationOutput" class="results" style='max-height:500px; overflow:auto;'>
+			</div>
+		</div>
+	</div>
+</div>
+</div>
+<form>
+</div>
+</body>
+</html>

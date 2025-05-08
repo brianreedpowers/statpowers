@@ -1,0 +1,11 @@
+OpenIntro Statistics colors
+Description
+These are the core colors used for the OpenIntro Statistics textbook. The blue, green, yellow, and red colors are also gray-scaled, meaning no changes are required when printing black and white copies.
+
+Usage
+COL
+Format
+A 7-by-4 matrix of 7 colors with four fading scales: blue, green, yellow, red, black, gray, and light gray.
+
+Source
+Colors selected by OpenIntro's in-house graphic designer, Meenal Patel.

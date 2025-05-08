@@ -1,0 +1,1616 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Spatial Statistics</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+		<link rel="stylesheet" type="text/css" href="styles/tln.min.css"/>
+		<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+		<script type="text/javascript" src="js/jstat.js"></script>
+		<script type="text/javascript" src="js/commonFunctions.js"></script>
+		<script type="text/javascript" src="js/chartFunctions.js"></script>
+		<script type="text/javascript" src="js/numeric-1.2.6.min.js"></script>
+		<script type="text/javascript" src="js/shapiro-wilk.js"></script>
+		<script type="text/javascript" src="js/tln.min.js"></script>
+		<script type="text/javascript" src="js/kriging.bp.js"></script>
+		<script type="text/javascript" src="js/papaparse.min.js"></script>
+		<script type="text/javascript" src="js/delaunator.min.js"></script>
+		<script type="text/javascript" src="js/polylabel.js"></script>
+		<script type="text/javascript" src="js/shp.js"></script>		
+		<script type="text/javascript" src="js/rhill-voronoi-core.min.js"></script>		
+		<script type="text/javascript" src="js/fmin.min.js"></script>		
+		<script language="javascript">
+			var debug=false
+			var data=[[],[],[]]
+			var zData = []
+			var xbar=0
+			var s=0
+			var distMatrix=[]
+			var dRankMatrix=[]
+			var W=[]
+			var nW=[]
+			var wSum
+			var drawShapeFile=false
+			var allVals=[]
+			var dataBounds=[]
+			var moransI
+			var moranImonteCarlo=[]
+
+			var shp;
+			var shapes = [] //a vector of SHAPES. Each one may be multiple polygons
+			var shapeBounds = []
+			var dataEntryChoice=0
+
+			//Creates a matrix of all variable data as entered (varMatrix)
+			function cleanData(set=dataEntryChoice){
+				var dataInput = document.getElementById("data"+set).value.trim().split(/[\n]+/)
+				if(debug)console.log(dataInput)
+				var n=dataInput.length
+				if(n==1 && dataInput[0]=="") n=0;
+				if(set==0) data=[[],[]]
+				if(set==1) data=[[],[],[]]
+				if(set==2) data=[]
+				dataString = ""
+				dataBounds=[Infinity,-Infinity, Infinity, -Infinity]
+				for(var i=0; i<n; i++){
+					var myRow = dataInput[i].trim().split(/[\s,;\t]+/)
+					if(set<2){
+						data[0][i]=+myRow[0]
+						data[1][i]=+(myRow.length>1?myRow[1]:0)
+						dataBounds[0]=Math.min(dataBounds[0],data[0][i])
+						dataBounds[1]=Math.max(dataBounds[1],data[0][i])
+						dataBounds[2]=Math.min(dataBounds[2],data[1][i])
+						dataBounds[3]=Math.max(dataBounds[3],data[1][i])
+						if(set==1) data[2][i]=(myRow.length>2?myRow[2]:0)
+						dataString += (i>0?"\n":"")+data[0][i]+"\t"+data[1][i]+(set==1?"\t"+data[2][i]:"")
+					}else if(set==2){
+						data[i]=myRow
+						dataString += (i>0?"\n":"")
+						for(var j=0; j<myRow.length; j++){
+							dataString+=(j>0?"\t":"")+data[i][j]
+						}
+					}
+				}
+				var categorical=false
+				var continuous=true
+				var allDiscrete = true
+				var allNumeric = true
+				if(set==1){
+					allVals=uniqueValues(data[2])
+					for(var i=0; i<allVals.length; i++){
+						if(!isNumeric(allVals[i])){
+							allNumeric=false
+							allDiscrete=false
+							break;
+						} else if (allVals[i] != Math.round(allVals[i])){
+							allDiscrete=false
+						}
+					}
+					if(allVals.length<3 || !allNumeric){
+						categorical=true
+						console.log("2 values only, categorical")
+						if(!allNumeric) continuous=false
+					}
+				} else if(set==2){
+					allVals=[]
+					for(var i=0; i<data.length; i++){
+						for(var j=0; j<data[i].length; j++){
+							allVals.push(data[i][j])
+						}
+					}
+					allVals=uniqueValues(allVals)					
+					if(allVals.length<3){
+						categorical=true
+						continuous=false
+					}
+				}
+//				console.log("Continuous: "+continuous)
+//				console.log("Categorical: "+categorical)
+//				console.log("Discrete: "+allDiscrete)
+//				console.log("allNumeric: "+allNumeric)
+
+				document.getElementById('varCont').disabled = !continuous
+				document.getElementById('varCat').disabled=!(allDiscrete || categorical)
+
+				if(!continuous) document.getElementById('varType').value=1
+				if(!(allDiscrete || categorical)) document.getElementById('varType').value=0
+				
+
+				var ripKOptions="<option value=-1>All</option>"
+				if(allDiscrete || categorical){
+					for(var i=0; i<allVals.length; i++){
+						ripKOptions +="<option value="+allVals[i]+">"+allVals[i]+"</option>"
+					}
+				}
+				document.getElementById('catRipleySelect').innerHTML=ripKOptions
+				document.getElementById('densitySelect').innerHTML=ripKOptions
+
+				if(continuous){
+			//		document.getElementById('varCont').disabled=false
+				//	document.getElementById('varType').value=0
+//					document.getElementById('catRipleySelect').innerHTML="<option value=-1>All</option>"
+//					document.getElementById('densitySelect').innerHTML="<option value=-1>All</option>"
+					document.getElementById('catRipley').style.display="none"
+				} else {
+				//	document.getElementById('varCont').disabled=true
+				//	document.getElementById('varCat').disabled=false
+				//	document.getElementById('varType').value=1
+					document.getElementById('catRipley').style.display="inline"
+					document.getElementById('spatialInterp').value="0"
+				}	
+				if(continuous){
+					document.getElementById('varType').value=0 
+				} else if(!continuous || allDiscrete) {
+					document.getElementById('varType').value=1
+				}
+				
+				
+				if(document.getElementById('varType')==1){
+					document.getElementById('InterpDiv').style.display="none"
+					document.getElementById('voronoiDiv').style.display="block"
+					
+				
+				} else {
+					document.getElementById('InterpDiv').style.display="block"					
+					document.getElementById('voronoiDiv').style.display="block"
+				
+				
+				}
+				showHidePanels()
+				
+				//if(allNumeric){
+				//	document.getElementById('varCont').disabled=false
+				//}
+				//if(allDiscrete){
+				//	document.getElementById('varCat').disabled=false
+				//}
+				refreshDensityOptions()
+				
+				document.getElementById('data'+set).value = dataString
+				if(set==1){
+					var vals=[]
+					for(var i=0; i<data[2].length; i++){vals.push(+data[2][i])}
+					xbar=jStat.mean(vals)
+					s=jStat.stdev(vals,true)
+//					console.log(xbar)
+//					console.log(s)
+					zData=[]
+					for(var i=0; i<n; i++){zData[i]=(data[2][i]-xbar)/s}
+				//	console.log(zData)
+				}
+			}
+			
+			function refreshDensityOptions(){
+				var ripKOptions="<option value=-1>All</option>"
+				if(document.getElementById('varType').value==0){
+					document.getElementById('CRampDiv').style.display="block"
+					document.getElementById('InterpDiv').style.display="block"
+				} else {
+					document.getElementById('CRampDiv').style.display="none"
+					document.getElementById('InterpDiv').style.display="none"
+					for(var i=0; i<allVals.length; i++){
+						ripKOptions +="<option value="+allVals[i]+">"+allVals[i]+"</option>"
+					}
+				}
+				document.getElementById('catRipleySelect').innerHTML=ripKOptions
+			}
+			
+			function nWeight(dist, method, param){
+				if(method=='bin'){
+					return 1;
+				} else if(method=='thresh'){
+					return (dist<=param?1:0)
+				} else if(method=='invD'){
+					return (1.0/Math.pow(+dist, +param))
+				} else {
+					return 0
+				}
+			}
+
+			function distance(x1,y1,x2,y2){
+				var distMethod=document.getElementById('distanceMode').value
+				var d=0
+				if(distMethod=='euc'){
+					d=Math.sqrt(Math.pow(x1-x2,2)+Math.pow(y1-y2,2))
+				} else if (distMethod=='queen'){
+					d=Math.max(Math.abs(x1-x2),Math.abs(y1-y2))
+				} else if (distMethod=='manh'){
+					d=Math.abs(x1-x2)+Math.abs(y1-y2)
+				} else if (distMethod=='hav'){
+					var R = 6371e3; // metres
+					var phi1 = y1 * Math.PI/180; // φ, λ in radians
+					var phi2 = y2 * Math.PI/180;
+					var deltaPhi = (y2-y1) * Math.PI/180;
+					var deltaLambda = (x2-x1) * Math.PI/180;
+					var a = Math.sin(deltaPhi/2) * Math.sin(deltaPhi/2) + Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda/2) * Math.sin(deltaLambda/2);
+					var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+					d = R * c; // in metres
+				}
+				return d
+			}
+
+			function createDistanceMatrix(data){
+				var DM=[]
+				var n=data[0].length
+				for(var i=0; i<n; i++){
+					DM[i]=[]
+					DM[i][i]=0
+					for(var j=0; j<n; j++){
+						if(i<j){
+							DM[i][j]=distance(data[0][i],data[1][i],data[0][j],data[1][j])
+						} else if (i>j){
+							DM[i][j]=DM[j][i]
+						}
+					}
+				}
+				return DM
+			}
+
+			function calcNeighborhoods(){
+				var n=data[0].length
+				var m=(dataEntryChoice==2?data.length:1)
+				var nn=n*m //n rows, m columns
+				distMatrix=[]
+				dRankMatrix=[]
+				nW=[]
+				W=[]
+//				if(dataEntryChoice<2){
+//				console.log("n="+n+" m="+m+" nn="+nn)
+				for(var i=0; i<nn; i++){
+					distMatrix[i]=[]
+					nW[i]=[]
+					W[i]=[]
+					distMatrix[i][i]=0
+					for(var j=0; j<nn; j++){nW[i][j]=0; W[i][j]=0}
+				}
+
+				for(var i=0; i<nn-1; i++){
+					for(var j=i+1; j<nn; j++){
+						if(dataEntryChoice<2){
+							distMatrix[i][j]=distance(data[0][i],data[1][i],data[0][j],data[1][j])
+						}else{
+							var y1=Math.floor(i/n), y2=Math.floor(j/n), x1=i%n, x2=j%n
+							
+							distMatrix[i][j]=distance(x1,y1,x2,y2)
+//							console.log(i+','+j+": "+x1+" " +y1+" to "+x2 + " "+y2+ " : "+distMatrix[i][j])
+							if(data[y1][x1]=="NA" || data[y2][x2]=='NA') distMatrix[i][j]=Infinity
+						}
+						distMatrix[j][i]=distMatrix[i][j]
+					}
+				}
+//				console.log(distMatrix)
+					
+				for(var i=0; i<nn; i++){
+					dRankMatrix[i]=jStat.rank(distMatrix[i])
+					dRankMatrix[i][i]=0
+				}
+
+
+//				console.log(distMatrix)
+//				console.log(dRankMatrix)
+
+				//Neighborhood graph
+				var nGraphType=document.getElementById('neighborGraph').value
+				var wMethod=document.getElementById('nWeightChoice').value
+				var wMethodParam=0
+				if(wMethod=='thresh') wMethodParam = +document.getElementById('d0').value
+				if(wMethod=='invD') wMethodParam = +document.getElementById('invDpow').value
+				var NN=0
+				if(nGraphType=='nn1') NN=1 //because to itself is 0
+				if(nGraphType=='nn2') NN=2
+				if(nGraphType=='nn3') NN=3
+				if(NN>0){
+					//console.log(dRanks)
+				
+					for(var i=0; i<nn; i++){
+						var sortedDRanks=sortArray(uniqueValues(dRankMatrix[i]))
+					
+						for(var j=0; j<nn; j++){
+							if(dRankMatrix[i][j]!=0 && dRankMatrix[i][j]<=sortedDRanks[NN] && !(j<i && dRankMatrix[j][i] <=sortedDRanks[NN])){
+								W[i][j]=nWeight(distMatrix[i][j], wMethod, wMethodParam)
+								W[j][i]=W[i][j]
+							}
+						}
+					}
+				} else if (nGraphType=="del"){
+					var points=[]
+					var pointIndices=[]
+					for(var i=0; i<nn; i++){
+						if(dataEntryChoice<2){
+							points.push([data[0][i],data[1][i]])
+						}  else {
+							var y1=Math.floor(i/n), x1=i%n
+							if(data[y1][x1]!="NA") {
+								points.push([x1,y1])
+								pointIndices.push(i)
+							}
+						}
+					}
+					var delaunay = Delaunator.from(points)
+					var triangles=delaunay.triangles
+					for(var i=0; i<triangles.length; i+=3){
+						var p0 = triangles[i];
+						var p1 = triangles[i + 1];
+						var p2 = triangles[i + 2];
+						if(dataEntryChoice==2){
+							p0=pointIndices[p0]
+							p1=pointIndices[p1]
+							p2=pointIndices[p2]
+						}
+						W[p0][p1] = nWeight(distMatrix[p0][p1], wMethod, wMethodParam)
+						W[p1][p2] = nWeight(distMatrix[p0][p1], wMethod, wMethodParam)
+						W[p0][p2] = nWeight(distMatrix[p0][p1], wMethod, wMethodParam)
+						W[p1][p0]=W[p0][p1]
+						W[p2][p1]=W[p1][p2]
+						W[p2][p0]=W[p0][p2]
+					}
+				} else if (nGraphType=='sph'){
+					var ptRad=[]
+					for(var i=0; i<nn; i++){
+						ptRad[i]=0
+						for(var j=0; j<nn; j++){
+							if(i!=j && (ptRad[i]==0 || distMatrix[i][j]< ptRad[i])){
+								ptRad[i]=distMatrix[i][j]
+							}
+						}
+					}
+					for(var i=0; i<nn-1; i++){
+						for(var j=i+1; j<nn; j++){
+							if(distMatrix[i][j]<=ptRad[i]+ptRad[j]){
+								W[i][j]=nWeight(distMatrix[i][j], wMethod, wMethodParam)
+								W[j][i]=W[i][j]
+							}
+						}
+					}
+				} else if (nGraphType=="gab"){
+					for(var i=0; i<nn-1; i++){
+						for(var j=i+1; j<nn; j++){
+							var drawIt=true
+							var y1=Math.floor(i/n), x1=i%n, y2=Math.floor(j/n), x2=j%n
+							if(dataEntryChoice<2){
+								x1=data[0][i]
+								y1=data[1][i]
+								x2=data[0][j]
+								y2=data[1][j]
+							}
+							var xMid=(x1+x2)/2
+							var yMid=(y1+y2)/2
+							var rMid=distMatrix[i][j]/2
+							for(var k=0; k<nn; k++){
+								if(k!=i && k!=j){
+									var x3=k%n, y3=Math.floor(k/n)
+									if(dataEntryChoice<2){
+										x3=data[0][k]
+										y3=data[1][k]
+									}
+									if(distance(xMid,yMid, x3,y3)/*Math.sqrt(Math.pow(data[0][k]-xMid,2)+Math.pow(data[1][k]-yMid,2))*/<rMid){
+										drawIt=false
+										k=nn;
+									}
+								}
+							}
+							if(drawIt){
+								W[i][j]=nWeight(distMatrix[i][j], wMethod, wMethodParam)
+								W[j][i]=W[i][j]
+							}
+						}
+					}
+				} else if(nGraphType=="rel"){
+					for(var i=0; i<nn-1; i++){
+						for(var j=i+1; j<nn; j++){
+							var drawIt=true
+							for(var k=0; k<nn; k++){
+								if(k!=i && k!=j){
+									if(distMatrix[i][j] > Math.max(distMatrix[i][k],distMatrix[j][k])){
+										drawIt=false
+										k=nn;
+									}
+								}
+							}
+							if(drawIt){
+								W[i][j]=nWeight(distMatrix[i][j], wMethod, wMethodParam)
+								W[j][i]=W[i][j]
+							}
+						}
+					}
+				} else if(nGraphType=='poly'){
+					for(var i=0; i<nn-1; i++){
+						var shapei=0
+						for(var ii=0; ii<shapeDataMap.length; ii++){
+							if(shapeDataMap[ii]==i){
+								shapei=ii
+								break
+							}
+						}
+						for(var j=i+1; j<nn; j++){
+							var shapej=0
+							for(var jj=0; jj<shapeDataMap.length; jj++){
+								if(shapeDataMap[jj]==j){
+									shapej=jj
+									break
+								}
+							}
+							var drawIt = shapeAdjacency[shapei][shapej]
+							if(drawIt){
+								W[i][j]=nWeight(distMatrix[i][j], wMethod, wMethodParam)
+								W[j][i]=W[i][j]
+							}					
+						
+						}
+					}
+				} else if(nGraphType=='all'){
+					for(var i=0; i<nn-1; i++){
+						for(var j=i+1; j<nn; j++){
+							W[i][j]=nWeight(distMatrix[i][j], wMethod, wMethodParam)
+							W[j][i]=W[i][j]
+						}
+					}
+				}
+				var rowSums = []
+				wSum=0
+				for(var i=0; i<nn; i++){
+					rowSums[i]=0
+					for(var j=0; j<nn; j++){
+						rowSums[i]+=W[i][j]
+						wSum+=W[i][j]
+					}
+				}
+				var sMethod=document.getElementById('weightStandard').value
+				for(var i=0; i<nn; i++){
+					for(var j=0; j<nn; j++){
+						if(sMethod=='line'){
+							nW[i][j] = W[i][j]*(1/rowSums[i])
+						} else if(sMethod=='global'){
+							nW[i][j] = W[i][j]*(n/wSum)
+						} else if(sMethod=='uniform'){
+							nW[i][j] = W[i][j]*(1/wSum)
+						} else if (sMethod=='variance'){
+						
+						} else if(sMethod=='none'){
+							nW[i][j]=W[i][j]
+						}
+					
+					}
+				}
+				wSum=0
+				for(var i=0; i<nn; i++){
+//					rowSums[i]=0
+					for(var j=0; j<nn; j++){
+	//					rowSums[i]+=W[i][j]
+						wSum+=nW[i][j]
+					}
+				}
+				
+				
+//				console.log(W)
+//				console.log(nW)
+				if(dataEntryChoice>0){
+//					if(document.getElementById('varType').value==0) moranPlot(zData, nW)
+					if(document.getElementById('varType').value==0) moranPlot(data[2], nW)
+					sampleStats(1)
+					if(document.getElementById('varType').value==0) autoCorrTests()
+					if(document.getElementById('varType').value==1){
+						bwTest()
+					}
+				} else if (dataEntryChoice==0){
+					NNZtest()
+				
+				}
+			}
+						
+			function computeStats(set, data){
+				var n=data.length
+				document.getElementById("stat_n"+set).innerHTML =  n  
+				if(!isFactor[set]){
+					data.sort(function(a, b){return a-b})
+					for(var i=0; i<n; i++) { data[i] = +data[i]; }
+					var fiveNumSummary = fiveNumSum(data)
+					document.getElementById("stat_xbar"+set).innerHTML = +(jStat.mean(data)).toFixed(precision)  
+					document.getElementById("stat_median"+set).innerHTML = +(fiveNumSummary[2]).toFixed(precision) 
+					dataMode = jStat.mode(data)
+					if(dataMode.length == n) {document.getElementById("stat_mode"+set).innerHTML = "none"}
+					else{ document.getElementById("stat_mode"+set).innerHTML = dataMode}
+					document.getElementById("stat_midrange"+set).innerHTML = +((jStat.max(data) + jStat.min(data))/2).toFixed(precision) 
+					document.getElementById("stat_min"+set).innerHTML = +(fiveNumSummary[0]).toFixed(precision) 
+					document.getElementById("stat_Q1"+set).innerHTML = +fiveNumSummary[1].toFixed(precision) 
+					document.getElementById("stat_Q3"+set).innerHTML = +fiveNumSummary[3].toFixed(precision) 
+					document.getElementById("stat_max"+set).innerHTML = +(fiveNumSummary[4]).toFixed(precision)  
+					document.getElementById("stat_range"+set).innerHTML = +jStat.range(data).toFixed(precision)  
+					document.getElementById("stat_IQR"+set).innerHTML = +(fiveNumSummary[3]-fiveNumSummary[1]).toFixed(precision) 
+					document.getElementById("stat_var"+set).innerHTML = +(jStat.variance(data,true)).toFixed(precision)  
+					document.getElementById("stat_s"+set).innerHTML = +(jStat.stdev(data,true)).toFixed(precision) 
+				} else {
+//					alert(set)
+//					alert(levels[set-1])
+//					alert(levels[set-1])
+					var mode = levels[set-1][0]
+					data = getColumn(set,false)
+					var freqs = []
+					var maxFreq = 0
+					var lvls= levels[set-1]
+					for(var k=0; k<lvls.length; k++){
+						freqs[k]=0
+						for(var j=0; j<data.length; j++){
+							if(data[j]==lvls[k]) freqs[k]++
+						}
+						if(freqs[k]>maxFreq) maxFreq = freqs[k]
+					}
+					var modes=""
+					var first = true
+					for(var k=0; k<lvls.length; k++){
+						if(freqs[k]==maxFreq){
+							modes += (first==true?"":", ")
+							modes += lvls[k]
+							first=false
+						}
+					}
+					document.getElementById("stat_mode"+set).innerHTML = modes
+				}
+			}
+			
+			function sampleStats(nSets) {
+			}
+			
+			function NNZtest(){
+				var n=data[0].length
+				console.log(dataBounds)
+				//If there is no border file
+				var w = distance(dataBounds[0],(dataBounds[2]+dataBounds[3])/2, dataBounds[1], (dataBounds[2]+dataBounds[3])/2)
+				var h = distance((dataBounds[0]+dataBounds[1])/2, dataBounds[2], (dataBounds[0]+dataBounds[1])/2,dataBounds[3])
+				var Area=w*h
+				var density = n/Area
+				var ED=1/(2*Math.sqrt(density))
+				var varD = (4-Math.PI)/(4*density*Math.PI)
+				
+				var nnDist=[]
+				for(var i=0; i<distMatrix.length; i++){
+					var minDist = Infinity
+					for(var j=0; j<distMatrix[i].length; j++){
+						if(i!=j && distMatrix[i][j]<minDist) minDist = distMatrix[i][j]
+					}
+					nnDist.push(minDist)
+				}
+				console.log(nnDist)
+				var dm=jStat.mean(nnDist)
+				
+				var z=(dm-ED)/Math.sqrt(varD)
+				
+				var outputString ="<strong>Clark-Evans Test</strong><br>"
+				outputString +="Density: "+density.toExponential(precision) + "<br>"
+				outputString +="H<sub>0</sub>: Points distributed randomly<br>"
+				outputString +="H<sub>A</sub>: Points are not distributed randomly<br>"
+				outputString +="mean Distance to NN: "+fixed(dm)+"<br>"
+				outputString +="Z="+fixed(z)+"<br>"
+				outputString +="<i>p</i>-value: "+fixed(2*jStat.normal.cdf(-Math.abs(z),0,1))
+				
+				document.getElementById('testResults').innerHTML=outputString
+				
+			
+			}
+			
+			function bwTest(){
+				var n=data[0].length
+				var m=(dataEntryChoice==2?data.length:1)
+				var nn=n*m //n rows, m columns
+				var J=0
+				var BB=0
+				var WW=0
+				var BW=0
+				var B=0
+				var Wcount=0
+				var sumL=0
+				var Wval=""
+				//console.l
+				for(var i=0; i<nn; i++){
+					var L=0
+					var nodeVal=(m==1?data[2][i]:data[Math.floor(i/n)][i%n])
+					if(Wval=='' && nodeVal!='NA') Wval=nodeVal
+
+					for(var j=0; j<nn; j++){
+						if(i!=j && W[i][j]>0){
+							L++
+							J++
+							var jVal=(m==1?data[2][j]:data[Math.floor(j/n)][j%n])
+							if(i<j && nodeVal!=jVal) BW++
+							if(i<j && nodeVal==Wval && jVal==Wval) WW++
+							if(i<j && nodeVal!=Wval && jVal!=Wval) BB++
+						}
+					}
+					sumL += L*(L-1)
+					if(nodeVal==Wval) Wcount++
+					if(nodeVal!=Wval && nodeVal!='NA') B++
+				}
+				J=J/2
+				//console.log(sumL)
+				//console.log("WW="+WW+" , BB="+BB)
+				var EBW=2*J*B*Wcount/(nn*(nn-1))
+				var X=sumL*B*Wcount/(nn*(nn-1))
+				var Y=4*(J*(J-1)-sumL)*B*(B-1)*Wcount*(Wcount-1)/(nn*(nn-1)*(nn-2)*(nn-3))
+				//console.log(X)
+				//console.log(Y)
+				var sigmaBW=Math.sqrt(EBW-Math.pow(EBW,2)+X+Y)
+				var Z=(BW-EBW)/sigmaBW
+				
+				var outputString = "<strong>Joint Count Test</strong><br>"
+				outputString += "H<sub>0</sub>: Neighbors differ randomly<br>"
+				outputString += "H<sub>A</sub>: There is significant spatial autocorrelation<br>"
+				outputString += "O<sub>BW</sub> = "+fixed(BW) + "<br>"
+				outputString += "E<sub>BW</sub> = "+fixed(EBW) + "<br>"
+				//outputString += "W = "+fixed(Wcount) + "<br>"
+				//outputString += "B = "+fixed(B) + "<br>"
+				//outputString += "J = "+fixed(J) + "<br>"
+				outputString += "&sigma;<sub>BW</sub> = "+fixed(sigmaBW) + "<br>"
+				outputString += "z = "+fixed(Z) + "<br>"
+				outputString += "<i>p</i>-value = "+fixed(2*jStat.normal.cdf(-Math.abs(Z),0,1))+"<br>"
+				document.getElementById('testResults').innerHTML=outputString
+			}
+			
+			function autoCorrTests(){
+				var n=zData.length
+				var Iw=0
+				var cw = 0
+				var zBar=jStat.mean(zData)
+				var vBar=jStat.mean(data[2])
+				var denom=0
+				for(var i=0; i<n; i++){
+					for(var j=0; j<n; j++){
+						if(i!=j){
+							Iw += nW[i][j]*(data[2][i]-vBar)*(data[2][j]-vBar)
+							cw += nW[i][j]*Math.pow(data[2][i]-data[2][j],2)
+						}
+					}
+					denom+=Math.pow(data[2][i]-vBar,2)
+				}
+				Iw *= n/(wSum * denom)
+				cw *= (n-1)/(2*wSum*denom)
+			
+//				console.log("Morans I:"+Iw + ",Geary's C:" + cw)
+
+/*				var y=[]
+				for(var i=0; i<n; i++){
+					var yVal=0
+					var wRow=0
+					for(var j=0; j<n; j++){
+						yVal +=nW[i][j]*zData[j]
+//						wRow+=nW[i][j]
+					}
+					y.push(yVal)
+				}
+				var moranI= jStat.corrcoeff(zData,y)*jStat.stdev(y,true)/jStat.stdev(zData,true)*/
+//				console.log("Slope = "+moranI)
+				
+
+
+				//var varIw=0, varcw=0
+				var EIw=-1/(n-1)
+				var EIc=1
+				//var assumption='permutation'
+				//if(assumption=='permutation'){
+					var S1=0, S2=0, S3=0, S4=0, S5=0, S6=0
+					var numS3=0, denomS3=0
+					for(var i=0; i<n; i++){
+						var tS2=0
+						for(var j=0; j<n; j++){
+							S1+=.5*Math.pow(nW[i][j]+nW[j][i],2)
+							tS2 += nW[i][j]+nW[j][i]
+						}
+						numS3+=Math.pow(data[2][i]-vBar,4)
+						denomS3 += Math.pow(data[2][i]-vBar,2)
+						S2 += Math.pow(tS2,2)
+					}
+					S3 = n*numS3/Math.pow(denomS3,2)
+					S4 = (n*n - 3*n + 3)*S1 - n*S2+3*wSum*wSum
+					S5 = (n*n-n)*S1-2*n*S2+6*wSum*wSum
+					var varIw=(n*S4-S3*S5)/((n-1)*(n-2)*(n-3)*Math.pow(wSum,2))-Math.pow(EIw,2)
+					//console.log(varIw)
+					//console.log(S1+" "+S2+" "+S3+" "+S4+" "+S5)
+					var varcw=((n-1)*S1*(n*n-3*n+3-(n-1)*S3) - .25*(n-1)*S2*(n*n+3*n-6-(n*n-n+2)*S3) +wSum*wSum*(n*n-3-(n-1)*(n-1)*S3))/(n*(n-2)*(n-3)*wSum*wSum)
+
+					var varIwN=(n*n*S1-n*S2+3*wSum*wSum)/((n*n-1)*wSum*wSum)
+					var varcwN=((2*S1+S2)*(n-1)-4*wSum*wSum)/(2*(n+1)*wSum*wSum)
+				
+				/*				for(var i=0; i<n; i++){
+					for(var j=0; j<n; j++){
+						if(i!=j){
+							Iw += W[i][j]*(zData[i]-zBar)*(zData[j]-zBar)
+							cw += W[i][j]*Math.pow(zData[i]-zData[j],2)
+						}
+					}
+					denom+=Math.pow(zData[i]-zBar,2)
+				}
+				Iw *= n/(wSum * denom)
+				cw *= (n-1)/(2*wSum*denom)
+			
+				console.log(Iw + " " + cw)
+
+				var varIw=0, varcw=0
+				var EIw=-1/(n-1)
+				var assumption='permutation'
+				if(assumption=='permutation'){
+					var S1=0, S2=0, S3=0, S4=0, S5=0, S6=0
+					var numS3=0, denomS3=0
+					for(var i=0; i<n; i++){
+						var tS2=0
+						for(var j=0; j<n; j++){
+							S1+=.5*Math.pow(W[i][j]+W[j][i],2)
+							tS2 += W[i][j]+W[j][i]
+						}
+						numS3+=Math.pow(zData[i]-zBar,4)
+						denomS3 += Math.pow(zData[i]-zBar,2)
+						S2 += Math.pow(tS2,2)
+					}
+					S3 = n*numS3/Math.pow(denomS3,2)
+					S4 = (n*n - 3*n + 3)*S1 - n*S2+3*wSum*wSum
+					S5 = (n*n-n)*S1-2*n*S2+6*wSum*wSum
+					varIw=(n*S4-S3*S5)/((n-1)*(n-2)*(n-3)*wSum*wSum)-EIw*EIw
+					console.log(varIw)
+					console.log(S1+" "+S2+" "+S3+" "+S4+" "+S5)
+					varcw=((n-1)*S1*(n*n-3*n+3-(n-1)*S3) - .25*(n-1)*S2*(n*n+3*n-6-(n*n-n+2)*S3) +wSum*wSum*(n*n-3-(n-1)*(n-1)*S3))/(n*(n-2)*(n-3)*wSum*wSum)
+				} else {//assumption is normality
+					varIw=(n*n*S1-n*S2+3*sumW*sumW)/((n*n-1)*sumW*sumW)
+					varcw=((2*S1+S2)*(n-1)-4*sumW*sumW)/(2*(n+1)*sumW*sumW)
+				}*/
+//				console.log("Moran I: "+Iw + "Exp: "+EIw+" Var:"+varIw)
+				var moranZ=(Iw-EIw)/Math.sqrt(varIw)
+				var gearyZ=(cw-EIc)/Math.sqrt(varcw)
+				var moranZN=(Iw-EIw)/Math.sqrt(varIwN)
+				var gearyZN=(cw-EIc)/Math.sqrt(varcwN)
+//				console.log("moran z = "+moranZ)
+//				console.log("geary z = "+gearyZ)
+
+
+//				console.log(moranImonteCarlo)
+
+				var Nextreme=0
+				for(var i=0; i<moranImonteCarlo.length; i++){
+					if(Math.abs(moranImonteCarlo[i])>=Math.abs(moransI)) 	Nextreme++
+				}
+				var pseudoP=(Nextreme+1)/(moranImonteCarlo.length+1)
+
+
+				var outputString = "<strong>Moran's Index</strong><br>"
+				outputString +="Moran's I = "+fixed(moransI)+"<br>"
+				outputString +="Monte Carlo Significance: 2-sided pseudo <i>p</i>-value="+fixed(pseudoP)+"<br><hr>"
+				outputString += "H<sub>0</sub>: Neighbors do not significantly covary<br>"
+				outputString += "H<sub>A</sub>: There is significant spatial autocorrelation<br>"
+				outputString += "I<sub>W</sub> = "+fixed(Iw) + "<br>"
+				outputString += "<table><tr><th></th><th>Randomization<br>Assumption</th><th>Normal<br>Assumption</th></tr>"
+				outputString += "<tr><th>Expectation</th><td>"+fixed(EIw)+"</td><td>"+fixed(EIw)+"</td></tr>"
+				outputString += "<tr><th>Std Dev</th><td>"+fixed(Math.sqrt(varIw))+"</td><td>"+fixed(Math.sqrt(varIwN))+"</td></tr>"
+				outputString += "<tr><th>Z</th><td>"+fixed(moranZ)+"</td><td>"+fixed(moranZN)+"</td></tr>"
+				outputString += "<tr><th><i>p</i>-value</th><td>"+fixed(2*jStat.normal.cdf(-Math.abs(moranZ),0,1))+"</td><td>"+fixed(fixed(2*jStat.normal.cdf(-Math.abs(moranZN),0,1)))+"</td></tr></table>"
+			
+				outputString += "<br>"
+				outputString += "<strong>Geary's Index</strong><br>"
+				outputString += "H<sub>0</sub>: Difference between neighbors has no significant pattern<br>"
+				outputString += "H<sub>A</sub>: There is significant spatial autocorrelation<br>"
+				outputString += "c<sub>W</sub> = "+fixed(cw) + "<br>"
+				outputString += "<table><tr><th></th><th>Randomization<br>Assumption</th><th>Normal<br>Assumption</th></tr>"
+				outputString += "<tr><th>Expectation</th><td>"+fixed(EIc)+"</td><td>"+fixed(EIc)+"</td></tr>"
+				outputString += "<tr><th>Std Dev</th><td>"+fixed(Math.sqrt(varcw))+"</td><td>"+fixed(Math.sqrt(varcwN))+"</td></tr>"
+				outputString += "<tr><th>Z</th><td>"+fixed(gearyZ)+"</td><td>"+fixed(gearyZN)+"</td></tr>"
+				outputString += "<tr><th><i>p</i>-value</th><td>"+fixed(2*jStat.normal.cdf(-Math.abs(gearyZ),0,1))+"</td><td>"+fixed(fixed(2*jStat.normal.cdf(-Math.abs(gearyZN),0,1)))+"</td></tr></table>"
+				
+				document.getElementById('testResults').innerHTML=outputString
+			}
+					
+			function refresh(){
+		//	console.log("refresh!")
+				if(exists('precision')) setPrecision(document.getElementById('precision').value)
+				if(debug) console.log("cleaning data...")
+				cleanData()
+				if(debug) console.log("calculating neighborhoods...")
+				calcNeighborhoods() //will also refresh moran plot & cacl sample stats
+				switchTabs(dataEntryChoice)
+				if(data[0].length>0){
+					spatialPlot(data)
+					if(dataEntryChoice>0) semiVariogram(data, 'semiVariogram',dataEntryChoice==2)
+				}
+//				sampleStats(1)
+				if(dataEntryChoice<2) ripleysK(data)
+			} 
+								
+			function OnInput() {
+				this.style.height = 'auto';
+				this.style.height = (this.scrollHeight) + 'px';
+			}
+			
+			function share(){
+				var myURL = window.location.href.split('?')[0];
+				myURL = myURL.split('#')[0]
+				var i=dataEntryChoice
+				myURL+="?"
+				if(exists("name"+i)) myURL+="name"+i+"="+encode(document.getElementById("name"+i).value)
+				var dataField=document.getElementById("data"+i).value
+				myURL+="&data"+i+"="+encode(dataField)	
+				myURL+="&tab="+i
+				getTinyURL(myURL)
+			}
+
+			function buildDataTableFromURL(){
+				for(var i=0; i<=2; i++){
+					if(getQueryVariable("name"+i)!=null){
+						if(exists('name'+i)) document.getElementById("name"+i).value=decode(getQueryVariable("name"+i));
+					}
+					if(getQueryVariable("data"+i)!=null)
+						document.getElementById("data"+i).value=decode(getQueryVariable("data"+i));					
+				}
+				if(getQueryVariable('tab')!=null){
+					dataEntryChoice=+decode(getQueryVariable('tab'));					
+					document.getElementById('which'+dataEntryChoice).checked=true
+				}
+				//cleanData(dataEntryChoice)
+				switchTabs(dataEntryChoice)
+			}
+			
+			function handleTab(){
+				if(event.keyCode===9){var v=this.value,s=this.selectionStart,e=this.selectionEnd;this.value=v.substring(0, s)+'\t'+v.substring(e);this.selectionStart=this.selectionEnd=s+1;return false;}
+			}
+			
+			function startup(){
+				TLN.append_line_numbers('data0');
+				enableTab('data0');
+				TLN.append_line_numbers('data1');
+				enableTab('data1');
+				TLN.append_line_numbers('data2');
+				enableTab('data2');
+				switchTabs(0)
+				buildDataTableFromURL();
+				loadPrecision();
+				loadColorChoice();
+				linkMenu();
+				setColors();
+				createRampOptions();
+				showHidePanels();
+			}
+			
+			function createRampOptions(){
+				var style=document.createElement('style');
+				var optionString =""
+				var selectOptions=""
+				for(var i=0; i<ramps.length; i++){
+					selectOptions+="<option value='"+i+"'>Gradient "+i+"</option>"
+					optionString +=".gradient"+i+" {background: linear-gradient(90deg, "
+					for(var j=0; j<ramps[i].length; j++){
+						if(j>0) optionString += ", "
+						optionString +="rgba("+ramps[i][j][0]+","+ramps[i][j][1]+","+ramps[i][j][2]+",1) "+Math.round(100*j/(ramps[i].length-1))+"%"
+					}
+					optionString +=");}\n"
+				}
+				style.innerHTML=optionString;
+				document.head.appendChild(style);
+							
+				document.getElementById('colorRampChoice').innerHTML=selectOptions
+			}			
+			
+			function refreshData(){
+			//	cleanData()
+				refresh()
+			}
+			
+			function rebuildInterpOptions(){
+				var option = +document.getElementById('spatialInterp').value
+				var optionString = ""
+				if(option==1){
+					optionString +="Power: <input type=number class='tinyNumber' id='idwPower' value=2 onChange='spatialPlot(data);'>"
+					optionString +="N: <input type=number id='idwN' class='tinyNumber' placeholder='all' step=1 min=1 onChange='spatialPlot(data);'><br>"				
+				} else if(option==2){
+					optionString +="Model: <select id='krigingModel' onChange='semiVariogram(data,'semiVariogram',dataEntryChoice==2;spatialPlot(data);'>"
+					optionString +="<option value='exponential'>Exponential</option>"
+					optionString +="<option value='spherical'>Spherical</option>"
+					optionString +="<option value='gaussian'>Gaussian</option>"
+					optionString +="</select>"
+				}
+			
+				document.getElementById('interpOptions').innerHTML=optionString
+			}
+			
+			function displaySpan(spanID, showIt){
+				document.getElementById(spanID).style.display=(showIt?'inline':'none')
+			}
+			
+			function updateGradient(){
+				document.getElementById('gradientPreview').className='gradient'+document.getElementById('colorRampChoice').value
+			}
+			
+			function switchTabs(num){
+				for(var i=0; i<3; i++) {
+					if(document.getElementById('which'+i).checked) dataEntryChoice=i
+					document.getElementById('dataEntry'+i).style.display=(i==num?'block':'none')
+				}
+//				console.log(dataEntryChoice)
+				if(dataEntryChoice==0){
+					displayCRamp('none');
+					displayInterp('none');
+					displayVoronoi('block')
+				} else if(dataEntryChoice==1){
+					displayCRamp('block')
+					displayInterp('block')
+					displayVoronoi('block')
+				} else if(dataEntryChoice==2){
+					displayCRamp('block')
+					displayInterp('none')
+					displayVoronoi('none')
+				}
+				showHidePanels();
+				
+			}
+			
+			function displayCRamp(dispStyle){
+				document.getElementById('CRampDiv').style.display=dispStyle
+			}
+			
+			function displayInterp(dispStyle){
+				document.getElementById('InterpDiv').style.display=dispStyle			
+			}
+
+			function displayVoronoi(dispStyle){
+				document.getElementById('voronoiDiv').style.display=dispStyle			
+			}
+
+			
+function shpLoad(sh) {
+	shp = sh;
+	processShape();
+	calculatePolyCentroids();
+	calculatePolyAdjacency(.0000001)
+	refresh()
+}
+
+var shapeCenters
+var shapeDataMap
+var shapeAdjacency
+
+function calculatePolyCentroids(){
+	shapeCenters=[]
+	//console.log(shapes.length)
+	//console.log(shapes[0])
+	//
+	shapeDataMap=[]
+	for(var i=0; i<shapes.length; i++){
+		shapeDataMap[i]=-1
+		shapeCenters[i]=polylabel(shapes[i],)
+	//	console.log(polylabel(shapes[i]))
+	}
+	var shapeMatches=[]
+	for(var i=0; i<data[0].length; i++){
+		shapeMatches[i]=false
+		var closestShape=[-1,Infinity]
+		for(var k=0; k<shapeCenters.length; k++){
+			if(shapeMatches[i]==false){
+				var d=Math.sqrt(Math.pow(shapeCenters[k][0]-data[0][i],2)+Math.pow(shapeCenters[k][1]-data[1][i],2))
+				if(d<closestShape[1])	closestShape=[k,d]
+			}
+		}
+		shapeDataMap[closestShape[0]]=i
+		shapeMatches[closestShape[0]]=true
+	}
+	console.log(shapeCenters)
+//	console.log(shapeDataMap)
+}
+
+function calculatePolyAdjacency(tol=.001){
+	console.log(rectangleIntersect([0,2,1,5],[1,3,2,4]))
+	shapeAdjacency=[]
+	for(var i=0; i<shapes.length; i++){
+		shapeAdjacency[i]=[]
+		for(var j=0; j<=i; j++){
+			shapeAdjacency[i][j]=(i==j?0:-1)
+			if(!rectangleIntersect(shapeBounds[i], shapeBounds[j])) shapeAdjacency[i][j]=0
+			if(!rectangleIntersect(shapeBounds[i], dataBounds)) shapeAdjacency[i][j]=0
+			if(!rectangleIntersect(shapeBounds[j], dataBounds)) shapeAdjacency[i][j]=0
+		}
+	}
+//	console.log(shapeAdjacency)
+//	for(var i=0; i<1; i++){
+//console.log(dataBounds)
+	for(var i=0; i<shapes.length; i++){
+		for(var j=0; j<=i ; j++){
+			//console.log('checking '+i+" "+j)
+			if(shapeAdjacency[i][j]==-1){
+
+				//Method1 --------------------------------------------------
+				for(var ii=0; ii<shapes[i].length&& shapeAdjacency[i][j]==-1; ii++){
+				for(var k=0; k<shapes[i][ii].length&& shapeAdjacency[i][j]==-1; k+=2){
+					for(var jj=0; jj<shapes[j].length&& shapeAdjacency[i][j]==-1;jj++){
+					for(var l=0; l<shapes[j][jj].length&& shapeAdjacency[i][j]==-1; l++){
+						var d1=Math.sqrt(Math.pow(shapes[i][ii][k][0]-shapes[j][jj][l][0],2)+Math.pow(shapes[i][ii][k][1]-shapes[j][jj][l][1],2))
+						if(d1<=tol){
+							for(pmi=-1; pmi<=1 && shapeAdjacency[i][j]==-1; pmi+=2){
+							for(pmj=-1; pmj<=1 && shapeAdjacency[i][j]==-1; pmj+=2){
+								if(k+pmi>=0 && l+pmj>=0 && k+pmi<shapes[i][ii].length && l+pmj<shapes[j][jj].length){
+									var d2= Math.sqrt(Math.pow(shapes[i][ii][k+pmi][0]-shapes[j][jj][l+pmj][0],2)+Math.pow(shapes[i][ii][k+pmi][1]-shapes[j][jj][l+pmj][1],2))
+									if(d2<=tol){ 
+										shapeAdjacency[i][j]=1
+									}
+								}
+							}
+							}
+						
+						}
+					}
+					}
+				}
+				}
+				
+				//Methods 2-----------------------------------------------------------------------------
+/*				for(var ii=0; ii<shapes[i].length && shapeAdjacency[i][j]<=-1; ii++){
+				for(var k=0; k<shapes[i][ii].length && shapeAdjacency[i][j]<=-1; k++){
+					for(var jj=0; jj<shapes[j].length&& shapeAdjacency[i][j]<=-1;jj++){
+					for(var l=0; l<shapes[j][jj].length&&shapeAdjacency[i][j]<=-1; l++){
+						var d1=Math.sqrt(Math.pow(shapes[i][ii][k][0]-shapes[j][jj][l][0],2)+Math.pow(shapes[i][ii][k][1]-shapes[j][jj][l][1],2))
+						if(d1<tol){
+							shapeAdjacency[i][j]--
+							if(shapeAdjacency[i][j]<-3) shapeAdjacency[i][j]=1
+						}
+					}
+					}
+				}
+				}*/
+				
+			}
+			if(shapeAdjacency[i][j]==-1) shapeAdjacency[i][j]=0
+		}
+	}
+	for(var i=0; i<shapes.length; i++){
+		for(var j=0; j<=i; j++){
+			shapeAdjacency[j][i]=shapeAdjacency[i][j]
+		}
+	}
+//	console.log(shapeAdjacency)
+}
+	
+function parseLocalShapeFile(){
+	if (!document.getElementById("files").files.length){
+		alert("Please choose a shapefile to load.");
+		return;
+	}
+	SHPParser.loadlocal(document.getElementById("files").files[0], shpLoad, shpLoadError)	 
+}
+
+var boundaryCoords=[]
+
+function pinv(A) {
+	if(numeric.det(A)==0) {
+		return false
+	} else {
+		return numeric.inv(A)
+	}
+	peekAtData(A)
+	//var inv = numeric.inv(A)
+	//peekAtData(inv)
+	//if (inv) return inv; else 
+	//return numeric.dot(numeric.inv(numeric.dot(numeric.transpose(A),A)),numeric.transpose(A));
+}
+
+
+function parseLocalFile(){
+	if(!document.getElementById('filesBound').files.length){
+		alert("Please select a shapefile or csv containing boundary coordinates.");
+		return;
+	}
+	var fileName = document.getElementById('filesBound').files[0]['name']
+	var fileExt = fileName.split('.').pop()
+	if(fileExt=="csv"){
+		boundaryCoords=[]
+		parseFile(document.getElementById("filesBound").files[0], boundaryCoords)
+	}
+}
+
+function parseFile(localFile, bounds){
+	if(debug)console.log("parsing CSV")
+	Papa.parse(localFile,{
+		header: false,
+		download: true,
+		skipEmptyLines: true,
+		complete: function(results){
+			boundaryCoords=results.data;
+			var boundaryHeaders=0
+			var minY=Infinity, minYIndex=-1
+	//		console.log(boundaryCoords)
+			for(var i=0; i<boundaryCoords.length; i++){
+				if(!isNumeric(boundaryCoords[i][0]) || !isNumeric(boundaryCoords[i][1])) {
+					boundaryHeaders = i+1;
+				}else{
+//					console.log("index "+i+" numeric coordinates")
+					boundaryCoords[i][0]=parseFloat(boundaryCoords[i][0])
+					boundaryCoords[i][1]=parseFloat(boundaryCoords[i][1])
+	//				console.log("compare "+boundaryCoords[i][1] + " <= " + minY)
+					
+					if(boundaryCoords[i][1] < minY || boundaryCoords[i][1] == minY&& boundaryCoords[i][0] < boundaryCoords[minYIndex][0]){
+						//minX = boundaryCoords[i][0]
+						minY = boundaryCoords[i][1]
+						minYIndex=i
+	//					console.log("min Y = "+minY + " @ index "+minYIndex)
+					}
+				}
+			}
+			console.log(boundaryCoords)
+			console.log(minY + " " +minYIndex)
+			boundaryCoords=boundaryCoords.slice(boundaryHeaders)
+			minYIndex -= boundaryHeaders
+			var vN = boundaryCoords.length
+			//reverse if they are in clockwise order
+			var AB = [boundaryCoords[minYIndex][0]-boundaryCoords[(minYIndex-1)%boundaryCoords.length][0], boundaryCoords[minYIndex][1]-boundaryCoords[(minYIndex-1)%boundaryCoords.length][1]]
+			var AC = [boundaryCoords[(minYIndex+1)%boundaryCoords.length][0]-boundaryCoords[minYIndex][0], boundaryCoords[(minYIndex+1)%boundaryCoords.length][1]-boundaryCoords[minYIndex][1]]
+			var counterClockwise = AB[0]*AC[1]-AB[1]*AC[0] <0
+	//		console.log(counterClockwise)
+			if(counterClockwise){
+				for(var i=0; i<vN/2; i++){
+					var tempX = boundaryCoords[vN-i-1][0]
+					var tempY = boundaryCoords[vN-i-1][1]
+					boundaryCoords[vN-i-1][0]=boundaryCoords[i][0]
+					boundaryCoords[vN-i-1][1]=boundaryCoords[i][1]
+					boundaryCoords[i][0]=tempX
+					boundaryCoords[i][1]=tempY
+				}
+			}
+			
+			
+//			console.log(boundaryCoords)
+			refresh()
+		}	
+	});
+	
+	if(debug) console.log("done parsing")
+	
+}
+
+function inside(x,y, vs) {
+    // ray-casting algorithm based on
+    // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html/pnpoly.html
+    var inside = false;
+    for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        var xi = vs[i][0], yi = vs[i][1];
+        var xj = vs[j][0], yj = vs[j][1];
+        var intersect = ((yi > y) != (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+};
+
+function processShape() {
+	shapes=[]
+	shapeBounds=[]
+	for (var i = 0; i < shp.records.length; i++) {
+		var shape = shp.records[i].shape;
+//		if(inBounds(shape)){
+			shapeBounds.push(extractBounds(shape))
+			shapes.push(extractPolys(shape))
+//		}
+	}
+	drawShapeFile=true
+	//drawShapes(shapes)
+}			
+			
+function inBounds(boundingRect){
+	return rectangleIntersect(boundingRect, [xBounds[0], xBounds[1], yBounds[0],yBounds[1]])
+}		
+
+function rectangleIntersect(rect1, rect2){
+	var inBounds=false
+//	return true
+	inBounds = !(rect1[0] > rect2[1] || 
+	rect1[1] < rect2[0] || 
+	rect1[2] > rect2[3] ||
+	rect1[3] < rect2[2]);
+	return inBounds
+}
+
+
+function tpt(x,y){
+	var coords=[0,0]
+	coords[0]=(x-xBounds[0])/(xBounds[1]-xBounds[0])*(xRender[1]-xRender[0])+xRender[0]
+	coords[1]=-(y-yBounds[0])/(yBounds[1]-yBounds[0])*(yRender[1]-yRender[0])+yRender[1]
+	return (coords)
+}	
+
+
+function showHidePanels(){
+	document.getElementById('ripleyPanel').style.display=(dataEntryChoice<2?"block":"none")		
+
+	if(dataEntryChoice==0){
+		document.getElementById('variogramPanel').style.display="none"
+		document.getElementById('moranPanel').style.display="none"
+		document.getElementById('densityDiv').style.display="block"		
+		document.getElementById('densitySelect').value=-1
+		document.getElementById('densitySelect').style.display="none"
+		
+	} else if (dataEntryChoice==1){
+		var varCat = document.getElementById('varType').value==1
+		
+		document.getElementById('variogramPanel').style.display="block"
+		document.getElementById('moranPanel').style.display="block"
+	//	document.getElementById('densityDiv').style.display=(varCat?"block":"none")		
+		document.getElementById('densitySelect').style.display="inline"
+		if(!varCat){
+			document.getElementById('densityCheckbox').checked=false
+//			document.getElementById('varCont').disabled=false
+//			document.getElementById('varCat').disabled=true
+//			document.getElementById('varType').value=0
+			document.getElementById('catRipleySelect').innerHTML="<option value=-1>All</option>"
+			document.getElementById('densitySelect').innerHTML="<option value=-1>All</option>"
+			document.getElementById('catRipley').style.display="none"
+			document.getElementById('InterpDiv').style.display="block"
+		} else {
+//			document.getElementById('varCont').disabled=true
+//			document.getElementById('varCat').disabled=false
+//			document.getElementById('varType').value=1
+			var ripKOptions="<option value=-1>All</option>"
+			for(var i=0; i<allVals.length; i++){
+				ripKOptions +="<option value="+allVals[i]+">"+allVals[i]+"</option>"
+			}
+			document.getElementById('catRipleySelect').innerHTML=ripKOptions
+			document.getElementById('densitySelect').innerHTML=ripKOptions
+			document.getElementById('catRipley').style.display="inline"
+			document.getElementById('InterpDiv').style.display="none"
+			document.getElementById('spatialInterp').value="0"
+			document.getElementById('moranPanel').style.display="none"
+			document.getElementById('variogramPanel').style.display="none"			
+		}
+	
+	} else if (dataEntryChoice==2){
+		document.getElementById('densityDiv').style.display="none"		
+		document.getElementById('variogramPanel').style.display="block"
+	
+	
+	
+	}
+
+
+
+}
+
+var predictPoint=[];
+
+function getMousePosition(canvas, event) {
+			if(!chartParamsSet)return false
+//console.log(xRender)
+//console.log(yRender)
+            let rect = canvas.getBoundingClientRect();
+    scaleX = canvas.width / rect.width,    // relationship bitmap vs. element for x
+    scaleY = canvas.height / rect.height;  // relationship bitmap vs. element for y
+            let x = (event.clientX - rect.left)*scaleX;
+            let y = (event.clientY - rect.top)*scaleY;
+
+//            console.log("x: " + (x) +  
+//                        " y: " + (y));
+			if(x<spatialPlotParameters[6] || x>spatialPlotParameters[4]+spatialPlotParameters[6] || 
+			   y<spatialPlotParameters[7] || y>spatialPlotParameters[5]+spatialPlotParameters[7]){
+//				console.log("out of bounds")
+				predictPoint=[]
+			}else {
+ //           console.log("Coordinate x: " + untx(x), 
+ //                       "Coordinate y: " + unty(y));
+				predictPoint = [untx(x),unty(y)]
+				predictionPaused=true
+				document.getElementById('predictX').value = predictPoint[0]
+				document.getElementById('predictY').value = predictPoint[1]				
+				predictionPaused=false
+			}
+			spatialPlot(data);
+			refreshPrediction()
+        }
+		
+		var predictionPaused=false
+		var predictedDensity=0
+		var predictedValue=0
+		var spatialPrediction=true
+function refreshPrediction(){
+	if(predictionPaused) return false
+	if(!document.getElementById('densityCheckbox').checked) predictedDensity=0
+	var outputString = ""
+	outputString += "Relative Density: "+fixed(predictedDensity)+"<br>\n"
+	outputString += "Predicted Value: "+fixed(predictedValue)+"<br>\n"
+
+
+		document.getElementById('predictionValue').innerHTML=outputString
+	}
+	
+			
+		</script>
+		<style>
+		.hideRows tbody{
+			display:none;
+		}
+		
+		.invisCheck{
+			/*display:None;*/
+		}
+		.invisCheck:checked + .strikeThroughLabel{
+			text-decoration: none;
+		}
+		.invisCheck + .strikeThroughLabel{
+			text-decoration: line-through;
+		}
+		radio[disabled] {color:#EEE;}
+		
+		:checked + span {font-style: italic; color: #999;}
+		.baseline { font-style: italic; color: #999;}
+				
+		.blackBorder{border: 1px solid black;}
+		
+		.collapse{border-collapse: collapse;}
+		
+		</style>
+	</head>
+	
+	<body onload="startup();">
+		<div id="container">
+			<div id="title" onClick="setColors()">StatPowers</div>
+			<div id="menu"></div>
+			<form name="form1">
+				<div class="container" >
+					<input type="checkbox" checked name="headerDataEntry" id="headerDataEntry" class="css-checkbox">
+					<label for="headerDataEntry" class="css-label">Data Entry</label>
+					
+						<div id="whichDataEntry">
+							<div class="radio-toolbar threeacross">
+								
+								<input type="radio" name="which" id="which0" checked onClick="switchTabs(0);"><label for="which0">Points
+								</label>
+								
+								<input type="radio" name="which" id = "which1" onClick="switchTabs(1);"><label for="which1">Points+Values
+								</label>
+								
+								<input type="radio" name="which" id="which2" onClick="switchTabs(2);"><label for="which2">Raster
+								</label>
+								
+							</div>
+						</div>
+					<div class="content css-content">
+						<div style="width:100%; box-sizing:border-box;" id='dataEntry0'>
+							<div style="max-height:500px; width:100%; overflow:auto;">
+								<div id="varnames" style="position:relative;height:10px;">
+									<span style="position:absolute; left:49px; width:200px;"/>X</span>
+									<span style="position:absolute; left:249px; width:200px;" />Y</span>
+								</div>
+								<div id="wrapper">
+									<textarea id="data0" class="fauxTable niceCols grid twocol" rows=10 cols=30 onkeydown="handleTab()" onchange="refreshData()"></textarea>
+								</div>
+							</div>
+						</div>					
+						<div style="width:100%; box-sizing:border-box;display:none;" id='dataEntry1'>
+							<div style="max-height:500px; width:100%; overflow:auto;">
+								<div id="varnames" style="position:relative;height:10px;">
+									<span style="position:absolute; left:49px; width:150px;"/>X</span>
+									<span style="position:absolute; left:189px; width:150px;" />Y</span>
+									<input type="text" id="name1" value="value" size="20" maxlength="25" style="position:absolute; left:329px; width:140px;" />
+								</div>
+								<div id="wrapper">
+									<textarea name="data1" id="data1" class="fauxTable niceCols75 grid75 multicol75" rows=6 cols=30 onkeydown="handleTab()" onchange="refreshData()"></textarea>
+									
+								</div>
+							</div>
+						</div>
+						<div style="width:100%; box-sizing:border-box;display:none;" id='dataEntry2'>
+							<div style="max-height:500px; width:100%; overflow:auto;">
+								X Range: <input type="number" id="XRng0" class='smallNumber' /> to <input type="number" id="XRng1" class='smallNumber' /><br>
+								Y Range: <input type="number" id="YRng0" class='smallNumber' /> to <input type="number" id="YRng1" class='smallNumber' />
+								<div id="wrapper">
+									<textarea name="data2" id="data2" class="fauxTable niceCols75 grid75 multicol75 bigGrid" rows=6 cols=30 onkeydown="handleTab()" onchange="refreshData()"></textarea>
+									
+								</div>
+							</div>
+						</div>
+
+
+
+						<button TYPE=button VALUE="Calculate Now" onClick="refresh()">Calculate Now</button>
+						&nbsp;&nbsp;&nbsp;
+						<button TYPE=reset VALUE="Clear All" onClick="document.getElementById('data1').innerHTML='';document.getElementById('dataLink').innerHTML='';">Clear All</button>
+						&nbsp;&nbsp;&nbsp;
+						<button TYPE=button VALUE="Share Data" onClick="share()">Share Data</button> 
+					<div id="dataLink" ></div><iframe id="frmFile" style="display: none;"></iframe>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerOptions" class="css-checkbox">
+					<label for="headerOptions" class="css-label">Options</label>
+					<div class="content css-content">
+						<div>
+							Shapefile: <input type="file" id="files" onChange="parseLocalShapeFile();"> <br>
+							Boundary: <input type="file" id="filesBound" onChange="parseLocalFile();"> <br>
+							Variable Type: <select id='varType' onChange='refreshDensityOptions();showHidePanels();spatialPlot(data); '>
+								<option value=0 id='varCont'>Continuous</option>
+								<option value=1 id='varCat'>Categorical</option>
+							</select><br>
+							Distance: <select id='distanceMode' onChange='calcNeighborhoods();semiVariogram(data,"semiVariogram",dataEntryChoice==2); spatialPlot(data)'>
+								<option value='euc'>Euclidean</option>
+								<option value='manh'>Manhattan</option>
+								<option value='queen'>Queen's</option>
+								<option value='hav'>Haversine (lon/lat)</option>
+							</select><br>
+							Neighbors: <select id='neighborGraph' onChange='calcNeighborhoods();spatialPlot(data)'>
+								<!--option value='none'>none</option-->
+								<option value='nn1'>nearest 1 neighbor</option>
+								<option value='nn2'>nearest 2 neighbors</option>
+								<option value='nn3'>nearest 3 neighbors</option>
+								<option value='del'>Delauny triangulation</option>
+								<option value='sph'>Sphere of influence</option>
+								<option value='gab'>Gabriel's graph</option>
+								<option value='rel'>relative neighborhood</option>
+								<option value='poly' id='polyNeighbors'>polygon adjacency</option>
+								<option value='all'>all</option>
+							</select><br>
+							Weights: <select id="nWeightChoice" onChange="displaySpan('invD',this.value=='invD');displaySpan('thresh',this.value=='thresh');calcNeighborhoods();spatialPlot(data);">
+								<option value='bin' selected>binary (1/0)</option>
+								<option value='thresh'>distance theshhold</option>
+								<option value='invD'>inverse distance</option>
+							</select>
+							<span id='thresh' style='display:none;' onChange="calcNeighborhoods();spatialPlot(data);">Threshold:<input type=number min=0 id='d0' class='smallNumber' value=10></span>
+							<span id='invD' style='display:none;' onChange="calcNeighborhoods();spatialPlot(data);">Power:<input type=number min=0 id='invDpow' class='smallNumber' value=2></span><br>
+							Standardization Scheme: <select id="weightStandard" onChange="calcNeighborhoods();spatialPlot(data);">
+								<option value='none'>None</option>
+								<option value='line' selected>Line Standardization</option>
+								<option value='global'>Global standardization</option>
+								<option value='uniform'>Uniform standardization</option>
+								<!--option value='variance'>Variance stabilization</option-->
+							</select>
+
+							
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerSummaryStats" class="css-checkbox">
+					<label for="headerSummaryStats" class="css-label">Summary Statistics</label>
+					<div class="content css-content">
+						<div id="output">
+						</div>
+						<div id="corMatrix">
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<h3>Charts</h3>
+					<div>
+						<input type="checkbox" id="headerSpatialPlot" class="css-checkbox">
+						<label for="headerSpatialPlot" class="css-label sub">Spatial Plot</label>
+						<div class="content css-content">
+							<div class='options'>
+							<input type='checkbox' id='showNeighborhood' onChange='spatialPlot(data)'>
+							<label for='showNeighborhood'>Plot neighbors</label>
+							<div id='CRampDiv'>
+							Color Ramp: 
+							<select id="colorRampChoice" onChange='updateGradient();spatialPlot(data)'>
+							</select> <div style="display:inline-block; width:200px; height:1em;" id="gradientPreview" class="gradient0">  </div>
+							</div>
+							<div id='InterpDiv'>
+							Interpolating: <select id="spatialInterp" onchange="rebuildInterpOptions();spatialPlot(data);">
+								<option value=0>none</option>
+								<option value=1>Inverse Distance</option>
+								<option value=2>Kriging</option>
+								<option value=3 disabled>Spline</option>
+								<option value=4>Trend (Order 1)</option>
+								<option value=5>Trend (Order 2)</option>
+							</select> 
+							Resolution: <select id="spatialRes" onChange='spatialPlot(data)'>
+								<option value=20>Low</option>
+								<option value=10 selected>Medium</option>
+								<option value=5>High</option>
+								<option value=2>Very High</option>
+							</select>
+							<div id="interpOptions"></div>
+							</div>
+							<div id='densityDiv'>
+								<input type='checkbox' id='densityCheckbox' onChange='spatialPlot(data)'> Density Estimate 
+								<!--input type='number' id='bandwidth' class='mediumNumber' min=1-->
+								<select id='densitySelect' onChange='spatialPlot(data)'>
+									<option value=-1>All</option>
+								</select>
+							</div>
+							<div id='voronoiDiv'>
+								<input type='checkbox' id='voronoiCheckbox' onChange='spatialPlot(data)'>
+								Voronoi Plot
+							</div>
+							</div>
+							<div class="canvasdiv">
+							<canvas id="spatialPlot" width="490" height="500" >
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							
+							<script>
+document.getElementById("spatialPlot").addEventListener("mousedown", function(e){getMousePosition(document.getElementById("spatialPlot"), e); });							
+							</script>
+							
+							<a class="zoomButton topleft"  onClick="zoomThis(document.getElementById('spatialPlot'));"></a>
+							<a class="downloadButton bottomleft"  onClick="downloadCanvas(this,'spatialPlot','spatialPlot.png');"></a>
+							</div>
+						</div>
+					</div>
+					<div id='moranPanel'>
+						<input type="checkbox" id="headerMoran" class="css-checkbox">
+						<label for="headerMoran" class="css-label sub">Moran's Diagram</label>
+						
+						<div class="content css-content">
+							<div class="canvasdiv">
+							<canvas id="moranPlot" width="490" height="500" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'moranPlot','moranPlot.png');"></a>
+							</div>
+						</div>
+					</div>
+					<div id='variogramPanel'>
+						<input type="checkbox" id="headerVariogram" class="css-checkbox" onClick="semiVariogram(data,'semiVariogram',dataEntryChoice==2)">
+						<label for="headerVariogram" class="css-label sub">Variogram</label>
+						<div class="content css-content">
+						
+<div id="variogramOptions" class='options'>
+Model Fit: <select id='semivariogramModel' onChange='semiVariogram(data,"semiVariogram",dataEntryChoice==2);'>"
+<option value='none'>none</option>
+<option value='exponential'>Exponential</option>
+<option value='spherical'>Spherical</option>
+<option value='gaussian'>Gaussian</option>
+</select>
+							<div class="results" id="semivarStats"></div>
+							
+							</div>						
+							<div class="canvasdiv">
+							
+							<canvas id="semiVariogram" width="490" height="500"  class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'semiVariogram','semiVariogram.png');"></a>
+							</div>
+						</div>
+					</div>
+					<div id='ripleyPanel'>
+						<input type="checkbox" id="headerRipleysK" class="css-checkbox">
+						<label for="headerRipleysK" class="css-label sub">Ripley's K</label>
+						
+						<div class="content css-content">
+							<div class='options'>
+							Standardization: <select id="ripleyStd" onChange='ripleysK(data)'>
+								<option value='none' selected>None</option>
+								<option value='L(r)'>L(r)</option>
+								<option value='L(r)-r'>L(r)-r</option>
+								<option value='K(r)/pir2'>K(r)/(&pi;r&sup2;)</option>
+								<option value='K(r)-pir2'>K(r)-(&pi;r&sup2;)</option>
+							</select>
+							<input type='checkbox' id='drawEnvelope' onChange="ripleysK(data)"> 95% Envelope
+							<span id='catRipley' style='display:none;'><br>Show plot for: <select id='catRipleySelect' onChange='ripleysK(data)'><option value=-1>All</option></select></span>
+							</div>
+							<div class="canvasdiv">
+							<canvas id="ripleysKplot" width="490" height="500"  class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'ripleysKplot','ripleysKplot.png');"></a>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="container">
+					<input type="checkbox" id="headerPredict" class="css-checkbox">
+					<label for="headerPredict" class="css-label">Prediction</label>
+					<div class="content css-content">
+						<div>
+							X: <input type="number" id="predictX" onChange="predictPoint[0]=this.value;refreshPrediction(); spatialPlot(data)">
+							Y: <input type="number" id="predictY" onChange="predictPoint[1]=this.value;refreshPrediction(); spatialPlot(data)">
+							<div id="predictionValue" class="results"></div>
+						</div>
+					</div>
+				</div>
+				
+				
+				<div class="container">
+					<input type="checkbox" id="headerTests" class="css-checkbox">
+					<label for="headerTests" class="css-label">Tests</label>
+					<div class="content css-content">
+						<div>
+						<div id='testResults' class='results'></div>
+							
+						</div>
+					</div>
+				</div>
+
+
+			</form>
+		</div>
+	</body>
+</html>

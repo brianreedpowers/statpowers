@@ -1,0 +1,448 @@
+
+<!-- saved from url=(0035)https://statpages.info/prophaz.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="PICS-Label" content="(PICS-1.0 &quot;http://www.classify.org/safesurf/&quot; l on &quot;1996.08.22T13:44+0000 r (SS~~000 1)">
+  <script language="JavaScript">
+<!-- hide this script tag's contents from old browsers
+
+function Abs(x) { return Math.abs(x) }
+function Sqrt(x) { return Math.sqrt(x) }
+function Exp(x) { return Math.exp(x) }
+function Ln(x) { return Math.log(x) }
+function Power(x,y) { return Math.pow(x,y) }
+
+var Pi = 3.141592653589793;
+
+function ChiSq(x,n) {
+    var p=Math.exp(-0.5*x); if((n%2)==1) { p=p*Math.sqrt(2*x/Pi) }
+    var k=n; while(k>=2) { p=p*x/k; k=k-2 }
+    var t=p; var a=n; while(t>0.000001*p) { a=a+2; t=t*x/a; p=p+t }
+    return 1-p
+}
+
+function Norm(z) { return ChiSq(z*z,1) }
+
+function Fmt(x) { var v;
+	if(x>=0) { v="          "+(x+0.00005) } else { v="          "+(x-0.00005) }
+	v = v.substring(0,v.indexOf(".")+5)
+	return v.substring(v.length-10,v.length)
+	}
+
+function Fmt3(x) { 
+	var v= "   " + x;
+	return v.substring(v.length-3,v.length)
+}
+
+function Xlate(s,from,to) { var v = s;
+	var l=v.indexOf(from);
+	while(l>-1) {
+		v = v.substring(0,l) + to + v.substring(l+1,v.length);
+		l=v.indexOf(from)
+		}
+	return v
+    }
+
+function crArr(n) {
+	this.length = n;
+	for (var i = 0; i < this.length; i++) { this[i] = 0 }
+	}
+	
+function ix(j,k,nCols) { return j * nCols + k }
+
+var CR = unescape("%0D");
+var LF = unescape("%0A");
+var Tb = unescape("%09");
+var NL = CR + LF;
+
+function Iterate(form) {
+
+	var i = 0; var j = 0; var k = 0; var l = 0;
+
+	var nC   = eval(form.cPts.value);
+	var nR   = eval(form.cVar.value);
+
+	var SurvT = new crArr( nC );
+	var Stat  = new crArr( nC );
+	var Dupl  = new crArr( nC );
+	var Alpha = new crArr( nC );
+	var x     = new crArr( nC * nR );
+	var b     = new crArr( nC );
+	var a     = new crArr( nR * ( nR + 1 ) );
+	var s1    = new crArr( nR );
+	var s2    = new crArr( nR * nR );
+	var s     = new crArr( nR );
+	var Av    = new crArr( nR );
+	var SD    = new crArr( nR );
+	var SE    = new crArr( nR );
+
+	var da = Xlate(form.data.value,Tb,",");
+	form.data.value = da;
+	if( da.indexOf(NL)==-1 ) { if( da.indexOf(CR)>-1 ) { NL = CR } else { NL = LF } }
+
+	for (i = 0; i<nC; i++) {
+		l = da.indexOf(NL); if( l==-1 ) { l = da.length };
+		var v = da.substring(0,l);
+		da = da.substring(l+NL.length,da.length);
+
+		for (j = 0; j<nR; j++) {
+			l = v.indexOf(","); if( l==-1 ) { l = v.length };
+			var zX = eval(v.substring(0,l))
+			x[ix(i,j,nR)] = zX;
+			Av[j] = Av[j] + zX;
+			SD[j] = SD[j] + zX*zX;
+			v = v.substring(l+1,v.length);
+			}
+		l = v.indexOf(","); if( l==-1 ) { l = v.length };
+		SurvT[i] = eval(v.substring(0,l));
+		v = v.substring(l+1,v.length);
+		l = v.indexOf(","); if( l==-1 ) { l = v.length };
+
+		var z = v.substring(0,l);
+		v = v.substring(l+1,v.length);
+		if ( z.indexOf("C")>=0 ) { z = "0" }
+		if ( z.indexOf("c")>=0 ) { z = "0" }
+		if ( z.indexOf("D")>=0 ) { z = "1" }
+		if ( z.indexOf("d")>=0 ) { z = "1" }
+		if ( z.indexOf("A")>=0 ) { z = "0" }
+		if ( z.indexOf("a")>=0 ) { z = "0" }
+		Stat[i] = eval(z);
+		if ( Stat[i]!=0 ) { Stat[i] = 1 }
+
+		}
+
+	var o = "Descriptive Stats..." + NL;
+	o = o + ( NL + " Variable      Avg       SD    " + NL );
+	for (j = 0; j<nR; j++) {
+		Av[j] = Av[j] / nC;
+		SD[j] = SD[j] / nC;
+		SD[j] = Sqrt( Abs( SD[j] - Av[j] * Av[j] ) )
+		o = o + (  "   " + Fmt3(j+1) + "    " + Fmt(Av[j]) + Fmt(SD[j])+ NL );
+		}
+	form.output.value = o;
+
+	var Eps = 1 / 1024;
+	for (i=0; i<nC-1; i++) {
+		var iBig = i;
+		for (j=i+1; j<nC; j++) {
+			if (SurvT[j]-Eps*Stat[j] > SurvT[iBig]-Eps*Stat[iBig]) { iBig = j }
+			}
+		if ( iBig!=i ) {
+			v = SurvT[i]; SurvT[i] = SurvT[iBig]; SurvT[iBig] = v;
+			v = Stat[i]; Stat[i] = Stat[iBig]; Stat[iBig] = v;
+			for ( j=0; j<nR; j++ ) {
+				v = x[ix(i,j,nR)]; x[ix(i,j,nR)] = x[ix(iBig,j,nR)]; x[ix(iBig,j,nR)] = v;
+				}
+			}
+		}
+	if ( Stat[0]>0 ) { Stat[0] = Stat[0] + 2; }
+	for ( i=1; i<nC; i++ ) {
+		if ( Stat[i]>0 & ( Stat[i-1]==0 | SurvT[i-1]!=SurvT[i] ) ) { Stat[i] = Stat[i] + 2 }
+		}
+	if ( Stat[nC-1]>0 ) { Stat[nC-1] = Stat[nC-1] + 4 }
+	for ( i=nC-2; i>=0; i-- ) {
+		if ( Stat[i]>0 & ( Stat[i+1]==0 | SurvT[i+1]!=SurvT[i] ) ) { Stat[i] = Stat[i] + 4 }
+		}
+
+	for (i = 0; i<nC; i++) {
+		for ( j=0; j<nR; j++ ) {
+			x[ix(i,j,nR)] = ( x[ix(i,j,nR)] - Av[j] ) / SD[j]
+			}
+		}
+
+	o = o + ( NL + "Iteration History..." );
+	form.output.value = o;
+
+	for (j = 0; j<nR; j++) {
+		b[j] = 0;
+		}
+
+	var LLp = 2e+30;
+	var LL  = 1e+30;
+	Fract = 0.0
+
+	while( Abs(LLp-LL)>0.0001 ) {
+		LLp = LL;
+		LL = 0;
+		var s0 = 0;
+		for ( j=0; j<nR; j++ ) {
+			s1[j] = 0;
+			a[ix(j,nR,nR+1)] = 0;
+			for ( k=0; k<nR; k++ ) {
+				s2[ix(j,k,nR)] = 0;
+				a[ix(j,k,nR+1)] = 0;
+				}
+			}
+		for ( i=0; i<nC; i++ ) {
+			Alpha[i] = 1;
+			v = 0;
+			for ( j=0; j<nR; j++ ) {
+				v = v + b[j] * x[ix(i,j,nR)];
+				}
+			v = Exp( v );
+			s0 = s0 + v;
+			for ( j=0; j<nR; j++ ) {
+				s1[j] = s1[j] + x[ix(i,j,nR)] * v;
+				for ( k=0; k<nR; k++ ) {
+					s2[ix(j,k,nR)] = s2[ix(j,k,nR)] + x[ix(i,j,nR)] * x[ix(i,k,nR)] * v;
+					}
+				}
+			var StatI = Stat[i];
+			if ( StatI==2 | StatI==3 | StatI==6 | StatI==7 ) {
+				d = 0;
+				for ( j=0; j<nR; j++ ) {
+					s[j] = 0;
+					}
+				}
+			if ( StatI==1 | StatI==3 | StatI==5 | StatI==7 ) {
+				d = d + 1;
+				for ( j=0; j<nR; j++ ) {
+					s[j] = s[j] + x[ix(i,j,nR)];
+					}
+				}
+			if ( StatI==4 | StatI==5 | StatI==6 | StatI==7 ) {
+				for ( j=0; j<nR; j++ ) {
+					LL = LL + s[j] * b[j];
+					a[ix(j,nR,nR+1)] = a[ix(j,nR,nR+1)] + s[j] - d * s1[j] / s0;
+					for (k=0; k<nR; k++ ) {
+						a[ix(j,k,nR+1)] = a[ix(j,k,nR+1)] + d * ( s2[ix(j,k,nR)]/s0 - s1[j] * s1[k] / ( s0 * s0 ) );
+						}
+					}
+				LL = LL - d * Ln( s0 );
+				if ( d==1 )
+					{ Alpha[i] = Power( ( 1 - v / s0 ) , ( 1 / v ) ) }
+					else
+					{ Alpha[i] = Exp( -d / s0 ) }
+				}
+			}
+		LL = -2 * LL;
+		o = o + ( NL + "-2 Log Likelihood = " + Fmt( LL ) );
+		if( LLp==1e+30 ) { var LLn = LL; o = o + " (Null Model)" }
+		form.output.value = o;
+
+		for (i=0; i<nR; i++) { v = a[ix(i,i,nR+1)]; a[ix(i,i,nR+1)] = 1;
+			for (k=0; k<nR+1; k++) { a[ix(i,k,nR+1)] = a[ix(i,k,nR+1)] / v; }
+			for (j=0; j<nR; j++) {
+				if (i!=j) { v = a[ix(j,i,nR+1)]; a[ix(j,i,nR+1)] = 0;
+					for (k=0; k<nR+1; k++) {
+						a[ix(j,k,nR+1)] = a[ix(j,k,nR+1)] - v * a[ix(i,k,nR+1)];
+						}
+					}
+				}
+			}
+
+		Fract = Fract + 0.1; if(Fract>1) { Fract = 1 };
+		for( j=0; j<nR; j++) {
+			b[j] = b[j] + Fract * a[ix(j,nR,nR+1)];
+			}
+
+		}
+
+	o = o + " (Converged)"
+	var CSq = LLn - LL;
+	o = o + ( NL + "Overall Model Fit..." + NL );
+	o = o + ("  Chi Square=" + Fmt(CSq) + ";  df=" + nR + ";  p=" + Fmt(ChiSq(CSq,nR)) + NL );
+
+	o = o + ( NL + "Coefficients, Std Errs, Signif, and Conf Intervs..." + NL );
+	o = o + ( "   Var        Coeff.    StdErr       p       Lo95%     Hi95%" + NL );
+	for( j=0; j<nR; j++) {
+		b[j] = b[j] / SD[j];
+		SE[j] = Sqrt( a[ix(j,j,nR+1)] ) / SD[j];
+		o = o + ( "   " + Fmt3(j+1) + "    " + Fmt(b[j]) + Fmt(SE[j]) + Fmt( Norm(Abs(b[j]/SE[j])) ) + Fmt(b[j]-1.96*SE[j]) + Fmt(b[j]+1.96*SE[j]) + NL );
+		}
+
+	o = o + ( NL + "Risk Ratios and Confidence Intervs..." + NL );
+	o = o + ( "   Var    Risk Ratio     Lo95%     Hi95%" + NL );
+	for( j=0; j<nR; j++) {
+		o = o + ( "   " + Fmt3(j+1) + "    " + Fmt(Exp(b[j])) + Fmt(Exp(b[j]-1.96*SE[j])) + Fmt(Exp(b[j]+1.96*SE[j])) + NL );
+		}
+
+	o = o + ( NL + "Baseline Survivor Function (at predictor means)..." + NL );
+	var Sf = 1;
+	for ( i=nC-1; i>=0; i-- ) {
+		Sf = Sf * Alpha[i];
+		if ( Alpha[i]<1 ) {
+			o = o + ( Fmt(SurvT[i]) + Fmt(Sf) + NL );
+			}
+		}
+	form.output.value = o;
+}		
+
+<!-- done hiding from old browsers -->
+</script>
+  <title>Cox Proportional Hazards Survival Regression</title>
+</head>
+<body bgcolor="#ffffee">
+<center>
+  <h2>
+    <font color="Red">Cox Proportional Hazards Survival Regression</font>
+  </h2>
+  <p>
+  <small><i>Revised 10/24/2007</i></small> -- Better convergence properties
+  for ill-conditioned data &nbsp;-- Thank you Rupendra Chulyadyo !
+  </p><p>
+  <a href="https://statpages.info/prophaz.html#Background">Background</a> ||| <a href="https://statpages.info/prophaz.html#Techie">Techie-Stuff</a>
+  ||| <a href="https://statpages.info/prophaz.html#Instructions">Instructions</a>
+</p></center>
+<p>
+This page analyzes survival-time data by the method of Proportional Hazards
+regression (Cox). Given survival times, final status (alive or dead) , and
+one or more covariates, it produces a baseline survival curve, covariate
+coefficient estimates with their standard errors, risk ratios, 95% confidence
+intervals, and significance levels.
+</p><p>
+  </p><hr>
+<h3>
+  <font color="Red"><a name="Background">Background Info:</a> (just what is
+  Proportional Hazards Survival Regression, anyway?)</font>
+</h3>
+<p>
+Survival analysis takes the survival times of a group of subjects (usually
+with some kind of medical condition) and generates a survival curve, which
+shows how many of the members remain alive over time. Survival time is usually
+defined as the length of the interval between diagnosis and death, although
+other "start" events (such as surgery instead of diagnosis), and other "end"
+events (such as recurrence instead of death) are sometimes used.
+</p><p>
+The major mathematical complication with survival analysis is that you usually
+do not have the luxury of waiting until the very last subject has died of
+old age; you normally have to analyze the data while some subjects are still
+alive. Also, some subjects may have moved away, and may be lost to follow-up.
+In both cases, the subjects were known to have survived for some amount of
+time (up until the time you last saw them), but you don't know how much longer
+they might ultimately have survived. Several methods have been developed
+for using this "at least this long" information to preparing unbiased survival
+curve estimates, the most common being the Life Table method and the method
+of Kaplan and Meier.
+</p><p>
+We often need to know whether survival is influenced by one or more factors,
+called "predictors" or "covariates", which may be categorical (such as the
+kind of treatment a patient received) or continuous (such as the patient's
+age, weight, or the dosage of a drug). For simple situations involving a
+single factor with just two values (such as drug vs placebo), there are methods
+for comparing the survival curves for the two groups of subjects. But for
+more complicated situations we need a special kind of regression that lets
+us assess the effect of each predictor on the shape of the survival curve.
+</p><p>
+To understand the method of proportional hazards, first consider a "baseline"
+survival curve. This can be thought of as the survival curve of a hypothetical
+"completely average" subject -- someone for whom each predictor variable
+is equal to the average value of that variable for the entire set of subjects
+in the study. This baseline survival curve doesn't have to have any particular
+formula representation; it can have any shape whatever, as long as it starts
+at 1.0 at time 0 and descends steadily with increasing survival time.
+</p><p>
+The baseline survival curve is then systematically "flexed" up or down by
+each of the predictor variables, while still keeping its general shape. The
+proportional hazards method computes a coefficient for each predictor variable
+that indicates the direction and degree of flexing that the predictor has
+on the survival curve. Zero means that a variable has no effect on the curve
+-- it is not a predictor at all; a positive variable indicates that larger
+values of the variable are associated with greater mortality. Knowing these
+coefficients, we could construct a "customized" survival curve for any particular
+combination of predictor values. More importantly, the method provides a
+measure of the sampling error associated with each predictor's coefficient.
+This lets us assess which variables' coefficients are significantly different
+from zero; that is: which variables are significantly related to survival.
+</p><p>
+  </p><hr>
+<h3>
+  <p align="Left">
+  <font color="Red"><a name="Techie">Techie-stuff:</a> (for those who might
+  be interested)</font>
+</p></h3>
+<p>
+This page contains a straightforward <i>JavaScript</i> implementation of
+a standard iterative method for Cox Proportional Hazard Survival Regression.
+</p><p>
+The log-likelihood function is minimized by Newton's method, with a very
+simple elimination algorithm to invert and solve the simultaneous equations.
+Central-limit estimates of parameter standard errors are obtained from the
+diagonal terms of the inverse matrix. 95% confidence intervals around the
+parameter estimates are obtained by a normal approximation. Risk ratios (and
+their confidence limits) are computed as exponential functions of the parameters
+(and their confidence limits). The baseline survival function is generated
+for each time point at which an event (death) occurred.
+</p><p>
+To decrease the chances of the iterations diverging for ill-conditioned data,
+a&nbsp;very simple "ramped-up fractional-shifts" modification of Newton's
+method is used: For the first iteration, only 1/10<sup>th</sup> of the calculated
+parameter adjustments are applied. For the second iteration, the fraction
+is 2/10<sup>ths</sup>, then 3/10<sup>ths</sup>, etc., until the full amount
+of the calculated adjustments are applied at the 10<sup>th</sup> and all
+subsequent iterations. For improved precision, the independent variables
+are temporarily converted to "standard scores" ( value - Mean ) / StdDev.
+The <i>Null Model</i> (all parameters = 0 )is used as the starting guess
+for the iterations. Convergence is not guaranteed, but this page should work
+properly with most real-world data.
+</p><p>
+There are no predefined limits to the number of variables or cases this page
+can handle. The actual limits are probably dependent on your browser's available
+memory. I have run this program successfully on data sets with 4 predictors
+and over 1,200 cases.
+</p><p>
+The fields below are pre-loaded with a very simple example.
+</p><p>
+  </p><hr>
+<form method="post">
+  <h3>
+    <font color="Red"><a name="Instructions">Instructions</a>:</font>
+  </h3>
+  <ol>
+    <li>
+      Enter the <font color="Red">number of data points</font>:
+      <input type="text" name="cPts" value="11" size="4">
+    </li><li>
+      Enter the <font color="Red">number of covariates (predictors)</font>:
+      <input type="text" name="cVar" value="1" size="2">
+      <font color="Purple"><small>Normally 1 or more. If 0 (no predictor variables
+      at all) is specified, the baseline survival function will be the same as
+      the Kaplan-Meier survival curve.</small></font>
+    </li><li>
+      Type (or paste) the <font color="Red">[<i>x values</i>, <i>time</i>,
+      <i>status</i>] data</font>:<br>
+      <textarea name="data" rows="8" cols="50">50,1,0
+70,2,1
+45,3,0
+35,5,0
+62,7,1
+50,11,0
+45,4,0
+57,6,0
+32,8,0
+57,9,1
+60,10,1
+</textarea><br>
+      <font color="Purple"><small>Use a separate row for each data point. The
+      covariates (predictors) should come first, followed by the survival time,
+      followed by the last-seen-status variable (1 if died, 0 if still alive or
+      lost to follow-up). Values should be separated by commas or tabs. You can
+      copy data from another program, like a spreadsheet, and paste it into the
+      window above. It may come in as tab-delimited text (without commas), but
+      this will not be a problem; the program will convert tabs to commas during
+      the computations.</small></font>
+    </li><li>
+      <font color="Red">Click the
+      <input type="button" value="Solve" onclick="Iterate(this.form)"> button</font>.
+      The results will (eventually) appear below:<br>
+      <textarea name="output" rows="10" cols="64"></textarea><br>
+    </li><li>
+      To print out results, copy and past the contents of the Output window above
+      into a word processor or text editor, then Print. For best appearance, specify
+      a fixed-width font like Courier.
+  </li></ol>
+  <p>
+    </p><hr>
+  <p>
+  Reference: <i>Statistical Models and Methods for Lifetime Data</i>, by J.
+  F. Lawless. 1982, John Wiley &amp; Sons, New York.
+  </p><p>
+    </p><hr>
+  <p align="Center">
+  Return to the <a href="https://statpages.info/index.html">Interactive Statistics page</a> or to
+  the <a href="https://statpages.info/JCPhome.html">JCP Home Page</a><br>
+  <br>
+  Send e-mail to John C. Pezzullo at
+  <a href="mailto:statpages.org@gmail.com">statpages.org@gmail.com</a>
+</p></form>
+
+</body><div id="__genieContainer" style="all: initial;"></div></html>

@@ -1,0 +1,514 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Venn Diagrams</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<script type="text/javascript" src="js/jstat.js"></script>
+<script type="text/javascript" src="js/commonFunctions.js"></script>
+<script type="text/javascript" src="js/shapiro-wilk.js"></script>
+<script type="text/javascript" src="js/floodfill.js"></script>
+<script type="text/javascript" src="js/qm-min.js"></script>
+<script type="text/javascript" src="js/logic.js"></script>
+<script type="text/javascript" src="js/parser.js"></script>
+<script type="text/javascript" src="js/qmc_mod.js"></script>
+<script language="javascript">
+
+
+	
+function refresh(){
+	setPrecision(document.getElementById('precision').value)
+	renderVenn()
+//	updateN()
+}
+
+var nEvents=2
+var qmc
+function updateN(){
+	nEvents = document.getElementById('nEvents').value
+	qmc = new QuineMcCluskey("displaySetNotation", nEvents, 0);
+    qmc.init();
+	resetFillBool()
+}
+
+var setCenters = [[[.5-.15,.5],[.5+.15,.5]],
+                  [[.5,.38],[.35278,.635],[.64722,.635]],
+				  [[.5,.45106],[.5,.45106],[.344681,.6],[.655319,.6]]]
+var majorRad = 0.3829787
+var minorRad = 0.2457446
+var regionSize = [.325*2,.3*2,majorRad*2] 
+//foci Xoffset = 0.7524149 * 0.293738
+//foci Yoffset = 0.6586895 * 0.293738
+var labels=["A","B","C","D"]
+                                                              //DCBA
+var regionCenters =  [
+					[[240,40],[105,240],[400,240],[240,240]], //00, 01, 10, 11
+					[[35,35],[240,85],[93,347],[161,222], //000,001,010,011
+					[389,334],[339,205],[251,378],[254,250]], //100,101,110,111
+					[[25,25],[145,109],[322,96],[238,119],//0000,0001, 0010,0011
+					[51,177],[113,158],[125,312],[154,217],//0100,0101,0110,0111
+					[442,257],[377,304],[387,167],[330,226],//1000,1001,1010,1011
+					[246,396],[299,354],[196,356],[242,297]]]//1100,1101,1110,1111
+
+var labelCoords = [[[82,114],[413,114]],
+					[[245,40],[67,414],[427,414]],
+					[[115,87],[375,87],[63,357],[412,372]]]
+
+var foci = [[[[.5-.15,.5],[.5-.15,.5]],[[.5+.15,.5],[.5+.15,.5]]],
+                  [[[.5,.38],[.5,.38]],[[.35278,.635],[.35278,.635]],[[.64722,.635],[.64722,.635]]],
+				  [[.5,.45106],[.5,.45106],[.344681,.6],[.655319,.6]]]
+
+for(var i=0; i<4; i++){
+	foci[2][i][0]=[setCenters[2][i][0]+Math.pow(-1,i)*0.7524149 * 0.293738,setCenters[2][i][1]+0.6586895 * 0.293738]
+	foci[2][i][1]=[setCenters[2][i][0]-Math.pow(-1,i)*0.7524149 * 0.293738,setCenters[2][i][1]-0.6586895 * 0.293738]
+}
+
+//console.log(foci)
+
+function drawEvents(c,ctx){
+	if(nEvents==2){
+		for(var i=1;i<=nEvents; i++){
+			ctx.beginPath();
+			ctx.ellipse(c.width*setCenters[nEvents-2][i-1][0],c.height*setCenters[nEvents-2][i-1][1], c.width*.325, c.width*.325, 0*Math.PI, 0, 2 * Math.PI);
+			ctx.stroke()
+		}
+	} else if(nEvents==3){
+		var circleRadius = c.width*.3
+//		var distFromCenter = c.width*.17
+		for(var i=1;i<=nEvents; i++){
+			ctx.beginPath();
+			ctx.ellipse(c.width*setCenters[nEvents-2][i-1][0],c.height*setCenters[nEvents-2][i-1][1], circleRadius, circleRadius, 0*Math.PI, 0, 2 * Math.PI);
+			ctx.stroke()
+//			console.log(.5+.17*Math.cos(2/3*Math.PI*(i+.25)))
+//			console.log(.55+.17*Math.sin(2/3*Math.PI*(i+.25)))
+		}
+	} else if(nEvents==4){
+		var majorRadius = c.width*360/470/2
+		var minorRadius = c.width*231/470/2
+		var angleRads = 41.2 * Math.PI/180
+//		var centerY = c.height*.6
+//		var colors=["red","yellow","green","blue"]
+		for(var i=1;i<=nEvents; i++){
+//			var offsetY = (i<3?-70/470*c.width:0)
+//			var offsetX = (i>2?Math.pow(-1,i)*73/470*c.width:0)
+			ctx.beginPath();
+	//		ctx.strokeStyle=colors[i-1]
+			ctx.ellipse(c.width*setCenters[nEvents-2][i-1][0],c.height*setCenters[nEvents-2][i-1][1], majorRadius, minorRadius, Math.PI + Math.pow(-1,i-1)*angleRads, 0, 2 * Math.PI);
+			ctx.stroke()			
+		}
+	}
+}
+
+var nFilled = 0
+function renderVenn(){
+	nFilled = 0
+//	console.log("rendering Venn")
+	//console.log(nEvents)
+	var c=document.getElementById('venn');
+	var ctx = c.getContext('2d');
+	var scale=c.width/490
+
+	ctx.fillStyle = "white";
+	ctx.strokeStyle="black"
+	ctx.beginPath();
+	ctx.fillRect(0, 0, c.width, c.height);		
+	ctx.fill()
+	ctx.rect(0, 0, c.width, c.height);		
+	ctx.stroke()
+	
+	ctx.lineWidth=scale
+	drawEvents(c,ctx)
+	ctx.fillStyle=(document.getElementById("colorful").checked?colorHex:"#C0C0C0")
+	var i=0,j=0,k=0, l=0
+	for(var checkRegion = 0; checkRegion < regionCenters[nEvents-2].length; checkRegion++){
+		var regionFill = false
+		if(nEvents==2 && fillBool[i][j]) regionFill=true
+		if(nEvents==3 && fillBool[i][j][k])regionFill=true
+		if(nEvents==4 && fillBool[i][j][k][l])regionFill=true
+		if(regionFill) {
+			ctx.fillFlood(regionCenters[nEvents-2][checkRegion][0],regionCenters[nEvents-2][checkRegion][1],0)
+			nFilled++
+		}
+		i++
+		if(i>1){j++;i=0}
+		if(j>1){k++;j=0}
+		if(k>1){l++;k=0}
+	}
+	ctx.lineWidth=scale*2
+	drawEvents(c,ctx)
+	ctx.lineWidth=scale
+
+	
+	/*
+	ctx.strokeStyle="red"
+	for(var i=0; i<nEvents; i++){
+		for(j=0; j<2; j++){
+		ctx.beginPath()
+		ctx.arc(c.width*foci[nEvents-2][i][j][0],c.width*foci[nEvents-2][i][j][1],2*scale,0,pi2)
+		ctx.stroke()
+		console.log(c.width*foci[nEvents-2][i][j][0]+" " +c.width*foci[nEvents-2][i][j][1])
+		}
+	
+	}*/
+	
+	ctx.strokeStyle="black"
+	ctx.font = (24*scale)+"px sans-serif";
+	ctx.textAlign = "center";
+	ctx.textBaseline="middle";
+	for(var i=0; i<nEvents;i++){
+		ctx.fillStyle="rgba(255,255,255,.5)"
+		ctx.beginPath()
+		ctx.arc(labelCoords[nEvents-2][i][0],labelCoords[nEvents-2][i][1],16*scale,0,pi2)
+		ctx.fill()
+		ctx.stroke()
+		
+		ctx.beginPath()
+		ctx.fillStyle="black"
+		ctx.fillText(labels[i],labelCoords[nEvents-2][i][0],labelCoords[nEvents-2][i][1])
+		ctx.fill()
+	}
+}
+
+function getMousePosition(canvas, event) {
+	let rect = canvas.getBoundingClientRect();
+    scaleX = canvas.width / rect.width,    // relationship bitmap vs. element for x
+    scaleY = canvas.height / rect.height;  // relationship bitmap vs. element for y
+	let x = (event.clientX - rect.left)*scaleX;
+	let y = (event.clientY - rect.top)*scaleY;
+
+//	console.log("x: " + (x) +  	" y: " + (y));
+	var c=document.getElementById('venn');
+	var ctx = c.getContext('2d');
+//	ctx.fillStyle='red'
+//	ctx.fillFlood(x,y,50)
+	checkSets(x,y)
+}
+
+
+var fillBool = []
+
+function resetFillBool(){
+	qmc.data.clear()
+//	console.log("n events = "+nEvents)
+	fillBool = []
+	for(var i=0; i<2;i++){
+		if(nEvents==2){
+			fillBool[i]=[false,false]
+		} else {
+			fillBool[i]=[]		
+			for(var j=0; j<2; j++){
+				if(nEvents==3){
+					fillBool[i][j]=[false,false]
+				} else {
+					fillBool[i][j]=[]
+					for(var k=0; k<2; k++){
+						fillBool[i][j][k]=[false,false]
+					}
+				}
+			}
+		}
+	}
+//	console.log("reset fill Bool:")
+//	console.log(fillBool)
+	reviseSetNotation()
+}
+
+
+function checkSets(x,y){
+	var c=document.getElementById('venn');
+	var idx = [0,0,0,0]
+	for(var fIdx = 0; fIdx<foci[nEvents-2].length; fIdx++){
+		//console.log("region Check "+fIdx)
+		var d =0
+		for(var i=0; i<2; i++){
+			fX = foci[nEvents-2][fIdx][i][0]*c.width
+			fY = foci[nEvents-2][fIdx][i][1]*c.width
+			d+= Math.sqrt(Math.pow(x-fX,2)+Math.pow(y-fY,2))		
+		}
+//		console.log(d)
+//		console.log(regionSize[nEvents-2]*c.width)
+		if(d < regionSize[nEvents-2]*c.width) {
+//			console.log("Clicked Inside Region "+labels[fIdx])
+			idx[fIdx]=1
+		}
+	}
+	var qmcValue = 0
+	if(nEvents==2){
+		fillBool[idx[0]][idx[1]]=!fillBool[idx[0]][idx[1]]
+		qmcValue = fillBool[idx[0]][idx[1]]?1:0
+	} else if (nEvents==3){
+		fillBool[idx[0]][idx[1]][idx[2]]=!fillBool[idx[0]][idx[1]][idx[2]]
+		qmcValue = fillBool[idx[0]][idx[1]][idx[2]]?1:0
+	} else if (nEvents==4){
+		fillBool[idx[0]][idx[1]][idx[2]][idx[3]]=!fillBool[idx[0]][idx[1]][idx[2]][idx[3]]
+		qmcValue = fillBool[idx[0]][idx[1]][idx[2]][idx[3]]?1:0
+	}
+	var qmcIndex = idx[0]+idx[1]*2+idx[2]*4+idx[3]*8
+	qmc.data.setFuncData(qmcIndex,qmcValue)
+	qmc.data.compute()
+	qmc.update()
+//	console.log(fillBool)
+	renderVenn()
+//	reviseSetNotation()
+}
+
+function reviseSetNotation(){
+//	console.log("revise SEt notation")
+	if(nFilled == regionCenters[nEvents-2].length) {
+		document.getElementById('displaySetNotation').innerHTML="S"
+		return;
+	}
+	var setNotation=""
+//	setNotation = JSON.stringify(fillBool)
+	var i=[0,0,0,0]
+	for(var part = 0; part < regionCenters[nEvents-2].length; part++){
+		var regionFill=false
+		if(nEvents==2 && fillBool[i[0]][i[1]]) regionFill=true
+		if(nEvents==3 && fillBool[i[0]][i[1]][i[2]])regionFill=true
+		if(nEvents==4 && fillBool[i[0]][i[1]][i[2]][i[3]])regionFill=true
+//		console.log("part "+part +"fill? "+regionFill)
+		if(regionFill){
+			if(setNotation!="") setNotation+= "+"
+//			setNotation+= "("
+			for(var regName = 0; regName<nEvents; regName++){
+	//			if(regName>0) setNotation +="n"
+				setNotation += labels[regName] + (i[regName]==1?"":"'")
+			}
+		//	setNotation+=")"
+		}
+		i[0]++
+		if(i[0]>1){i[1]++;i[0]=0}
+		if(i[1]>1){i[2]++;i[1]=0}
+		if(i[2]>1){i[3]++;i[2]=0}
+	}
+	//setNotation = simplifySetNotation(setNotation)
+//	console.log(simplifySetNotation(setNotation))
+	document.getElementById('displaySetNotation').innerHTML=setNotation
+}
+
+function simplifyAndDrawExpression(){
+//	console.log("simpl and draw")
+	var inputExp = document.getElementById('inputExpression').value
+//	console.log(inputExp)
+	if(inputExp.search("D")>0) {
+		document.getElementById('nEvents').value = 4
+	} else if (inputExp.search("C")>0) {
+		document.getElementById('nEvents').value=3
+	} else {
+		document.getElementById('nEvents').value =2
+	}	
+	updateN()
+	
+//	var simplifiedExpr = simplifySetNotation(inputExp)
+//	document.getElementById('displaySetNotation').innerHTML=simplifiedExpr
+	
+	var logicalExp = inputExp.slice()
+	//Replace all apostrophes with preceeding !
+	var replacing=0
+	var replacingLevel = []
+	var level=0
+	var substringCharacterCount=0
+	for(var j=logicalExp.length; j>=0; j--){
+//		console.log("j:"+j+" "+replacingLevel)
+		if(logicalExp[j]=="'"){
+			replacing++
+			replacingLevel.push(level)
+			substringCharacterCount=0
+		} else {
+			substringCharacterCount++
+		}
+		if(logicalExp[j]==")") level++
+		if(logicalExp[j]=="(") level--
+		
+		if(substringCharacterCount>0 && replacing>0 && level==replacingLevel[replacingLevel.length-1]){
+			logicalExp = logicalExp.slice(0,j)+"!"+logicalExp.slice(j)
+			replacing--
+			replacingLevel.pop()
+		}
+			
+	}
+	logicalExp=logicalExp.replaceAll("'", "")
+	var logicalExp = logicalExp.replaceAll('u','||').replaceAll('n','&&')
+	
+//	for(var i=0; i<4; i++) logicalExpr.replaceAll(labels[i]+"'", "!"+labels[i])
+	
+//	console.log(logicalExp)
+	
+	resetFillBool()
+	qmc.data.init(nEvents)
+	var i=[0,0,0,0]
+	for(var part = 0; part < regionCenters[nEvents-2].length; part++){
+		tempLogicalExp=logicalExp.slice()
+		for(var j=0; j<4; j++) tempLogicalExp=tempLogicalExp.replaceAll(labels[j], i[j]==0?"false":"true")
+	//	console.log(tempLogicalExp)
+		var regionFill = eval(tempLogicalExp)
+		if(regionFill){
+			var qmcIndex = i[0]+i[1]*2+i[2]*4+i[3]*8
+			if(nEvents==2){
+				fillBool[i[0]][i[1]]=true
+			} else if (nEvents==3){
+				fillBool[i[0]][i[1]][i[2]]=true
+			} else if (nEvents==4){
+				fillBool[i[0]][i[1]][i[2]][i[3]]=true
+			}
+			qmc.data.setFuncData(qmcIndex,1)
+		}
+		i[0]++
+		if(i[0]>1){i[1]++;i[0]=0}
+		if(i[1]>1){i[2]++;i[1]=0}
+		if(i[2]>1){i[3]++;i[2]=0}
+	}
+	qmc.data.compute()
+	qmc.update()
+//	console.log(fillBool)
+	renderVenn()
+//	reviseSetNotation()
+}
+
+/*
+function simplifySetNotation(input){
+	if(input=="") return ""
+
+	try {
+		var min_terms = MinTerms.fromExpression(input);
+	} catch(e) {
+		if(e instanceof InvalidTokenException){
+			var message = 'Syntax Error: ';
+			for(var i = 0; i < input.length; i++){
+				if(i + 1 == e.position){
+					message += "<strong class='error'>" + input[i] + "</strong>";
+				}
+				else
+					message += input[i];
+			}
+			return(message);
+		} else if(e instanceof MissingTokenException){
+			var message = 'Missing Token: ';
+			for(var i = 0; i < input.length; i++){
+				if(i + 1 == e.position){
+					message += "<strong class='error'>" + input[i] + "</strong>";
+				}
+				else
+					message += input[i];
+			}
+			return message;				
+		} else {
+			return "Invalid Expression";
+		}
+	}
+	//console.log(min_terms)
+	var f = new BooleanFunction(min_terms);
+	
+	// draw the output using the variables in the expression
+	var vars = SumOfProducts.removeDuplicates(input.replace(/[^a-zA-Z]/g, '').split(''));
+	console.log(vars)
+	vars.sort();		
+//	var drawer = new BooleanFunctionOut(f, vars);
+//	drawer.render();	
+	var prime_imps = f.findPrimeImplicants();	
+	console.log(prime_imps)
+	var table = PrimeImplicantTable.build(f.getMinTerms(), prime_imps);	
+	console.log(table)
+	var sum_of_prods = SumOfProducts.fromTable(table);
+	console.log(sum_of_prods)
+	var solns = SumOfProducts.reduce(sum_of_prods);
+	console.log(solns)
+	var pretty = SumOfProducts.toSymbols(solns, prime_imps, vars);	
+	console.log(pretty)
+	var outputString = ""
+	for(var i = 0; i < pretty.length; i++){
+		outputString += pretty[i];
+	}
+	f = new BooleanFunction(MinTerms.fromExpression(pretty[0]));
+	return outputString;
+}
+*/
+
+</script>
+
+
+<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+<style>
+.diagDOWNRIGHT {
+  background: linear-gradient(to top right, rgba(0,0,0,0) calc(50% - 1px), rgba(0,0,0,1), rgba(0,0,0,0) calc(50% + 1px) )
+}
+
+.diagUPRIGHT {
+  background: linear-gradient(to bottom right, rgba(0,0,0,0) calc(50% - 1px), rgba(0,0,0,1), rgba(0,0,0,0) calc(50% + 1px) )
+}
+
+.straight {
+ background: rgba(0,0,0,1);}
+ 
+.treeLabel{
+	background: rgba(255,255,255,.75);
+}
+
+.error{
+border: 2px solid red;
+}
+
+</style>
+</head>
+
+<body onload="loadPrecision();loadColorChoice();linkMenu();updateN();setColors();refresh()">
+	<div id="container">
+		<div id="title" onClick="setColors()">StatPowers</div>
+		<div id="menu"></div>
+
+	<form name="form1">
+		<div class="container">	
+			<h3>Venn Diagram Calculator</h3>
+			<input type="checkbox" id="headerOptions" class="css-checkbox" checked>
+			<label for="headerOptions" class="css-label">Options</label>
+			<div class="content css-content">
+				<div class='helpDiv minimized autoheight'>
+					<a  onClick='toggle(this);' class='expander'>?</a>
+					<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+					<span>
+					Set the number of events to generate a venn diagram with 2,3 or 4 events (ovals).<br>
+					You can click regions to add/remove a fill color, and in the output you will see the set notation for the selectd regions.<br>
+					You may also enter an expression and let StatPowers simplify and visualize the expression for you.<br>
+					Syntax:<br>
+					<b>Union</b>: Use <i>u, </i> eg. "AuB"<br>
+					<b>Intersection</b>: Use <i>n, </i> e.g. "AnB"<br>
+					<b>Negation</b>: Use an apostrophe: e.g. A'<br>
+					You can also use (parentheses) to group. Your sets must be named A,B,C and D.
+					</span>
+				</div>
+				<div class='options'>
+				Number of Events: <select id='nEvents' onChange='updateN();renderVenn()'>
+				<option id='2' value=2 selected>2</option>
+				<option id='3' value=3>3</option>
+				<option id='4' value=4>4</option>
+				</select><br>
+				Input Expression: 
+				<button TYPE=button  onClick="simplifyAndDrawExpression()" value="Evaluate">Evaluate</button>
+				
+				<textarea id="inputExpression">(A'u(BnC'))'</textarea>
+			</div>
+			</div>
+		</div>
+		<div class='container'>
+			<div class='content'>
+			<canvas id="venn" width="490" height="490">
+				<p>Your browser doesn't support canvas. Please update your browser.</p>
+			</canvas>
+							<script>
+document.getElementById("venn").addEventListener("mousedown", function(e){getMousePosition(document.getElementById("venn"), e); });							
+							</script>
+
+			</div>
+		</div>
+		<div class="container">	
+			<input type="checkbox" checked id="headerOutput" class="css-checkbox">
+			<label for="headerOutput" class="css-label">Output</label>
+			<div class="content css-content">
+				<div class='results' id='displaySetNotation'></div>
+			</div>
+		</div>
+
+	</form>
+	</div>
+</body>
+</html>

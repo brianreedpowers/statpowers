@@ -1,0 +1,226 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Pixel Normal</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<script type="text/javascript" src="js/commonFunctions.js"></script>
+	<script type="text/javascript" src="js/chartFunctions.js"></script>
+	<script type="text/javascript" src="js/distributionFunctions.js"></script>
+	<script type="text/javascript" src="js/jstat.js"></script>
+	<script language="javascript">
+var a=0
+var b=1
+var distribution = "Gaussian"
+
+var probs = [1,1,2,3,4,5,7,8,9,10,10,9,8,7,5,4,3,2,1,1]
+
+function probability() {	
+	var pField = document.getElementById("p")
+	var xbar = parseFloat(document.getElementById("xbar").value)
+	var s = parseFloat(document.getElementById("s").value)
+	var overlay = document.getElementById("overlayNormal").checked
+
+	var tail = false
+
+	var p = 0
+	var pNormal=0
+	
+	p
+	if(document.getElementById('probType').value=='above') {
+		ll = Math.round((parseFloat(document.getElementById("above").value) - xbar)/s)
+		ul=999999
+		for(var i=document.getElementById("above").selectedIndex; i<20; i++)
+			p+=probs[i]
+		pString="P(X &gt;"+fixed(ll*s/4 + xbar)+")"
+		pNormal=1-jStat.normal.cdf(ll/4,0,1)
+	} else if (document.getElementById('probType').value=='below'){
+		ul = Math.round((parseFloat(document.getElementById("below").value) - xbar)/s)
+		ll=-999999
+		for(var i=0; i<document.getElementById("below").selectedIndex; i++)
+			p+=probs[i]
+		pString="P(X &lt;"+fixed(ul*s/4 + xbar)+")"
+		pNormal=jStat.normal.cdf(ul/4,0,1)
+//		console.log(ul+" " +jStat.normal.cdf(ul,0,1))
+	} else if (document.getElementById('probType').value=='between'){
+		ll = Math.round((parseFloat(document.getElementById("ll").value) - xbar)/s)
+		ul = Math.round((parseFloat(document.getElementById("ul").value) - xbar)/s)
+		for(var i=document.getElementById("ll").selectedIndex; i<document.getElementById("ul").selectedIndex; i++)
+			p+=probs[i]
+		pString="P(" +fixed(ll*s/4 + xbar)+"&lt; X &lt;"+fixed(ul*s/4 + xbar)+")"
+		pNormal = jStat.normal.cdf(ul/4,0,1)-jStat.normal.cdf(ll/4,0,1)
+	}
+	else if (document.getElementById('probType').value=='tails'){
+		tail = true
+		ll = Math.round((parseFloat(document.getElementById("oll").value) - xbar)/s)
+		ul = Math.round((parseFloat(document.getElementById("oul").value) - xbar)/s)
+		for(var i=document.getElementById("oll").selectedIndex; i<document.getElementById("oul").selectedIndex; i++)
+			p+=probs[i]
+		p = 100-p
+		pString="P(X &lt;"+fixed(ll*s/4 + xbar)+" or X &gt;"+fixed(ul*s/4 + xbar)+")"
+		pNormal = 1-(jStat.normal.cdf(ul/4,0,1)-jStat.normal.cdf(ll/4,0,1))
+	}
+	p *= .01
+	pField.innerHTML=pString+" &approx; <strong>"+parseFloat(fixed(p))+"</strong>"
+	document.getElementById("pNormal").innerHTML=pString+" = <strong>"+fixed(pNormal)+"</strong>"
+
+
+//	console.log("ll = "+ll/4+", ul="+ul/4)
+//	console.log(jStat.normal.cdf(2,0,1))
+	var canvas = document.getElementById('normal')
+	var w=canvas.width, h=canvas.height, scale=w/496
+	var lMargin = 20*scale, rMargin = 20*scale, tMargin = 20*scale, bMargin = 20*scale
+//	console.log(w + " " + h)
+	var chartWidth=w-lMargin-rMargin, chartHeight=h-tMargin-bMargin
+	ctx.fillStyle='white'
+	ctx.fillRect(0,0,w,h)
+	distribution="Gaussian";
+	a=xbar
+	b=s
+	var maxD = density(0,0,1)
+	
+	setChartParams(-2.5,2.5,0, maxD,chartWidth,chartHeight,lMargin,tMargin)
+	chartAxisX(ctx,h-bMargin,lMargin,w-rMargin,xbar-2.5*s,xbar+2.5*s,10,"",0, [],12*scale)
+
+	var boxDepth = 2.5*scale
+	var boxSize = chartWidth/20
+	for(var i=0; i<probs.length;i++){
+		for (var j=0; j<probs[i]; j++){
+			var x=lMargin+boxSize*i
+			var y=h-bMargin-j*boxSize
+			var colorPixel=(!tail&i-10>=ll & i-10<ul || tail & !(i-10>=ll & i-10<ul))
+			ctx.fillStyle=(colorPixel?colorHex:"#FFFFFF")
+			ctx.fillRect(x,y,boxSize,-boxSize)
+			ctx.fillStyle=(colorPixel?colorHexLite:"#EEE")
+			ctx.fillRect(x+boxDepth,y-boxDepth,boxSize-boxDepth,-boxSize+boxDepth)
+			ctx.fillStyle=(colorPixel?"white":"#BBB")
+			ctx.fillRect(x+boxSize, y-boxSize,-boxSize+boxDepth,boxDepth)
+			ctx.fillRect(x+boxSize, y-boxSize,-boxDepth,boxSize-boxDepth)
+			ctx.strokeRect(x,y,boxSize,-boxSize)
+		}
+	}
+	ctx.fill()
+	ctx.stroke()
+
+	if(overlay){
+		//Next Draw line
+		ctx.beginPath();
+		for (var i=-25;i<=25;i+=1){
+			z=i/10
+			d=density(z,0,1)
+			if(z==-2.5) ctx.moveTo(tx(z),ty(d))
+			ctx.lineTo(tx(z),ty(d)) 
+		}	
+	}
+	ctx.stroke();
+}
+
+function refresh(){
+	setPrecision(document.getElementById('precision').value)
+	refreshEmpChoices();
+	probability()
+} 
+
+function refreshEmpChoices(){
+	var xbar = parseFloat(document.getElementById("xbar").value)
+	var s = parseFloat(document.getElementById("s").value)
+	choices="";
+	for(var i=10; i>=-10; i--)
+		choices+="<option value=\""+ fixed(xbar+i*s) +"\">"+fixed(xbar+i*s/4)+"</option>\n"
+	var allSelects = document.getElementsByClassName("empChoices")
+	var defaultSelIndex=[3,3,4,2,4,2]
+	for(var i=0; i<allSelects.length; i++){
+		var selIndex = allSelects[i].selectedIndex;
+		if(selIndex==-1)selIndex=defaultSelIndex[i]
+		allSelects[i].innerHTML=choices;
+		allSelects[i].selectedIndex=selIndex;
+	}
+}
+
+	</script>
+	<link rel="stylesheet" type="text/css" href="styles/statstyle.css?v=1.1">
+</head>
+<body onload="init('normal');loadPrecision();loadColorChoice();linkMenu();setColors();showHideProbs(false);refreshEmpChoices();probability()">
+	<div id="container">
+		<div id="title" onClick="setColors()">StatPowers</div>
+		<div id="menu"></div>
+		<div class="container">
+			<h3>Pixel Normal Distribution</h3>
+			<div class="content">
+				<div class='helpDiv minimized autoheight'>
+					<a  onClick='toggle(this);' class='expander'>?</a>
+					<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+					<span>
+					This approximation of the Gaussian distribution is made of 100 blocks valued at 1% probability (i.e. 0.01) each.<br> For most calculations it is accurate to 2 decimal places.
+					<br>
+					<iframe width="100%" height="315" src="https://www.youtube.com/embed/U5nnKzvmaIc" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+					</span>
+				</div>
+			</div>
+			<div class="canvasdiv">
+				<canvas id="normal" width="496px" height="270" class='zoomable'>
+					<p>Your browser doesn't support canvas. Please update your browser.</p>
+				</canvas>
+				<a class="downloadButton topright" href="" onClick="downloadCanvas(this,'normal','samplingdistribution.png');"></a>
+			</div>
+			<form name="form1">
+			<div id="parameters"> <strong>Distribution Parameters:</strong><br/>
+				<input type="checkbox" id="overlayNormal" onClick="refresh();" checked> Overlay Normal<br>
+				<table  border="0">
+					<tr>
+						<td>Mean (&mu; or x&#772;)</td>
+						<td><input name="xbar" type="number" id="xbar"  value="0" class="smallNumber" onchange="refresh()" /></td>
+					</tr>
+					<tr>
+						<td>Standard Deviation (&sigma; or s)</label></td>
+						<td><input name="s" type="number" id="s"   min="0.000001"  value="1" class="smallNumber" onchange="refresh()" /></td>
+					</tr>
+				</table>
+			</div>
+			<div class='container'>
+				<h3>Probability</h3>
+				<div class="content">
+					<div id="apDiv2" style="display:block">
+					<span><select id="probType" onchange="showHideProbs(false);probability();">
+							  <option value="above" selected>Above</option>
+							  <option value="below">Below</option>
+							  <option value="between" selected>Between</option>
+							  <option value="tails" >Tails</option>
+							</select>
+					</span>
+					<span>
+						<span id="prob_above" style="display:none;">
+							P(X &ge;     
+							<select id="above" class="empChoices" onchange="probability()"></select>)
+						</span>
+						<span id="prob_below" style="display:none;">
+							P(X &le; 
+							<select id="below" class="empChoices" onchange="probability()"></select>)
+						</span>
+						<span id="prob_between" style="display:none;">
+							P(
+							<select id="ll" class="empChoices" onchange="probability()"></select>
+							&le; X &le;
+							<select id="ul" class="empChoices" onchange="probability()"></select>)
+						</span>
+						<span id="prob_tails" style="display:none;">
+							P(X &le;
+							<select id="oll" class="empChoices" onchange="probability()"></select>
+							or X &ge; 
+							<select id="oul" class="empChoices" onchange="probability()"></select>)
+						</span>
+					</span>
+					<div class="results">
+						<strong>Results:</strong><br />
+						Approx Probability: <span id="p"></span><br />
+						Normal Probability: <span id="pNormal"></span><br />
+					</div>
+					</div>
+				</div>
+			</div>
+			</form>
+		</div>
+	</div>
+</body>
+</html>

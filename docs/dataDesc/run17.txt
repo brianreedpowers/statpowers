@@ -1,0 +1,41 @@
+Cherry Blossom Run data, 2017
+Description
+Details for all 19,961 runners in the 2017 Cherry Blossom Run, which is an annual road race that takes place in Washington, DC. Most runners participate in a 10-mile run while a smaller fraction take part in a 5k run or walk.
+
+Usage
+run17
+Format
+A data frame with 19,961 observations on the following 9 variables.
+
+bib
+Number on the runner's bib.
+
+name
+Name of the runner, with only the initial of their last name.
+
+sex
+Gender of the runner.
+
+age
+Age of the runner.
+
+city
+Home city of the runner.
+
+net_sec
+Time to complete the race, after accounting for the staggered starting time, in seconds.
+
+clock_sec
+Time to complete the race, ignoring the staggered starting time, in seconds.
+
+pace_sec
+Average time per mile, in seconds.
+
+event
+The event the racer participated in, either the "10 Mile" race or the "5K".
+
+Details
+There was a time limit where all 10 Mile racers had to finish by. Can you figure out what that time is?
+
+Source
+Cherry Blossom Race Results

@@ -1,0 +1,53 @@
+Cherry Blossom Run data, 2009
+Description
+Details for all 14,974 runners in the 2009 Cherry Blossom Run, which is an annual road race that takes place in Washington, DC.
+
+Usage
+run09
+Format
+A data frame with 14,974 observations on the following 14 variables.
+
+place
+Finishing position. Separate positions are provided for each gender.
+
+time
+The total run time.
+
+net_time
+The run time from the start line to the finish line.
+
+pace
+Average time per mile, in minutes.
+
+age
+Age.
+
+gender
+Gender.
+
+first
+First name.
+
+last
+Last name.
+
+city
+Hometown city.
+
+state
+Hometown state.
+
+country
+Hometown country.
+
+div
+Running division (age group).
+
+div_place
+Division place, also broken up by gender.
+
+div_tot
+Total number of people in the division (again, also split by gender).
+
+Source
+Cherry Blossom Race Results

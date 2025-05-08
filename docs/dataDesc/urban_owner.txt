@@ -1,0 +1,95 @@
+Summary of many state-level variables
+Description
+Census data for the 50 states plus DC and Puerto Rico.
+
+Usage
+urban_owner
+Format
+A data frame with 52 observations on the following 28 variables.
+
+state
+State
+
+total_housing_units_2000
+Total housing units available in 2000.
+
+total_housing_units_2010
+Total housing units available in 2010.
+
+pct_vacant
+a numeric vector
+
+occupied
+Occupied.
+
+pct_owner_occupied
+a numeric vector
+
+pop_st
+a numeric vector
+
+area_st
+a numeric vector
+
+pop_urban
+a numeric vector
+
+poppct_urban
+a numeric vector
+
+area_urban
+a numeric vector
+
+areapct_urban
+a numeric vector
+
+popden_urban
+a numeric vector
+
+pop_ua
+a numeric vector
+
+poppct_urban.1
+a numeric vector
+
+area_ua
+a numeric vector
+
+areapct_ua
+a numeric vector
+
+popden_ua
+a numeric vector
+
+pop_uc
+a numeric vector
+
+poppct_uc
+a numeric vector
+
+area_uc
+a numeric vector
+
+areapct_uc
+a numeric vector
+
+popden_uc
+a numeric vector
+
+pop_rural
+a numeric vector
+
+poppct_rural
+a numeric vector
+
+area_rural
+a numeric vector
+
+areapct_rural
+a numeric vector
+
+popden_rural
+a numeric vector
+
+Source
+US Census.

@@ -1,0 +1,17 @@
+"Engineering Undergraduates"
+3
+["degree","GPA","School"]
+[1,3,1]
+[2,0,1]
+[[0,0,1],[0,0,1],[0,0,0]]
+[0,4,0]
+[1,1,0]
+[1,1,0]
+[[[],[null,null,1]],[[],[null,null,1]],[""]]
+[[[null,null,[null,null],[null,null],[null,null],[null,null],[null,null],[null,null],[null,null],[null,null]],[]],[[2.5,4],[2,4]],[[null,[null,null]]]]
+[10,1,2]
+[["mechanical","computer","electrical","chemical","biomedical","civil","environmental","general","physics","architectural"],["lvl1"],["State Polytechnic","Regional Technical Institute"]]
+[[[0.2693726937269373,0.04428044280442804,0.16605166051660517,0.12915129151291513,0.21771217712177118,0.12915129151291513,0.02214022140221402,0.01107011070110701,0.007380073800738006,0.003690036900369003],[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]],[[1],[]],[[0.5,0.5]]]
+[2,2,2]
+1274167122
+[0,0,0]

@@ -1,0 +1,27 @@
+London Borough Boundaries
+Description
+This dataset contains the coordinates of the boundaries of all 32 boroughs of the Greater London area.
+
+Usage
+london_boroughs
+Format
+A data frame with 45341 observations on the following 3 variables.
+
+borough
+Name of the borough.
+
+x
+The "easting" component of the coordinate, see details.
+
+y
+The "northing" component of the coordinate, see details.
+
+Details
+Map data was made available through the Ordnance Survey Open Data initiative. The data use the National Grid coordinate system, based upon eastings (x) and northings (y) instead of longitude and latitude.
+
+The name variable covers all 32 boroughs in Greater London: Barking & Dagenham, Barnet, Bexley, Brent, Bromley, Camden, Croydon, Ealing, Enfield, Greenwich, Hackney, Hammersmith & Fulham, Haringey, Harrow, Havering, Hillingdon, Hounslow, Islington, Kensington & Chelsea, Kingston, Lambeth, Lewisham, Merton, Newham, Redbridge, Richmond, Southwark, Sutton, Tower Hamlets, Waltham Forest, Wandsworth, Westminster
+
+Source
+https://data.london.gov.uk/dataset/ordnance-survey-code-point
+
+Contains Ordinance Survey data released under the Open Government License, OGL v2.

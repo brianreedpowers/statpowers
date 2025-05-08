@@ -1,0 +1,43 @@
+Get it Dunn Run, Race Times
+Description
+Get it Dunn is a small regional run that got extra attention when a runner, Nichole Porath, made the Guiness Book of World Records for the fastest time pushing a double stroller in a half marathon.
+
+Usage
+get_it_dunn_run
+Format
+A data frame with 978 observations on the following 10 variables.
+
+date
+Date of the run.
+
+race
+Run distance.
+
+bib_num
+Bib number of the runner.
+
+first_name
+First name of the runner.
+
+last_initial
+Initial of the runner's last name.
+
+sex
+Sex of the runner.
+
+age
+Age of the runner.
+
+city
+City of residence.
+
+state
+State of residence.
+
+run_time_minutes
+Run time, in minutes.
+
+Source
+http://www.getitdunnrun.com
+
+https://www.gopherstateevents.com

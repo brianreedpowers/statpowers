@@ -1,0 +1,95 @@
+Vehicle info from the EPA
+Description
+Details from the EPA.
+
+Usage
+epa2012
+Format
+A data frame with 1129 observations on the following 28 variables.
+
+model_yr
+a numeric vector
+
+mfr_name
+Manufacturer name.
+
+division
+Vehicle division.
+
+carline
+Vehicle line.
+
+mfr_code
+a factor with levels ADX ASX AZD BEX BGT BMX CDA CRX DSX FJX FMX GMX HNX HYX JCX KMX LRX LTX MAX MBX MTX NLX NSX PRX RII RRG SAX SKX TKX TVP TYX VVX VWX
+
+model_type_index
+a numeric vector
+
+engine_displacement
+a numeric vector
+
+no_cylinders
+a numeric vector
+
+transmission_speed
+a factor with levels Auto(A1) Auto(A4) Auto(A5) Auto(A6) Auto(A7) Auto(A8) Auto(AM-S6) Auto(AM5) Auto(AM6) Auto(AM7) Auto(AV-S6) Auto(AV-S7) Auto(AV-S8) Auto(AV) Auto(S4) Auto(S5) Auto(S6) Auto(S7) Auto(S8) Manual(M5) Manual(M6) Manual(M7)
+
+city_mpg
+a numeric vector
+
+hwy_mpg
+a numeric vector
+
+comb_mpg
+a numeric vector
+
+guzzler
+a factor with levels N Y
+
+air_aspir_method
+a factor with levels SC TC
+
+air_aspir_method_desc
+a factor with levels Naturally Aspirated Supercharged Turbocharged
+
+transmission
+a factor with levels A AM CVT M OT SA SCV
+
+transmission_desc
+a factor with levels Automated Manual Automatic Continuously Variable Manual Other Selectable Continuously Variable (e.g. CVT with paddles) Semi-Automatic
+
+no_gears
+a numeric vector
+
+trans_lockup
+a factor with levels N Y
+
+trans_creeper_gear
+a factor with levels N
+
+drive_sys
+a factor with levels 4 A F P R
+
+drive_desc
+a factor with levels 2-Wheel Drive, Front 2-Wheel Drive, Rear 4-Wheel Drive All Wheel Drive Part-time 4-Wheel Drive
+
+fuel_usage
+a factor with levels DU EL G GM GP GPR H
+
+fuel_usage_desc
+a factor with levels Diesel Electricity Gasoline (Mid Grade Unleaded Recommended) Gasoline (Premium Unleaded Recommended) Gasoline (Premium Unleaded Required) Gasoline (Regular Unleaded Recommended) Hydrogen
+
+class
+a factor with levels Compact Cars Large Cars Midsize Cars Midsize Station Wagons Minicompact Cars Small Pick-up Trucks 2WD Small Pick-up Trucks 4WD Small Station Wagons Special Purpose Vehicle 2WD Special Purpose Vehicle, minivan 2WD Special Purpose Vehicle, minivan 4WD Special Purpose Vehicle, SUV 2WD Special Purpose Vehicle, SUV 4WD Standard Pick-up Trucks 2WD Standard Pick-up Trucks 4WD Subcompact Cars Two Seaters Vans, Cargo Types Vans, Passenger Type
+
+car_truck
+a factor with levels 1 2 car
+
+release_date
+Date of vehicle release.
+
+fuel_cell
+a factor with levels N Y
+
+Source
+Fuelecomy.gov, Shared MPG Estimates: Toyota Prius 2012.

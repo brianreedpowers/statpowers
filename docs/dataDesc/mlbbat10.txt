@@ -1,0 +1,68 @@
+Major League Baseball Player Hitting Statistics for 2010
+Description
+Major League Baseball Player Hitting Statistics for 2010.
+
+Usage
+mlbbat10
+Format
+A data frame with 1199 observations on the following 19 variables.
+
+name
+Player name
+
+team
+Team abbreviation
+
+position
+Player position
+
+game
+Number of games
+
+at_bat
+Number of at bats
+
+run
+Number of runs
+
+hit
+Number of hits
+
+double
+Number of doubles
+
+triple
+Number of triples
+
+home_run
+Number of home runs
+
+rbi
+Number of runs batted in
+
+total_base
+Total bases, computed as 3HR + 23B + 1*2B + H
+
+walk
+Number of walks
+
+strike_out
+Number of strikeouts
+
+stolen_base
+Number of stolen bases
+
+caught_stealing
+Number of times caught stealing
+
+obp
+On base percentage
+
+slg
+Slugging percentage (total_base / at_bat)
+
+bat_avg
+Batting average
+
+Source
+https://www.mlb.com, retrieved 2011-04-22.

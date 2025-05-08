@@ -1,0 +1,348 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Bayes's Theorem</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<script type="text/javascript" src="js/jstat.js"></script>
+<script type="text/javascript" src="js/commonFunctions.js"></script>
+<script type="text/javascript" src="js/shapiro-wilk.js"></script>
+<script language="javascript">
+
+function refreshInputs(){
+	var nA = parseInt(document.getElementById('nA').value)
+	var newInputs="Outcome Labels<br>"
+	for(var i=1; i<=nA; i++){
+		var val = (document.getElementById('A'+i) != null ? document.getElementById('A'+i).value : ("A"+i))
+		newInputs +="<input id=\"A"+i+"\" onChange=\"refresh()\" value='"+val+"'>"
+	}
+	document.getElementById('levelsA').innerHTML=newInputs
+
+/*	var probsInputs = "		<table width=\"100%\">\n<tr>\n<td>Outcome</td><td>Prob (A<sub>i</sub>)</td><td></td><td>Prob (A<sub>i</sub> ∩ B)</td>\n<td>Prob (B | A<sub>i</sub>)</td><td> Prob (A<sub>i</sub> | B)</td>\n</tr>"
+	for(var i=1; i<=nA; i++){
+		probsInputs +="		<tr><td id=\"lblA"+i+"\">"+document.getElementById('A'+i).value+"</td>\n		<td><input id='tblPA"+i+"' type=\"number\" class=\"tinyNumber\"></td>\n		<td>or</td>\n		<td><input id='tblPAandB_"+i+"' type=\"number\" class=\"tinyNumber\"></td>\n		<td><input id='tblPB|A_"+i+"' type=\"number\" class=\"tinyNumber\"></td>\n		<td id=\"PA|B_"+i+"\"></td>\n		</tr>"
+	}
+	probsInputs+="</table>"
+	document.getElementById('probs').innerHTML=probsInputs
+*/
+	drawTree(nA)
+	refreshLabels()
+}
+
+function drawTree(nA){
+	var treeHeight = Math.max(500,100*nA)
+	document.getElementById("probTree").style.height=treeHeight+"px"
+	var treeWidth = 450
+	
+	var nodes=[treeWidth*.05, treeWidth*.45, treeWidth*.8]
+	var nodeHeights = new Array(nA)
+	var leafHeights = new Array(nA*2)
+	
+	//alert(nodes)
+	var treeRoot = 0+treeHeight/2
+	//alert(treeRoot)
+	var newTreeHTML=""
+	for(var i=0; i<nA; i++){
+		nodeHeights[i]=(i+.5)/nA*treeHeight
+		leafHeights[i*2] = (i*2 + .5)/(2*nA)*treeHeight
+		leafHeights[i*2+1] = (i*2 + 1.5)/(2*nA)*treeHeight
+	
+		newTreeHTML+=drawLine(nodes[0],treeRoot,nodes[1], nodeHeights[i])
+		
+		newTreeHTML +=drawLine(nodes[1],nodeHeights[i],nodes[2],leafHeights[2*i])
+		newTreeHTML +=drawLine(nodes[1],nodeHeights[i],nodes[2],leafHeights[2*i+1])
+	}
+	
+	for(var i=0; i<nA; i++){
+		newTreeHTML +="<span id='lblA"+(i+1)+"' class='treeLabel' style='position:absolute; left:"+(nodes[0]+40)+"px; top:"+((nodeHeights[i]+treeRoot)/2-25)+"px;'>"+document.getElementById("A"+(i+1)).value+"</span>"		
+	
+		newTreeHTML +="<input type='number'  id='PA"+(i+1)+"' class='smallNumber' style='position:absolute; left:"+(nodes[0]+40)+"px; top:"+((nodeHeights[i]+treeRoot)/2-10)+"px;' placeholder='P(A"+(i+1)+")' onChange='recalc()'>"		
+	}
+	for(var j=0; j<nA*2; j++){
+		var i=Math.floor(j/2)
+		newTreeHTML +="<span id='lblB"+(j+1)+"' class='treeLabel' style='position:absolute; left:"+(nodes[1]+40)+"px; top:"+((leafHeights[j]+nodeHeights[i])/2+(j%2==0?-27:12))+"px;'>"+document.getElementById((i==0?"":"not")+"B").value+"</span>"		
+		newTreeHTML +="<input type='number'  id='P"+(j%2==1?"not":"")+"B|A"+(i+1)+"' class='smallNumber' style='position:absolute; left:"+(nodes[1]+40)+"px; top:"+((leafHeights[j]+nodeHeights[i])/2-10)+"px;'  placeholder=\"P(B"+(j%2==1?"'":"")+"|A"+(i+1)+")\" onChange='recalc()'>"		
+		newTreeHTML +="<input type='number'  id='P"+(j%2==1?"not":"")+"BandA"+(i+1)+"' class='smallNumber' style='position:absolute; left:"+(nodes[2])+"px; top:"+(leafHeights[j]-10)+"px;'  placeholder=\"P(B"+(j%2==1?"'":"")+"&cap;A"+(i+1)+")\" onChange='recalc()'>"
+	}
+	document.getElementById('probTree').innerHTML=newTreeHTML
+}
+
+function drawLine(x1,y1,x2,y2){
+	var styl="diagUPRIGHT"
+	if(y2==y1) styl="straight"
+	if(y2>y1) styl="diagDOWNRIGHT"
+	var top = Math.min(y2,y1);
+	var hght = Math.max(1,Math.abs(y2-y1));
+	var wdth = x2-x1
+	//return ("<div style='border:1px red solid; position:absolute; left:"+x1+"; top:"+top+"; width:"+wdth+"; height: "+hght+"' class='"+styl+"'></div>\n")
+	var returnString = "<div style=' position:absolute; left:"+x1+"px; top:"+top+"px; width:"+wdth+"px; height: "+hght+"px' class='"+styl+"'></div>\n"
+	//alert(returnString)
+	return returnString
+}
+	
+function refresh(){
+	setPrecision(document.getElementById('precision').value)
+	refreshLabels()
+	calcBayesProb()
+}
+
+function refreshLabels(){
+	var nA = parseInt(document.getElementById('nA').value)
+	var optionsA = ""
+	for(var i=1; i<=nA; i++){
+		var labelA = document.getElementById("A"+i).value
+		optionsA += "<option value='A"+i+"'>"+labelA+"</option>\n"
+		document.getElementById("lblA"+i).innerHTML=labelA
+		document.getElementById("lblB"+(i*2-1)).innerHTML=document.getElementById("B").value
+		document.getElementById("lblB"+(i*2)).innerHTML=document.getElementById("notB").value
+	}
+	document.getElementById("Ai").innerHTML=optionsA;
+	document.getElementById("Bi").innerHTML="<option value='B'>"+document.getElementById("B").value+"</option><option value='notB'>"+document.getElementById("notB").value+"</option>"
+}
+
+var pauseRecalc = false;
+var treeComplete = false;
+
+function recalcPAs(nA){
+	var sumProbs=0
+	var PAsSet = 0
+	var unsetA = 0
+	for(var i=1; i<=nA; i++){
+		var PA = document.getElementById("PA"+i).value;
+//		alert(PA)
+		if(PA==""){
+			unsetA=i
+		} else {
+			PAsSet++
+			sumProbs+= parseFloat(PA)
+		}
+	}
+	if(nA-PAsSet==1) document.getElementById("PA"+unsetA).value = (1-sumProbs)
+}
+
+
+
+function recalc(l1=true, l2=true,l3=true){
+//	alert(document.getElementById("PA2").value);
+	var nA = parseInt(document.getElementById('nA').value)
+	if(pauseRecalc) return false;
+	pauseRecalc = true;
+	
+	for(var loop=0; loop<=1; loop++){
+		if(l1) recalcPAs(nA)
+		
+		if(l2){
+			for(var i=1; i<=nA; i++){
+				var PBgivenA = document.getElementById("PB|A"+i)
+				var PnotBgivenA = document.getElementById("PnotB|A"+i)
+				if (PBgivenA.value != "" && PnotBgivenA.value=="") PnotBgivenA.value=1-parseFloat(PBgivenA.value);
+				if (PBgivenA.value == "" && PnotBgivenA.value!="") PBgivenA.value=1-parseFloat(PnotBgivenA.value);
+			}
+		}
+		
+		for(var i=1; i<=nA; i++){
+			var PA = document.getElementById("PA"+i);
+			for(var j=0; j<=1; j++){
+				var not=(j==0?"":"not")
+				var PBgivenA = document.getElementById("P"+not+"B|A"+i)
+				var PBandA = document.getElementById("P"+not+"BandA"+i)
+				if(PA.value!=""){
+					if((PBandA.value==""||l3) && PBgivenA.value!=""){
+						PBandA.value = parseFloat(PA.value) * parseFloat(PBgivenA.value)
+					} else if((PBandA.value!=""||l2) && PBgivenA.value=="" && l2) {
+						PBgivenA.value = parseFloat(PBandA.value)/parseFloat(PA.value)
+					}
+				} else {
+					if(PBgivenA.value!="" && PBandA.value!="" && l1) PA.value = parseFloat(PBandA.value)/parseFloat(PBgivenA.value)
+				}
+			}
+		}
+	}
+	pauseRecalc=false;
+	checkTree(nA)
+}
+
+
+function checkTree(nA){
+	var nA = parseInt(document.getElementById('nA').value)
+	var sumProbs=0
+	for(var i=1; i<=nA; i++){
+		sumProbs+= parseFloat(document.getElementById("PA"+i).value)
+	}
+	for(var i=1; i<=nA; i++){
+		if(sumProbs!=1){
+			document.getElementById("PA"+i).classList.add("error")
+		}else{
+			document.getElementById("PA"+i).classList.remove("error")		
+		}
+	}
+	var leafProbSum=0
+	for(var i=1; i<=nA; i++){
+		sumProbs = 	parseFloat(document.getElementById("PB|A"+i).value)+parseFloat(document.getElementById("PnotB|A"+i).value)
+		if(sumProbs!=1){
+//			console.log("i="+i+" sumProbs 2nd column = "+sumProbs)
+			document.getElementById("PB|A"+i).classList.add("error")
+			document.getElementById("PnotB|A"+i).classList.add("error")
+		}else{
+			document.getElementById("PB|A"+i).classList.remove("error")		
+			document.getElementById("PnotB|A"+i).classList.remove("error")		
+		}
+		
+		for(var j=0; j<2; j++){
+			leafProbSum += parseFloat(document.getElementById("P"+(j==0?"":"not")+"BandA"+i).value)
+		}
+	}	
+//	console.log(leafProbSum)
+	for(var i=1; i<=nA; i++){
+		for(var j=0; j<2; j++){
+			if(leafProbSum!=1){
+				document.getElementById("P"+(j==0?"":"not")+"BandA"+i).classList.add("error")
+			} else {
+				document.getElementById("P"+(j==0?"":"not")+"BandA"+i).classList.remove("error")
+			}
+		}
+	}	
+		
+	treeComplete = true;
+	for(var i=1; i<=nA; i++){
+		if(document.getElementById("PA"+i).value=="" || document.getElementById("PB|A"+i).value =="" ||
+		document.getElementById("PnotB|A"+i).value==""){
+			treeComplete=false;
+			break;
+		}
+	}
+	document.getElementById("Ai").disabled=!treeComplete
+	document.getElementById("Bi").disabled=!treeComplete
+	calcBayesProb();
+}
+
+function calcBayesProb(){
+	if(treeComplete){
+		var A= document.getElementById("Ai").value
+		var B= document.getElementById("Bi").value
+		
+		var numerator = parseFloat(document.getElementById("P"+B+"and"+A).value)
+		var nA = parseInt(document.getElementById('nA').value)
+		var denominator = 0
+		for(var i=1; i<=nA; i++){
+			denominator +=  parseFloat(document.getElementById("P"+B+"andA"+i).value)
+		}
+		document.getElementById("bayesProb").innerHTML=fixed(numerator/denominator)
+	} else {
+		document.getElementById("bayesProb").innerHTML=""
+	}
+}
+
+function resetInputs(){
+	var nA = parseInt(document.getElementById('nA').value)
+	for(var i=1; i<=nA; i++){
+		document.getElementById("A"+i).value="A"+i
+	}
+	document.getElementById("B").value="B"
+	document.getElementById("notB").value="B'"
+
+	refreshInputs()
+//	refreshLabels()
+//	refreshInputs()
+	checkTree(nA)
+}
+</script>
+
+
+<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+<style>
+.diagDOWNRIGHT {
+  background: linear-gradient(to top right, rgba(0,0,0,0) calc(50% - 1px), rgba(0,0,0,1), rgba(0,0,0,0) calc(50% + 1px) )
+}
+
+.diagUPRIGHT {
+  background: linear-gradient(to bottom right, rgba(0,0,0,0) calc(50% - 1px), rgba(0,0,0,1), rgba(0,0,0,0) calc(50% + 1px) )
+}
+
+.straight {
+ background: rgba(0,0,0,1);}
+ 
+.treeLabel{
+	background: rgba(255,255,255,.75);
+}
+
+.error{
+border: 2px solid red;
+}
+
+</style>
+</head>
+
+<body onload="refreshInputs();loadPrecision();loadColorChoice();linkMenu();setColors();">
+	<div id="container">
+		<div id="title" onClick="setColors()">StatPowers</div>
+		<div id="menu"></div>
+
+	<form name="form1">
+		<div class="container">	
+			<h3>Bayes's Theorem Calculator</h3>
+			<input type="checkbox" id="headerOptions" class="css-checkbox" checked>
+			<label for="headerOptions" class="css-label">Options</label>
+			<div class="content css-content">
+				<div class='helpDiv minimized autoheight'>
+					<a  onClick='toggle(this);' class='expander'>?</a>
+					<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+					<span>
+					<iframe width="100%" height="300px" src="https://www.youtube.com/embed/ds32lzv11h4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+					</span>
+				</div>
+				<table width=100%><tr><td width=50%>
+					<b>Variable A:</b>
+				</td><td width=50%>
+					<b>Variable B:</b>	</td></tr>
+				<td>
+				# Outcomes: <input id="nA" type="number" min="2" max="50" step="1" value="2" required="true" onChange="refreshInputs();refresh();" />
+				</td><td>
+				</td></tr>
+				<tr><td id="levelsA">Outcome Labels<br>
+				<input id="A1" onChange="refresh()" value='A1'>
+				<input id="A2" onChange="refresh()" value='A2'>
+				</td>
+				<td id="levelsB">
+				<input id="B" onChange="refresh()" value='B'>
+				<input id="notB" onChange="refresh()" value="B'">
+				</table> 
+				<button TYPE=reset VALUE="Clear All" onClick="resetInputs();"/>Clear All</button>
+			</div>
+		</div>
+		<div class="container">	
+			
+			<input type="checkbox" checked id="headerTree" class="css-checkbox">
+			<label for="headerTree" class="css-label">Probability Tree</label>
+			<div class="content css-content">
+
+				<div id="probTree" style="position:relative; height:500px;border:1px black solid;">
+				</div>
+			</div>
+		</div>
+		<div class="container">	
+			<input type="checkbox" checked id="headerOutput" class="css-checkbox">
+			<label for="headerOutput" class="css-label">Output</label>
+			<div class="content css-content">
+				<div id="probs"  class="results">
+				P(
+				<select id="Ai" disabled onChange="calcBayesProb()">
+					<option>A1</option>
+					<option>A2</option>
+				</select>
+				|
+				<select id="Bi" disabled onChange="calcBayesProb()">
+					<option>B</option>
+					<option>B'</option>
+				</select>
+				)
+				=
+				<span id="bayesProb"></span>
+				</div>
+			</div>
+		</div>
+
+	<form>
+	</div>
+</body>
+</html>

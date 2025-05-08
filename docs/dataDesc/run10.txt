@@ -1,0 +1,21 @@
+Cherry Blossom 10 mile run data, 2009
+14 variables for all 14,974 10 mile participants in the 2009 Cherry Blossom Run (run10_09) and 9 variables for all 16,924 participants in 2012.
+
+Variables
+place - Finishing position. Separate positions are provided for each gender.
+time - The total run time. For run10, this is equivalent to net_time.
+net_time - The run time from the start line to the finish line.
+pace - The listed pace for each runner.
+age - Age.
+gender - Gender.
+first - First name.
+last - Last name.
+city - Hometown city.
+location - Hometown city. (run10 data only.)
+state - Hometown state. (For run10, this may also list a country.)
+country - Hometown country.
+div - Running division (age group).
+div_place - Division place, also broken up by gender.
+div_tot - Total number of people in the division (again, also split by gender).
+Source
+cherryblossom.org

@@ -1,0 +1,10 @@
+Facebook, Google, and LinkedIn IPO filings
+On Feb 1st, 2011, Facebook Inc. filed an S-1 form with the Securities and Exchange Commission as part of their initial public offering (IPO). This dataset includes the text of that document as well as text from the IPOs of two competing companies: Google and LinkedIn.
+
+The format is a list of three character vectors. Each vector contains the line-by-line text of the IPO Prospectus of Facebook, Google, and LinkedIn, respectively.
+
+Source
+All IPO prospectuses are available from www.sec.gov: Facebook, Google, LinkedIn.
+
+Details
+Each of the three prospectuses is encoded in UTF-8 format and contains some non-word characters related to the layout of the original documents. For analysis on the words, it is recommended that the data be processed with packages such as tm and stringr. See example below.

@@ -1,0 +1,20 @@
+{
+	"name": "jerzy",
+	"version": "0.2.1",
+	"author": "Pieter Provoost <pieterprovoost@gmail.com>",
+	"license": "MIT",
+	"main": "./jerzy.js",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/pieterprovoost/jerzy"
+	},
+	"devDependencies": {
+		"mocha": "*",
+		"chai": "*",
+		"webmake": "*"
+	},
+	"scripts": {
+		"test": "./node_modules/.bin/mocha",
+		"webmake": "./node_modules/.bin/webmake jerzy.js browser.js"
+	}
+}

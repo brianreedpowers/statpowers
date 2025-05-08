@@ -1,0 +1,1048 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Distribution: Custom</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+		<script type="text/javascript" src="js/commonFunctions.js"></script>
+		<script type="text/javascript" src="js/chartFunctions.js?v=1.1"></script>
+		<script type="text/javascript" src="js/jstat.js"></script>
+		<script language="javascript">
+			let useBins = false;
+			var totalN = 1;
+			var prevTab =0;
+			var currentTab = 0;
+			
+			function toggleUseBins(){
+				//	alert(useBins)
+				document.getElementById("valuesOrBins").innerHTML=(useBins==true)?"Bins":"Possible Values";
+				document.getElementById("valueorbinheader").innerHTML=(useBins==true)?"Bin":"Value";
+				if(useBins==true){
+					//document.getElementById("probabilityChoices").style.display="none";
+					document.getElementById("probType").value="checked";
+					showHideProbs(false,true);
+					document.getElementById('probType').disabled=true
+					document.getElementById("statsDiv").style.display="none";
+				} else {
+					document.getElementById('probType').disabled=false
+					document.getElementById("probabilityChoices").style.display="block"
+					document.getElementById("statsDiv").style.display="block"
+					var n= Math.round(parseFloat(document.getElementById("n").value))
+					for (var i = 0; i<n; i++){
+						if(document.getElementById('x_'+i).value.indexOf("-")>-1){
+							document.getElementById('x_'+i).value=document.getElementById('x_'+i).value.substr(0,document.getElementById('x_'+i).value.indexOf("-"))
+						}
+					}
+				}
+				distributionGood()
+			}
+			
+			//checks if the distribution is valid. If there are any problems, puts those in the output field.
+			//returns true or false
+			function distributionGood(){
+				var good = true
+				var pGTone = false
+				var badX = false
+				var badF = false
+				var emptyBin = false
+				var badBin=false
+				var useBins = document.getElementById('toggleBins').checked
+				var errorMsg=""
+				var n= Math.round(parseFloat(document.getElementById("n").value))
+				var pSum=0
+				for (var i = 0; i<n; i++){
+					var x= document.getElementById('x_'+i).value
+					if(!useBins){
+						if(!isNumeric(x)) {document.getElementById('x_'+i).className='error'; good=false; badX=true } else {document.getElementById('x_'+i).className=''}
+						} else {
+						if(x=="") {document.getElementById('x_'+i).className='error';good=false;emptyBin=true} 
+						else if ( !(/[-+]?([0-9]*\.[0-9]+|[0-9]+)[-][-+]?([0-9]*\.[0-9]+|[0-9]+)/.test(x))){
+							document.getElementById('x_'+i).className='error';
+							badBin=true;
+							good=false;
+						}else {document.getElementById('x_'+i).className=''}
+					}
+					if (!exists(document.getElementById("freq_0"))){
+						var p= document.getElementById("p_"+i).value
+						if(!isNumeric(p) || +p>1 || +p<0) {document.getElementById('p_'+i).className='error'; good=false;pGTone=true } else {document.getElementById('p_'+i).className=''; pSum += +p}
+						} else {
+						var f= document.getElementById("freq_"+i).value
+						if(!Number.isInteger(+f) || +f<0) {document.getElementById('freq_'+i).className='error'; good=false; badF=true } else {document.getElementById('freq_'+i).className='';}
+					}
+				}
+				if(emptyBin) errorMsg+="Bins cannot be blank<br/>\n"
+				if(badBin) errorMsg+="Bins must be in the form 'NUMBER-NUMBER'<br/>\n"
+				if (badX) errorMsg+="Values column must be numeric<br/>\n"
+				if (badF) errorMsg+="Frequencies must be integers &ge; 0<br/>\n"
+				if (pGTone) errorMsg+="Each probability must be from 0 to 1<br/>\n"
+				
+				if (document.form1.which[0].checked){
+					if (pSum.toFixed(10) > 1) {
+						for (var i = 0; i<n; i++){
+							document.getElementById('p_'+i).className='error'
+						}	
+						good=false
+						errorMsg += "Probabilities sum to "+pSum+", which is more than 1<br/>\n"
+					}
+					if (pSum.toFixed(10)<1){
+						for (var i = 0; i<n; i++){
+							document.getElementById('p_'+i).className='error'
+						}	
+						good=false;
+						errorMsg +="Probabilities sum to "+pSum+", which is less than 1<br/>\n"
+					}
+				}
+				document.getElementById("distributionErrors").innerHTML=errorMsg
+				document.getElementById("distributionErrors").style.display=(errorMsg==""?"none":"block")
+				return good
+			}
+			
+			//calculates the probability, pastes it in the output field
+			function probability() {	
+				var pField = document.getElementById("prob")
+				var tail = false
+				var prob = 0
+				var n= Math.round(parseFloat(document.getElementById("n").value))
+				if(document.getElementById("probType").value=="above") {
+					ll = parseFloat(document.getElementById("above").value)
+					ul=9999999999
+					} else if (document.getElementById("probType").value=="below"){
+					ul = parseFloat(document.getElementById("below").value)
+					ll=-99999999999
+					} else if (document.getElementById("probType").value=="between"){
+					ll = parseFloat(document.getElementById("ll").value)
+					ul = parseFloat(document.getElementById("ul").value)
+					}  else if (document.getElementById("probType").value=="tails"){
+					tail = true
+					ll = parseFloat(document.getElementById("oll").value)
+					ul = parseFloat(document.getElementById("oul").value)
+				} 
+				
+				for(var i=0; i<n; i++){	
+					var x=eval(document.getElementById('x_'+i).value)
+					var p=parseFloat(document.getElementById("p_"+i).value)
+					if (document.getElementById("probType").value=="checked") {
+						if (document.getElementById("chk_"+i).checked) prob += p
+					} else if((!tail && x>=ll && x<=ul) || (tail && (x <=ll || x>=ul)) ) prob +=p
+				}
+				
+				pField.innerHTML= +prob.toFixed(precision)
+			}
+			
+			//calculates EX, Var and SD and pastes tehm in the output field
+			function stats(){
+				var n= Math.round(parseFloat(document.getElementById("n").value))
+				var EX=0;
+				var EXsq=0;
+				for(var i=0; i<n; i++){
+					var x=eval(document.getElementById('x_'+i).value)
+					var p=parseFloat(document.getElementById("p_"+i).value)
+					EX += x*p
+					EXsq += Math.pow(x,2)*p
+				}
+				document.getElementById("EX").innerHTML = +EX.toFixed(precision)
+				document.getElementById("VAR").innerHTML = +(EXsq-Math.pow(EX,2)).toFixed(precision)
+				document.getElementById("SD").innerHTML = +(Math.sqrt(EXsq-Math.pow(EX,2))).toFixed(precision)
+			}
+			
+			function refresh(){
+				setPrecision(document.getElementById('precision').value)
+				if (document.form1.which[0].checked){ 
+					calcProbs()
+					} else if (document.form1.which[1].checked){
+					calcFreqs()
+				}
+				if (distributionGood()){
+					sortAndCombineX()
+					probability()
+					stats()
+					drawHistogram(ctx,box)
+					} else {
+					clearCanvas(ctx,box)
+				}
+			} 
+			
+			//sorts the rows of the table by value
+			function sortX(){
+				if(distributionGood()){
+					var n= Math.round(parseFloat(document.getElementById("n").value))
+					for(var i=0; i<n-1; i++){
+						for(var j=i+1; j<n; j++){
+							var xi=(document.getElementById('x_'+i).value)
+							var xj=(document.getElementById('x_'+j).value)
+							if(!useBins){
+								xi=eval(xi)
+								xj=eval(xj)
+							}
+							var pi=eval(document.getElementById('p_'+i).value)
+							var pj=eval(document.getElementById('p_'+j).value)
+							if(!useBins){
+								compareVal1 = +xi
+								compareVal2 = +xj
+								}else{
+								compareVal1 = +xi.substr(0, xi.indexOf('-')); 
+								compareVal2 = +xj.substr(0, xj.indexOf('-'));
+							}
+							if(compareVal2<compareVal1){
+								document.getElementById('x_'+j).value=xi
+								document.getElementById('p_'+j).value=pi
+								document.getElementById('x_'+i).value=xj
+								document.getElementById('p_'+i).value=pj
+								if (document.form1.which[1].checked){
+									var fi=eval(document.getElementById('freq_'+i).value)
+									var fj=eval(document.getElementById('freq_'+j).value)
+									document.getElementById('freq_'+j).value=fi
+									document.getElementById('freq_'+i).value=fj
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			//first sorts the rows of the table by value
+			//next goes through and if any values are repeated, combines the probabilities/frequencies
+			function sortAndCombineX(){
+				if(distributionGood()){
+					sortX()
+					if(!useBins){
+						var n= Math.round(parseFloat(document.getElementById("n").value))
+						for(var i=0; i<n-1; i++){
+							var xi=eval(document.getElementById('x_'+i).value)
+							var xj=eval(document.getElementById('x_'+(i+1)).value)
+							var pi=eval(document.getElementById('p_'+i).value)
+							var pj=eval(document.getElementById('p_'+(i+1)).value)
+							if(xj==xi){
+								//alert("x"+i+"=x"+(i+1));
+								pi=pi+pj
+								document.getElementById('p_'+i).value=pi
+								if (document.form1.which[1].checked){
+									var fi=eval(document.getElementById('freq_'+i).value)
+									var fj=eval(document.getElementById('freq_'+(i+1)).value)
+									document.getElementById('freq_'+i).value=fi+fj
+								}
+								for(var k=i+1; k<n-1; k++){
+									document.getElementById('x_'+k).value=document.getElementById('x_'+(k+1)).value
+									document.getElementById('p_'+k).value=document.getElementById('p_'+(k+1)).value
+									if (document.form1.which[1].checked){
+										document.getElementById('freq_'+k).value=document.getElementById('freq_'+(k+1)).value
+									}
+								}
+								document.getElementById("n").value=n-1
+								n=n-1
+								i=i-1
+							}	
+						}
+						buildInputs()
+					}
+				}
+			}
+			
+			function refreshAfterEditProb(){
+				calcProbs()
+				if (distributionGood()){
+					sortAndCombineX()
+					probability()
+					stats()
+					drawHistogram(ctx,box)
+				} else {
+					clearCanvas(ctx,box)
+				}
+			}
+			
+			function refreshAfterEditFreq(freqID){
+				calcFreqs()
+				if (distributionGood()){
+					sortAndCombineX()
+					probability()
+					stats()
+					drawHistogram(ctx,box)
+				} else {
+					clearCanvas(ctx,box)
+				}
+				var nextID =parseInt(freqID.substr(freqID.indexOf("_")+1))+1
+				var n= Math.round(parseFloat(document.getElementById("n").value))
+				totalN=n
+				if(nextID<n){document.getElementById("chk_"+nextID).focus()}
+			}
+			
+			function refreshAfterEditX(xID){
+				evalX()
+				if (distributionGood()){
+					sortAndCombineX()
+					probability()
+					stats()
+					drawHistogram(ctx,box)
+				} else {
+					clearCanvas(ctx,box)
+				}	
+				xID=xID.substr(xID.indexOf("_")+1)
+				if(document.form1.which[0].checked){
+					document.getElementById("p_"+xID).focus()
+				}else{
+					document.getElementById("freq_"+xID).focus()	
+				}
+			}
+			
+			function refreshAfterCheckBox(idString){
+				//	alert('checkbox '+idString+' refresh')
+				if (document.getElementById("probType").value=="checked") {
+					if (distributionGood()){
+						probability()
+						drawHistogram(ctx,box)
+					}
+				}
+			}
+			
+			function buildInputs(){
+				//	alert(document.activeElement.id);
+				document.getElementById("parameters").style.display="block"
+				document.getElementById("frequencyData").style.display="none"
+				var n= Math.round(parseFloat(document.getElementById("n").value))
+				var newN=n;
+				var outputString= "<table>\n"
+				if (document.form1.which[0].checked){
+					outputString += "<tr><td>&#9745;</td><td id='valueorbinheader'>"+ ((document.getElementById('toggleBins').checked)?"Bin":"Value") +"</td><td>Probability</td><td>Cumulative Probability</td></tr>\n"
+					if(prevTab<=1){
+						for (var i = 0; i<n; i++){
+							var element = document.getElementById("x_"+i)
+							var x=null
+							var p=null
+							if (typeof(element) != 'undefined' && element != null){
+								var x=document.getElementById("x_"+i).value
+								var p=document.getElementById("p_"+i).value
+								} else {
+								x=''
+								p=''
+							}
+							outputString += "<tr><td><input type='checkbox' id='chk_"+i+"' onChange='refreshAfterCheckBox(this.id);'></td><td><input id='x_"+i+"' value='"+x+"' onChange='refreshAfterEditX(this.id)'></td><td><input type='number' min='0' max='1' class='smallNumber' step='.01' id='p_"+i+"' value='"+p+"' onChange='refreshAfterEditProb()'></td><td id='cp_"+i+"'></td></tr>\n"
+						}
+					} else {
+						var data = document.getElementById("freqData").value.trim().split(/[\s,;\t\n]+/)
+						var nData=data.length
+						var myArray = [];
+						for (var i = 0; i<nData; i++){
+							var index = data[i].indexOf("x")
+							if(index>=0){
+								var nTimes = parseInt(data[i].substring(0,index))
+								var datum = parseFloat(data[i].substring(index+1))
+								for(var j=0; j<nTimes; j++){
+								myArray.push(datum)
+								}
+								} else {
+								myArray.push(data[i])
+							}
+						}					
+						data = myArray
+						nSample=data.length
+						totalN=nSample
+						data.sort(function(a, b){return a-b})
+						var nValues = -1;
+						var currentValue = data[0];
+						if(!useBins) currentValue =+currentValue
+						var myValues = []
+						var freqCount=0
+						var myFreqs = []
+//						var outputString= "<table>\n"
+//						outputString += "<tr><td>&#9745;</td><td id='valueorbinheader'>"+ ((document.getElementById('toggleBins').checked)?"Bin":"Value") +"</td><td>Probability</td><td>Cumulative Probability</td></tr>\n"
+						for(var i=0; i<nSample+1; i++) { 
+							if(!useBins) data[i] = +data[i]; 
+							if (i==nSample || data[i] != currentValue){ 
+								nValues++			
+								outputString += "<tr><td><input type='checkbox' id='chk_"+nValues+"' onChange='refreshAfterCheckBox()'></td><td><input id='x_"+nValues+"' value='"+currentValue+"' onChange='refreshAfterEditX(this.id)' size= '7'></td><td><input type='number' id='p_"+nValues+"' min='0' max='1' class='smallNumber' step='.01' value = "+ (freqCount/totalN).toFixed(precision) +"></td><td id='cp_"+nValues+"'>"+ ((i+1)/totalN).toFixed(precision) +"</td></tr>\n"
+								if(i<nSample) currentValue = data[i];
+									freqCount=1
+							}	else {
+								freqCount++
+							}
+						}
+						newN=nValues+1;
+//						alert(newN)
+					}
+					//outputString += "<tr><td> </td><td>Total </td><td id='freq_total'></td><td> </td><td> </td></tr>\n"
+					outputString+="</table>"
+					document.getElementById("distribution").innerHTML=outputString
+				}else if (document.form1.which[1].checked){
+					outputString += "<tr><td>&#9745;</td><td id='valueorbinheader'>"+ ((document.getElementById('toggleBins').checked)?"Bin":"Value") +"</td><td>Frequency</td><td>Relative Frequency</td><td>Cumulative Relative Frequency</td></tr>\n"
+					for (var i = 0; i<n; i++){
+						var x=null
+						var f=null
+						var p=null
+						if(prevTab==0 ){
+						//	if(i==0) alert(document.getElementById("x_"+i).value)
+							x=document.getElementById("x_"+i).value
+							p=+document.getElementById("p_"+i).value
+							f=Math.round(totalN*p)
+						} else {
+							if (exists("x_"+i)){
+								x=document.getElementById("x_"+i).value
+								f=+document.getElementById("freq_"+i).value
+							}
+							else{
+								x=''
+								f=''
+							}
+						}
+						//if(!useBins && x!=null) x=+x
+					outputString += "<tr><td><input type='checkbox' id='chk_"+i+"' onChange='refreshAfterCheckBox(this.id)'></td><td><input id='x_"+i+"' "+((x!=null)?("value='"+x+"'"):"")+" onChange='refreshAfterEditX(this.id)' size= '7'></td><td><input type='number' class='tinyNumber' min='0' step='1' id='freq_"+i+"' onChange='refreshAfterEditFreq(this.id)' value='"+f+"'></td><td><input type='number' id='p_"+i+"' hidden /><span id='textp_"+i+"'></span></td><td id='cp_"+i+"'></td></tr>\n"
+					}	
+					outputString += "<tr><td> </td><td>Total </td><td id='freq_total'></td><td> </td><td> </td></tr>\n"
+					outputString+="</table>"
+					document.getElementById("distribution").innerHTML=outputString
+					for (var i = 0; i<n; i++){
+						var p=0;
+						p= parseFloat(document.getElementById("freq_"+i).value) / totalN
+						document.getElementById("p_"+i).value = p
+						document.getElementById("textp_"+i).value = p
+					}
+				} 	
+				document.getElementById("n").value = newN
+				distributionGood()
+				
+				if (document.form1.which[0].checked){
+					calcProbs()
+					} else  if (document.form1.which[1].checked){
+					calcFreqs()
+				}
+			}
+			
+			function autoIncrement() {
+				var n= Math.round(parseFloat(document.getElementById("n").value))				
+				if(!useBins){
+					var x = +document.getElementById("x_0").value;
+					if(x=="") x=0;
+					for (var i = 0; i<n; i++){
+						document.getElementById('x_'+i).value=x;
+						x++;
+					}
+				} else {
+					var x = document.getElementById("x_0").value;
+					var xFrom = +x.substr(0, x.indexOf("-"))
+					var xTo = +x.substr( x.indexOf("-")+1)
+					var diff = xTo-xFrom
+					for (var i = 0; i<n; i++){
+						document.getElementById('x_'+i).value= (xFrom + i*(1+diff)) + "-"+ (xTo + i*(1+diff));
+						x++;
+					}
+				}
+				distributionGood()
+			}
+			
+			function calcFreqs(){
+				var n= Math.round(parseFloat(document.getElementById("n").value))
+				var nMissing=0
+				var fSum=0;
+				for (var i = 0; i<n; i++){
+					var fVal = document.getElementById("freq_"+i).value
+					if (fVal==""){
+						nMissing++
+						} else {
+						fSum += parseFloat(fVal)
+					}
+				}
+				//	if(nMissing==0) {
+				var cp=0
+				for (var i = 0; i<n; i++){
+					var p = parseFloat(document.getElementById("freq_"+i).value)/ fSum
+					if (isNaN(p)) p=0
+					cp += p
+					document.getElementById("p_"+i).value = +(p ).toFixed(precision)
+					document.getElementById("textp_"+i).innerHTML = fixed(p)
+					document.getElementById("cp_"+i).innerHTML = +(cp ).toFixed(precision)
+				}
+				document.getElementById("freq_total").innerHTML = +fSum
+				//	}
+				distributionGood()
+			}
+			
+			function calcProbs(){
+				var maxPrec=0
+				var n= Math.round(parseFloat(document.getElementById("n").value))
+				var nMissing=0
+				var missingP=null
+				var pSum=0;
+				for (var i = 0; i<n; i++){
+					var pVal = document.getElementById("p_"+i).value
+					if (pVal==""){
+						nMissing++
+						if(nMissing==1) missingP=i
+						} else {
+						pSum += parseFloat(pVal)
+						maxPrec=Math.max(maxPrec,getPrecision(+pVal))
+					}
+				}
+				if(nMissing==1 && pSum<1) {
+					document.getElementById("p_"+missingP).value = +(1-pSum).toFixed(maxPrec+1);
+					nMissing=0;
+				}
+				if(distributionGood()){
+					var cp=0
+					for (var i = 0; i<n; i++){
+						var p = parseFloat(document.getElementById("p_"+i).value)
+						cp += p
+						document.getElementById("cp_"+i).innerHTML = +(cp ).toFixed(precision)
+					}	
+					drawHistogram(ctx,box)
+				}
+			}
+			
+			function evalX(){
+				if(!useBins){
+					var n= Math.round(parseFloat(document.getElementById("n").value))
+					for (var i = 0; i<n; i++){
+						if(!isNaN(eval(document.getElementById('x_'+i).value)))
+						document.getElementById('x_'+i).value=eval(document.getElementById('x_'+i).value);
+					}
+					distributionGood()
+				}
+			}
+			
+			function refreshFreqTable(){
+				document.getElementById("which2").checked = true
+				prevTab = 2
+				var data = document.getElementById("freqData").value.trim().split(/[\s,;\t\n]+/)
+				var n=data.length
+				var myArray = [];
+				for (var i = 0; i<n; i++){
+					var index = data[i].indexOf("x")
+					if(data[i]!=''){
+						if(index>=0){
+							var nTimes = parseInt(data[i].substring(0,index))
+							var datum = parseFloat(data[i].substring(index+1))
+							for(var j=0; j<nTimes; j++){
+								myArray.push(datum)
+							}
+						} else {
+							myArray.push(data[i])
+						}
+					}
+					//if this number has an x then parse it 
+					// a x b = b b b b b b b (a times)
+					// add them to the new array
+					// otherwise, add this number to the new array
+					// this new array becomes the data array	
+				}
+				data = myArray
+				n=data.length
+				totalN=n
+				data.sort(function(a, b){return a-b})
+				var nValues = -1;
+				var currentValue = data[0];
+//				var currentValue = +data[0];
+				var myValues = []
+				var freqCount=0
+				var myFreqs = []
+				var outputString= "<table>\n"
+				outputString += "<tr><td>&#9745;</td><td id='valueorbinheader'>"+ ((document.getElementById('toggleBins').checked)?"Bin":"Value") +"</td><td>Frequency</td><td>Relative Frequency</td><td>Cumulative Relative Frequency</td></tr>\n"
+				for(var i=0; i<n+1; i++) { 
+//					data[i] = +data[i]; 
+					if (i==n || data[i] != currentValue){ 
+						nValues++			
+						outputString += "<tr><td><input type='checkbox' id='chk_"+nValues+"' onChange='refreshAfterCheckBox()'></td><td><input id='x_"+nValues+"' value='"+currentValue+"' onChange='refreshAfterEditX(this.id)' size= '7'></td><td><input type='number' id='freq_"+nValues+"' onChange='refreshAfterEditFreq(this.id)' class='smallNumber' min='0' step='1' value='"+freqCount+"'></td><td><input type='number' id='p_"+nValues+"' min='0' max='1' class='smallNumber' step='.01' hidden /><span id='textp_"+nValues+"'></span></td><td id='cp_"+nValues+"'></td></tr>\n"
+						if(i<n) currentValue = data[i];
+						
+						freqCount=1
+						}	else {
+						freqCount++
+					}
+				}
+				outputString += "<tr><td> </td><td>Total </td><td id='freq_total'</td><td> </td><td> </td></tr>\n"
+				outputString+="</table>"
+				document.getElementById("distribution").innerHTML=outputString
+				document.getElementById("n").value = nValues+1
+				calcFreqs()
+				document.getElementById("parameters").style.display="block"
+				document.getElementById("frequencyData").style.display="none"
+				if(distributionGood()) {drawHistogram(ctx,box)} else {clearCanvas(ctx,box) }
+				
+			}
+			
+			function enterData(){
+				document.getElementById("parameters").style.display="none"
+				document.getElementById("frequencyData").style.display="block"
+				var dataString = ""
+				var n= Math.round(parseFloat(document.getElementById("n").value))
+				for (var i = 0; i<n; i++){
+					var element = document.getElementById("x_"+i)
+					var x=null
+					var f=null
+					if (typeof(element) != 'undefined' && element != null){
+						x=document.getElementById("x_"+i).value
+						element = document.getElementById("freq_"+i)
+						if (typeof(element) != 'undefined' && element != null){
+							f=+document.getElementById("freq_"+i).value
+							
+							for(var j=0; j<f; j++)	dataString += x + " "
+							
+						}
+					}
+				}
+				document.getElementById("freqData").value = dataString
+			}
+/*			
+			function clearCanvas (ctx,box) {
+				canvas = document.getElementById('graph');
+				ctx.beginPath()
+				ctx.fillStyle='white'
+				ctx.fillRect(0,0,w,h)
+				ctx.closePath()
+				ctx.beginPath()
+			}
+*/			
+			function drawHistogram(ctx,box) {
+				//	alert('histogram')
+				var n= Math.round(parseFloat(document.getElementById("n").value))
+				var maxProb = 0;
+				var minX = Infinity;
+				var maxX = -Infinity;
+				var atomic=false
+				for(var i=0; i<n; i++){
+					var x=document.getElementById('x_'+i).value
+					if(!useBins){
+						x=eval(x)
+						if(x != Math.round(x)) atomic=true
+					}
+					var p=parseFloat(document.getElementById("p_"+i).value)
+					if (x<minX) minX = x
+					if (x>maxX) maxX = x
+					if (p>maxProb) maxProb = p
+				}
+				var rng = maxX - minX + 1
+				if(useBins) rng=n;
+				
+				
+				canvas = document.getElementById('graph'); 
+				var scale=canvas.width/490
+				var tMargin = 10*scale
+				var bMargin = 40*scale
+				var lMargin = 50*scale
+				var rMargin = 25*scale
+				
+				var chartHeight = canvas.height-tMargin-bMargin
+				var chartWidth = canvas.width-lMargin-rMargin
+				var barWidth = (chartWidth-10*scale)/(rng)
+				
+//				ctx.textAlign = "center";
+//				ctx.font = "12px Courier sans-serif";
+				ctx.beginPath()
+				var w = box.x2-box.x1
+				var h = box.y2-box.y1
+
+				clearCanvas(ctx,canvas.width,canvas.height)
+				
+				
+				var maxDensity = maxProb
+				
+				
+//				setChartParams(xRng[0],xRng[1],yRng[0],yRng[1],chartWidth,chartHeight,lMargin,tMargin)
+				
+				ctx.strokeStyle = "black";
+				ctx.fillStyle = "white";
+				
+				
+				
+				chartAxisY(ctx,lMargin,tMargin+chartHeight,tMargin,0,maxDensity,maxDensity/.10,"Probability",true,lMargin+chartWidth, false, 12*scale)
+			
+/*				ctx.textAlign="end"; 
+				ctx.textBaseline="middle"; 
+				ctx.font = "12px  sans-serif";
+				ctx.fillStyle = "black";
+				for (var i =0; i<=maxProb; i+=.10) {
+					//if(i % Math.max(1,Math.round(n/50)) == 0 || i==maxFreq){
+					var y=tMargin+chartHeight+1 - (chartHeight/maxProb)*i
+					ctx.strokeStyle = "#C0C0C0";
+					ctx.beginPath();
+					ctx.moveTo(lMargin,y)
+					ctx.lineTo(lMargin+chartWidth,y)
+					ctx.stroke()
+					
+					ctx.strokeStyle = "black";
+					ctx.beginPath();
+					ctx.moveTo(lMargin,y)
+					ctx.lineTo(lMargin-5,y)
+					ctx.fillText(+i.toFixed(1), lMargin-6, y);
+					ctx.stroke()
+					//}
+				}	
+				
+				
+				
+				ctx.save();
+				ctx.translate(lMargin-30, tMargin+.5*chartHeight);
+				ctx.rotate(-Math.PI/2);
+				ctx.textAlign = "center";
+				ctx.fillText("Probability", 0, 0);
+				ctx.restore();	
+				
+				ctx.strokeStyle = "black";
+				
+				ctx.beginPath();
+				ctx.moveTo(lMargin,tMargin+chartHeight+1)
+				ctx.lineTo(lMargin,tMargin)
+				ctx.stroke();
+				
+				ctx.beginPath();
+				ctx.moveTo(lMargin,tMargin+chartHeight+1);
+				ctx.lineTo(lMargin+chartWidth,tMargin+chartHeight+1);
+				ctx.stroke();
+	*/
+				drawL(ctx,lMargin,lMargin+chartWidth, tMargin, tMargin+chartHeight)
+				ctx.fillStyle = "white";
+				
+				var tail=false
+				var ll=-9999999999
+				var ul=9999999999
+				if(document.getElementById("probType").value=="above") {
+					ll = parseFloat(document.getElementById("above").value)
+					//		ul=9999999999
+					} else if (document.getElementById("probType").value=="below"){
+					ul = parseFloat(document.getElementById("below").value)
+					//		ll=-99999999999
+					} else if (document.getElementById("probType").value=="between"){
+					ll = parseFloat(document.getElementById("ll").value)
+					ul = parseFloat(document.getElementById("ul").value)
+					}  else if (document.getElementById("probType").value=="tails"){
+					tail = true
+					ll = parseFloat(document.getElementById("oll").value)
+					ul = parseFloat(document.getElementById("oul").value)
+				} 	
+				
+				ctx.textAlign = "center";
+				
+				var y = tMargin+chartHeight + 15
+				for (var i=0;i<n;i++){
+					var x=(document.getElementById('x_'+i).value)
+					var p=parseFloat(document.getElementById("p_"+i).value)
+					
+					
+					var drawX = (x-minX)*barWidth+5*scale
+					if(useBins){ 
+						drawX = i*barWidth+5*scale;
+						ctx.fillStyle = "black";
+						ctx.fillText(x, lMargin+drawX+barWidth/2, y);
+						//			ctx.fillText(p, lMargin+drawX+barWidth/2, y+10);
+						ctx.moveTo(lMargin+drawX+barWidth/2,chartHeight+tMargin)
+						ctx.lineTo(lMargin+drawX+barWidth/2,chartHeight+tMargin+5)
+					} 
+					if(atomic){
+						drawX = (x-minX)/(maxX-minX)*(chartWidth-10*scale)+5*scale
+					} 
+					else {x=eval(x)}
+					if ((document.getElementById("probType").value=="checked" && document.getElementById("chk_"+i).checked==true) || document.getElementById("probType").value!="checked"&&(!tail && x>=ll && x<=ul) || (tail && (x <=ll || x>=ul)))
+					{
+						//			alert("chk_"+i+" "+document.getElementById("chk_"+i).checked)
+						if (document.getElementById("colorful").checked==true)
+						ctx.fillStyle = colorHex;
+						else
+						ctx.fillStyle = "#C0C0C0";
+						} else {
+						ctx.fillStyle = "white";
+					}
+					if(!atomic){
+						ctx.fillRect(lMargin+drawX,chartHeight+tMargin,barWidth,-p/maxDensity*chartHeight)
+						ctx.fill()
+						ctx.strokeRect(lMargin+drawX,chartHeight+tMargin,barWidth,-p/maxDensity*chartHeight)
+						ctx.stroke();
+					} else {
+						ctx.beginPath()
+						ctx.moveTo(lMargin+drawX, chartHeight+tMargin)
+						ctx.lineTo(lMargin+drawX, chartHeight+tMargin-p/maxDensity*chartHeight)
+						ctx.stroke()
+
+						ctx.beginPath()
+						ctx.arc(lMargin+drawX, chartHeight+tMargin-p/maxDensity*chartHeight,5*scale,0,2*Math.PI)
+						ctx.fill()
+						ctx.stroke()
+					}
+				}
+				
+				ctx.fillStyle = "black";	
+				
+				if(!useBins && !atomic){
+					var xLabs = []
+					for (var i = 0;i<rng;i++) {
+						xLabs.push(minX+i)
+					}
+					chartAxisX(ctx,tMargin+chartHeight,lMargin+barWidth/2+5*scale,lMargin+chartWidth-barWidth/2-5*scale,minX,maxX,rng-1,"",false,[], scale*fontSizeAxis)
+				}
+				if(atomic){
+					chartAxisX(ctx,tMargin+chartHeight,lMargin+5*scale,lMargin+chartWidth-5*scale,minX,maxX,11,"",false,[], scale*fontSizeAxis)
+				}
+/*						if(i % Math.max(1,Math.round(rng/25)) == 0){
+							var x = lMargin+(i+.5)*barWidth
+							//		ctx.moveTo(x,tMargin+chartHeight+20)
+							//		ctx.lineTo(x,Ay+4)
+							var xlab = minX+i
+							ctx.fillText(xlab, x, y);
+							ctx.moveTo(x,chartHeight+tMargin)
+							ctx.lineTo(x,chartHeight+tMargin+5)
+						}
+					}
+				}
+				ctx.stroke();*/
+			}
+			
+			function probabilityAndHistogram(){
+				if(distributionGood()){
+					probability();
+					drawHistogram(ctx,box);
+				}
+			}
+			
+			function fixLastProb(){
+				var n= Math.round(parseFloat(document.getElementById("n").value))
+				document.getElementById("p_"+(n-1)).value = '';
+				calcProbs();
+			}
+			
+			function switchTabs(newTab){
+				if(prevTab != newTab){
+					if(newTab==0){
+						buildInputs();
+						fixLastProb();
+					} else {
+						var n= Math.round(parseFloat(document.getElementById("n").value))
+						var guessN=0;
+						if (distributionGood()){
+							for(guessN=0; guessN<Math.pow(10,precision);guessN++){
+								var nCorrect=true;
+								for(var i=0; i<n; i++){
+									var p = +parseFloat(document.getElementById("p_"+i).value)
+									if(Math.abs(p-Math.round(p*(guessN==0?totalN:guessN))/(guessN==0?totalN:guessN))%1>Math.pow(10, -precision)){
+										nCorrect=false;
+										i=n;
+										} else {
+									}
+								}
+								if(nCorrect) break;
+							}
+							totalN=(guessN==0?totalN:guessN)
+						}
+						if (newTab==1){
+							if(prevTab==2){
+								refreshFreqTable();
+								}else{
+								buildInputs();
+							}
+						} else {
+							enterData();
+							if(prevTab==0 && distributionGood() && !useBins){
+								var dataString=""
+								var n= Math.round(parseFloat(document.getElementById("n").value))
+								for (var i = 0; i<n; i++){
+									var x = parseInt(document.getElementById("x_"+i).value)
+									var p = +parseFloat(document.getElementById("p_"+i).value)
+									var f = Math.round(p*totalN)
+									for(var j=0; j<f; j++)	dataString += (i+j>0?" ":"") + x
+								}
+								document.getElementById("freqData").value = dataString				
+							}
+						}
+					}
+					prevTab = newTab;
+				}
+				stats()
+			}
+
+			function sample(){
+				if(prevTab<2 && distributionGood() && !useBins){
+					var sampleSize = parseFloat(document.getElementById("sampleN").value)
+					var nSamples = parseFloat(document.getElementById("nSamples").value)
+					var sampleText = ""
+					var sampleMeans = ""
+					var n= Math.round(parseFloat(document.getElementById("n").value))
+					for(var i=0; i<nSamples; i++){
+						var sum=0;
+						for(var j=0; j<sampleSize; j++){
+							var rand = Math.random()
+							var k
+							for(k=0; k<n; k++){
+							//alert(rand + " " + document.getElementById("cp_"+k).innerHTML + " -> "+document.getElementById("x_"+k).value);
+								if(parseFloat(document.getElementById("cp_"+k).innerHTML)>rand) break;
+							}
+							//alert(k)
+				//			if(randomNumber<0) sampleText+="-"
+							var randomNumber = document.getElementById("x_"+k).value
+							sampleText += randomNumber + " "
+							sum += +parseFloat(randomNumber);
+						}
+						sampleText += (i<nSamples-1?"\n":"")
+					}
+					document.getElementById("samples").innerHTML=sampleText
+					recalcSampleStat()
+
+				}
+			}
+
+function makeURL(){
+	var myURL = window.location.href.split('?')[0];
+	myURL = myURL.split('#')[0]
+	var n= Math.round(parseFloat(document.getElementById("n").value))
+	myURL +="?n="+encode(n)
+	for(var i=0; i<n; i++){
+		var x=document.getElementById('x_'+i).value
+		var p=parseFloat(document.getElementById("p_"+i).value)
+		myURL+="&x"+i+"="+encode(x)
+		myURL+="&p"+i+"="+encode(p)
+	}
+	getTinyURL(myURL)
+}
+
+function parseURL(){
+	if(getQueryVariable("n")!=null)
+		document.getElementById("n").value = decode(getQueryVariable("n"));
+	var n= Math.round(parseFloat(document.getElementById("n").value))
+	buildInputs()
+	if(getQueryVariable("x0")!=null){
+		for(var i=0; i<n; i++){
+			if(getQueryVariable("x"+i)!=null) document.getElementById("x_"+i).value = decode(getQueryVariable("x"+i));
+			if(getQueryVariable("p"+i)!=null) document.getElementById("p_"+i).value = decode(getQueryVariable("p"+i));
+		}
+		refreshAfterEditProb()
+	}
+}
+
+function resetDistribution(){
+	document.getElementById('n').value=2
+	buildInputs()
+	for(var i=0; i<2; i++){
+		document.getElementById("x_"+i).value = ""
+		document.getElementById("p_"+i).value = ""
+	}	
+}
+
+
+
+		</script>
+
+		<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+
+	</head>
+	
+	<body onload="init('graph');loadPrecision();loadColorChoice();linkMenu();parseURL();setColors();showHideProbs(false,true);">
+		<div id="container">
+			<div id="title" onClick="setColors()">StatPowers</div>
+			<div id="menu"></div>
+			<div class='container'>
+				<form name="form1">
+					<h3>Custom Distribution Calculator</h3>
+					<div class='relative'>
+						<div class='helpDiv minimized autoheight'>
+							<a  onClick='toggle(this);' class='expander'>?</a>
+							<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+							<span>
+							<iframe width="100%" height="315" src="https://www.youtube.com/embed/nlPJ9tCUHqo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+							</span>
+						</div>
+						<input type="checkbox" id="headerBoxplot" class="css-checkbox">
+						<label for="headerBoxplot" class="css-label sub">Probability Chart</label>
+						<div class="content css-content">
+							<div class="canvasdiv">
+								<canvas id="graph" width="496" height="300" class='zoomable'>
+									<p>Your browser doesn't support canvas. Please update your browser.</p>
+								</canvas>
+								<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'graph','graph.png');"></a>
+							</div>
+						</div>
+					</div>
+					<div id="whichCalculator">
+						<div class="radio-toolbar threeacross">
+							<input type="radio" name="which" id="which1" checked onClick="switchTabs(0);"><label for="which1">Enter Probabilities</label>
+							<input type="radio" name="which" id = "which2" onClick="switchTabs(1);"><label for="which2">Enter Frequencies</label>
+							<input type="radio" name="which" id="which3" onClick="switchTabs(2);"><label for="which3">Enter Data</label>
+						</div>
+						<div class='content'>
+							
+							<div id="parameters"> <strong>Distribution Parameters:</strong><br/>
+								<table  border="0" width="100%">
+									<tr>
+										<td style="width:40%;"><input type='checkbox' id="toggleBins" onChange="useBins=this.checked; toggleUseBins();">Use Bins</td>
+										<td>Number of <span id="valuesOrBins">Possible Values</span> <input name="n" type="number" id="n"  value="4" min="2" step="1" class="tinyNumber" onchange="buildInputs()" /></td>
+									</tr>
+								</table>
+								
+								<button name="autoincrement" type="button"  value="Auto Increment" onClick="autoIncrement();" >Auto Increment</button>
+								<button TYPE=button VALUE="Reset" onClick="resetDistribution()">Reset</button>
+							
+								<div id="distribution">
+								</div>
+								<div id="distributionErrors" class='errors'></div>  
+							</div>
+							
+							<div id="frequencyData" style="display:none">
+								<strong>Frequency Data Entry:</strong><br/>
+								Enter data separated by comma, semicolon, space, tab or newlines<br>
+								Repeated values use the form 4x3 (this becomes 3 3 3 3)<br/>
+								<textarea name="freqData" id="freqData" rows=6 cols=60></textarea><br/>
+								<button name="refreshFrequencies" type="button"  value="Refresh Table" onClick="switchTabs(1);" >Refresh Table</button>
+							</div>
+							
+							
+							<button TYPE=button VALUE="Share Distribution" onClick="makeURL()">Share Distribution</button> 
+							<div id="dataLink" ></div><iframe id="frmFile" style="display: none;"></iframe>
+							
+							
+							
+							
+							
+							<div id="apDiv2" style="display:block">							
+								<div id="probabilityChoices">	
+									<span><select id="probType" onchange="showHideProbs(false,true);probabilityAndHistogram();">
+									  <option value="above" selected>Above</option>
+									  <option value="below">Below</option>
+									  <option value="between">Between</option>
+									  <option value="tails" >Tails</option>
+									  <option value="checked" >Checked Values</option>
+									</select>
+									</span>
+									<span>
+										<span id="prob_above" style="display:none;">
+											P(X &ge;     
+											<input type="number" id="above"  value="5" class="smallNumber" step="1" onchange="probabilityAndHistogram()"/>)
+										</span>
+										<span id="prob_below" style="display:none;">
+											P(X &le; 
+											<input type="number" id="below"  value="5" class="smallNumber" step="1" onchange="probabilityAndHistogram()" />)
+										</span>
+										<span id="prob_between" style="display:none;">
+											P(
+											<input type="number" id="ll"  value="3" class="smallNumber" step="1" onchange="fixBounds('ll','ul',true);probabilityAndHistogram()" />
+											&le; X &le;
+											<input type="number" id="ul" value="7" class="smallNumber" step="1" onchange="fixBounds('ll','ul',false);probabilityAndHistogram()" />)
+										</span>
+										<span id="prob_tails" style="display:none;">
+											P(X &le;
+											<input type="number" id="oll"  value="3" class="smallNumber" step="1" onchange="fixBounds('oll','oul',true);probabilityAndHistogram()" />
+											or X &ge; 
+											<input type="number" id="oul" value="7" class="smallNumber" step="1" onchange="fixBounds('oll','oul',false);probabilityAndHistogram()" />)
+										</span>
+										<span id="prob_checked" style="display:none;">
+										</span>
+									</span>
+								<div class="results">
+									Results:<br />
+									<div id="statsDiv">
+										Expected Value: <span id="EX"></span><br/>
+										Variance: <span id="VAR"></span><br/>
+										Standard Deviation: <span id="SD"></span>
+									</div>
+									Probability <strong><span id="prob"></span></strong><br/>
+									
+									<!--input name="draw" type="button"  value="Recalculate" onClick="refresh()" /-->
+								</div>
+							</div>
+						</div>
+						
+					</div>
+			</div>
+			<div class="container" id="sampling-container">				
+			</div>
+			</form>
+
+		</body>
+<script>
+buildPanel("sampling","Sampling")
+</script>
+	</html>		

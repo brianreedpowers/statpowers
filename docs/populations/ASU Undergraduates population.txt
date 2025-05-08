@@ -1,0 +1,17 @@
+"ASU Undergraduates"
+5
+["research_time(weeks)","project_quality","GPA","degree","grad_school_interest"]
+[3,1,3,1,1]
+[0,1,2,3,4]
+[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[1,1,1,0,0]]
+[[3],[0],[4],[0],[0]]
+[0,0,0,0,2]
+[0,0,0,0,0]
+[[],[""],[""],[""],["-1.5v1+1.25v2=2+2.5v2=3+1.72v3+.5z",""]]
+[[[0,15]],[[null,[null,null],[null,null]]],[[2.5,4]],[[null,[null,null],[null,null],[null,null]]],[[null,[null,null]]]]
+[2,3,1,4,2]
+[["lvl1","lvl2"],["low","medium","high"],["lvl1"],["sciences","liberal_arts","engineering","humanities"],["yes","no"]]
+[[[0.5,0.5]],[[0.25,0.5,0.25]],[[1]],[[0.25,0.25,0.25,0.25]],[[1,null]]]
+[0,2,2,2,2]
+-982345714
+[0,0,0,0,0]

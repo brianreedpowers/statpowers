@@ -1,0 +1,38 @@
+Cherry Blossom Run data, 2012
+Description
+Details for all 16,924 runners in the 2012 Cherry Blossom Run, which is an annual road race that takes place in Washington, DC.
+
+Usage
+run12
+Format
+A data frame with 16,924 observations on the following 9 variables.
+
+place
+Finishing position. Separate positions are provided for each gender.
+
+time
+The total run time,, in minutes.
+
+pace
+Average time per mile, in minutes.
+
+age
+Age.
+
+gender
+Gender.
+
+location
+Hometown city.
+
+state
+Hometown state (if from the US) or country.
+
+div_place
+Division place, also broken up by gender.
+
+div_tot
+Total number of people in the division (again, also split by gender).
+
+Source
+Cherry Blossom Race Results

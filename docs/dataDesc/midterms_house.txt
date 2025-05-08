@@ -1,0 +1,29 @@
+President's party performance and unemployment rate
+Description
+Covers midterm elections.
+
+Usage
+midterms_house
+Format
+A data frame with 29 observations on the following 5 variables.
+
+year
+a numeric vector
+
+potus
+The president in office.
+
+party
+President's party.
+
+unemp
+Unemployment rate.
+
+house_change
+Change in House seats for the president's party.
+
+Details
+An older version of this data is at unemploy_pres.
+
+Source
+Wikipedia.

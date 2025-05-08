@@ -1,0 +1,1571 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<meta charset="utf-8"/>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Descriptive Statistics</title>
+		<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+		<script type="text/javascript" src="js/jstat.js"></script>
+		<script type="text/javascript" src="js/commonFunctions.js?v=1.2"></script>
+		<script type="text/javascript" src="js/chartFunctions.js?v=1.1"></script>
+		<script type="text/javascript" src="js/distributionFunctions.js"></script>
+		<script type="text/javascript" src="js/shapiro-wilk.js"></script>
+		<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+		<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+		<script language="javascript">
+			var nSets = 1
+			var nSamples = 1
+			var colors = ['black']
+			var distribution = ""
+			var dataMessy =[false];
+			var preloadedData=null
+			var debug=false
+			
+			function ciMean(){
+				var data = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+				for(var i=0; i<data.length; i++) { data[i] = +data[i]; }
+				data.sort(function(a, b){return a-b})
+				var alpha = 1-parseFloat(document.getElementById("cLevel").value)
+				var outputString=""
+				var CI = null
+				var xbar=parseFloat(document.getElementById("mean").value)
+				var s=parseFloat(document.getElementById("s").value)
+				var n=parseFloat(document.getElementById("n").value)
+				var bootstrapCI=false
+				if (document.form1.whichCIMEAN[0].checked) {
+					CI = jStat.tci(jStat.mean(data),alpha,data)
+					xbar = jStat.mean(data)
+					s = jStat.stdev(data,true)
+					n = data.length;
+					bootstrapCI=true
+				}
+				else{
+					CI = jStat.tci(xbar,alpha,s,n)
+				}
+				outputString += "Sample mean (x&#772;) = "+fixed(xbar)+"<br><hr>"
+				outputString += fixed((1-alpha)*100)+"% confidence interval for &mu; : ("
+				var visualization=(exists('ciMean')?document.getElementById('ciMean').innerHTML:"")
+				outputString += +(CI[0].toFixed(precision)) + ", " + +(CI[1].toFixed(precision)) + ")<span id='ciMean'>"+visualization+"</span>"
+
+				var t_hat, tU, tL, bCI=[]
+				if(bootstrapCI){
+					t_hat = getBootstrap(data,10000)
+//					console.log(t_hat)
+					tU = estimatePercentile(t_hat, 1-alpha/2)
+					tL = estimatePercentile(t_hat, alpha/2)
+					
+				//	console.log("prop <= tL = "+arrayProportion(t_hat,tL,"lower"))
+				//	console.log("prop >= tU = "+arrayProportion(t_hat,tU,"greater"))
+					
+					
+					bCI[0]=fixed(xbar-tU*s/Math.sqrt(n))
+					bCI[1]=fixed(xbar-tL*s/Math.sqrt(n))
+					outputString +="<br>"
+				var visualization=(exists('ciMeanBoot')?document.getElementById('ciMeanBoot').innerHTML:"")
+					outputString +="Bootstrap(10,000) CI: ("+bCI[0] +","+bCI[1] +")<span id='ciMeanBoot'>"+visualization+"</span>"
+				}
+
+				document.getElementById("ciMeanOutput").innerHTML=outputString
+				inferenceVisual('ciMean','T',n-1,0,xbar,s/Math.sqrt(n),CI[0],CI[1],0,'','','',false,false)
+				if(bootstrapCI){
+					for(var i=0; i<t_hat.length; i++){
+						t_hat[i]*=-1.0
+					}
+					inferenceVisual('ciMeanBoot','empirical',t_hat,0,xbar, s/Math.sqrt(n),bCI[0],bCI[1],0,'','','',false,false)
+				}
+			}
+
+			function getBootstrap(x, nboot=10000, mu=null){
+				var n=x.length
+				var xbar = (mu==null?jStat.mean(x):mu)
+//				var s = jStat.stdev(x,true)
+				var t=[]
+				for(var i=0; i<nboot; i++){
+					var samp = arraySample(x,n,true)
+//					if(i==0) console.log(samp)
+					t.push((jStat.mean(samp)-xbar)/(jStat.stdev(samp,true)/Math.sqrt(n)))
+				}
+				t=sortArray(t)
+			//	console.log("bootstrap stats")
+			//	console.log("mean = "+jStat.mean(t))
+			//	console.log("sd = " +jStat.stdev(t,true))
+			//	console.log("min: "+jStat.min(t))
+			//	console.log("max: "+jStat.max(t))
+				return t
+			}
+
+			
+			function ciVar(){
+				var data = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+				for(var i=0; i<data.length; i++) { data[i] = +data[i]; }
+				data.sort(function(a, b){return a-b})
+				var alpha = 1-parseFloat(document.getElementById("cLevel").value)
+				var outputString=""
+				var s = null
+				var n = null
+				if (document.form1.whichCIVAR[0].checked)
+				{
+					s = jStat.stdev(data,true)
+					n = data.length
+				}
+				else{
+					s=parseFloat(document.getElementById("s1").value)
+					n=parseFloat(document.getElementById("n1").value)
+				}
+				
+				var UB = ( (n-1) * Math.pow(s,2) / jStat.chisquare.inv(alpha/2,n-1))
+				var LB = ( (n-1) * Math.pow(s,2) / jStat.chisquare.inv(1-alpha/2,n-1))
+				var scaling = Math.pow(LB,1)/jStat.chisquare.inv(alpha/2,n-1)
+				outputString += "Sample variance (s<sup>2</sup>) = "+fixed(Math.pow(s,2))+"<br><hr>"
+				outputString += fixed((1-alpha)*100)+"% confidence interval for &sigma;<sup>2</sup> : ("
+				var visualization=(exists('ciVar')?document.getElementById('ciMean').innerHTML:"")
+				outputString += +(LB.toFixed(precision)) + ", " + +(UB.toFixed(precision)) + ")<span id='ciVar'>"+visualization+"</span>"
+				document.getElementById("ciVarOutput").innerHTML=outputString
+				inferenceVisual('ciVar','chiSq',n-1,0,0,scaling,Math.pow(LB,1),Math.pow(UB,1),0,'','','',false,false)//
+			}
+			
+			function ciProp(){
+				var data = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+				for(var i=0; i<data.length; i++) { data[i] = +data[i]; }
+				data.sort(function(a, b){return a-b})
+				var alpha = 1-parseFloat(document.getElementById("cLevel").value)
+				var outputString = ""
+				var n = null
+				var x = 0
+				if (document.form1.whichCIPROP[0].checked)
+				{		
+					n = data.length
+					var threshold = parseFloat(document.getElementById("propSuccess").value)
+					var ineqType = document.getElementById("propIneq").selectedIndex;
+					for(var i=0; i<data.length; i++){
+						if( (ineqType==0 && data[i]<threshold) || (ineqType==1 && data[i]<=threshold) || (ineqType==2 && data[i]>threshold) || (ineqType==3 && data[i]>=threshold) || (ineqType==4 && data[i]==threshold)) x++
+					}
+				}
+				else{
+					x=parseFloat(document.getElementById("x").value)
+					n=parseFloat(document.getElementById("n2").value)
+				}
+				
+				var pHat = x/n;
+				outputString += "Successes (x) = " + x + "</br>\n"
+				outputString += "Sample size (n) = " + n + "</br>\n"
+				outputString += "Sample Proportion (p&#770;) = " + +pHat.toFixed(precision) + "<hr>\n"
+				
+				var UBapprox = jStat.normal.inv(1-alpha/2,pHat,Math.sqrt(pHat*(1-pHat)/n))
+				var LBapprox = jStat.normal.inv(alpha/2,pHat,Math.sqrt(pHat*(1-pHat)/n))
+				//	window.alert(UBapprox+","+LBapprox)
+				
+				outputString += "Approximate (Wald) "+fixed((1-alpha)*100)+"% C.I. for p: ("
+					outputString += +(LBapprox.toFixed(precision)) + ", " + +(UBapprox.toFixed(precision)) + ")<span id='ciPropApprox'>"+(exists('ciPropApprox')?document.getElementById('ciPropApprox').innerHTML:"")+"</span><br>"
+				if (pHat * (1-pHat)>0){
+				} else { "<br>\n";}
+				var LBexact = 1-jStat.ibetainv(1-alpha/2,n-x+1,x)
+				var UBexact = 1-jStat.ibetainv(alpha/2,n-x,x+1)
+				if (x==0) LBexact = 0
+				if (x==n) UBexact = 1
+				outputString += "Exact (Clopper-Pearson) "+fixed((1-alpha)*100)+"% C.I. for p: ("
+				outputString += +(LBexact.toFixed(precision)) + ", " + +(UBexact.toFixed(precision)) + ")<span id='ciPropExact'>"+(exists('ciPropExact')?document.getElementById('ciPropExact').innerHTML:"")+"</span>"
+				
+				var z = jStat.normal.inv(1-alpha/2,0,1)
+				var middleWilson = (x + Math.pow(z,2)/2)/(n + Math.pow(z,2))
+				var marginWilson = z/(n + Math.pow(z,2)) * Math.sqrt(x*(n-x)/n + Math.pow(z,2)/4)
+				var UBWilson = middleWilson + marginWilson
+				var LBWilson = middleWilson - marginWilson
+				outputString += "<br>\n"
+				outputString += "Wilson Score "+fixed((1-alpha)*100)+"% C.I. for p: ("
+				outputString += +(LBWilson.toFixed(precision)) + ", " + +(UBWilson.toFixed(precision)) + ")<span id='ciPropWilson'></span>"
+
+				var nTilde = n + Math.pow(z,2)
+				var pTilde = (1/nTilde)*(x + Math.pow(z,2)/2)
+				var UBAgrestiCoull = pTilde + z * Math.sqrt(pTilde / nTilde * (1-pTilde))
+				var LBAgrestiCoull = pTilde - z * Math.sqrt(pTilde / nTilde * (1-pTilde))
+				outputString += "<br>\n"
+				outputString += "Agresti-Coull "+fixed((1-alpha)*100)+"% C.I. for p: ("
+				outputString += +(LBAgrestiCoull.toFixed(precision)) + ", " + +(UBAgrestiCoull.toFixed(precision)) + ")<span id='ciAgrestiCoull'>"+(exists('ciAgrestiCoull')?document.getElementById('ciAgrestiCoull').innerHTML:"")+"</span>"
+
+				document.getElementById("ciPropOutput").innerHTML=outputString
+				if (pHat * (1-pHat)>0) inferenceVisual('ciPropApprox','Gaussian',parseFloat(pHat),parseFloat(Math.sqrt(pHat*(1-pHat)/n)),0,1,LBapprox,UBapprox,0,'','','T',false,false)
+				inferenceVisual('ciPropExact','Beta',x+.5,n-x+.5,0,1,LBexact,UBexact,0,'','','T',false,false)
+				inferenceVisual('ciAgrestiCoull','Gaussian',parseFloat(pTilde),parseFloat(Math.sqrt(pTilde*(1-pTilde)/nTilde)),0,1,LBAgrestiCoull,UBAgrestiCoull,0,'','','T',false,false)
+			}
+			
+			function hypMean(){
+				var data = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+				for(var i=0; i<data.length; i++) { data[i] = +data[i]; }
+				data.sort(function(a, b){return a-b})
+				var findCritical = (document.getElementById("sigLevel").value != "")
+				var alpha = parseFloat(document.getElementById("sigLevel").value)
+				var mu0=parseFloat(document.getElementById("mu0").value)
+				var testType = document.getElementById("hypmeanIneq").selectedIndex;
+				document.getElementById("mu1").innerHTML=document.getElementById("mu0").value
+				var outputString=""
+				var t = null
+				var n=null
+				var xbar=0
+				var s=0
+				if (document.form1.whichHYPMEAN[0].checked)
+				{
+					xbar = jStat.mean(data)
+					s = jStat.stdev(data,true)
+					n = data.length
+					t = (jStat.mean(data)-mu0)/(jStat.stdev(data,true)/Math.sqrt(n))
+				}
+				else{
+					xbar=parseFloat(document.getElementById("meanH1").value)
+					s=parseFloat(document.getElementById("sH1").value)
+					n=parseFloat(document.getElementById("nH1").value)
+					t = (xbar-mu0)/(s/Math.sqrt(n))
+				}
+				var criticalT = 0
+				
+				var ineqStr = "&lt;"
+				if(testType==1) {ineqStr = "&gt;"} else if (testType==2) {ineqStr = "&ne;"}
+				outputString += "H<sub>0</sub>: &mu; = "+mu0 + "</br>\n"
+				outputString += "H<sub>1</sub>: &mu; "+ineqStr+" "+mu0 + "</br>\n"
+				
+				outputString += "T stat: "+ +t.toFixed(precision) +"</br>\n"
+				var cT0 = - 4
+				var cT1 = + 4
+				var cT0lab = 't*'
+				var cT1lab = 't*'
+				if(findCritical){
+					if(testType==0){
+						criticalT = jStat.studentt.inv(alpha,n-1)
+						outputString += "Rejection region: T<"
+						cT0 = criticalT
+					}else if(testType==1) {
+						criticalT = jStat.studentt.inv(1-alpha,n-1)
+						outputString += "Rejection region: T>"
+						cT1 = criticalT
+					}else if(testType==2) {
+						criticalT = jStat.studentt.inv(1-alpha/2,n-1)
+						outputString += "Rejection region: |T|>"
+						cT0 = -criticalT
+						cT1 = criticalT
+						cT0lab = '-t*'
+					}
+					outputString += +criticalT.toFixed(precision) +"</br>\n"
+				}
+				var pValue=0
+				if(testType==0){
+					pValue = jStat.studentt.cdf(t,n-1)
+				}else if(testType==1) {
+					pValue = 1-jStat.studentt.cdf(t,n-1)
+				}else if(testType==2) {
+					pValue = 2*jStat.studentt.cdf(-Math.abs(t),n-1)
+				}
+				outputString += "<i>p</i>-value: "+ +pValue.toFixed(precision) +"<span id='hypMean'>"+innerHTMLof('hypMean')+"</span>"
+				
+				var bootstrapHT=true
+				var t_hat, tU=Infinity, tL=-Infinity, bootp
+				if(bootstrapHT){
+					t_hat = getBootstrap(data,10000)
+//					console.log(t_hat)
+					if(testType==0){
+						tL = estimatePercentile(t_hat, alpha)
+						bootp = arrayProportion(t_hat, t, "lower")
+					} else if (testType==1){
+						tU = estimatePercentile(t_hat, 1-alpha)
+						bootp = arrayProportion(t_hat, t, "greater")
+					} else {
+						tU = estimatePercentile(t_hat, 1-alpha/2)
+						tL = estimatePercentile(t_hat, alpha/2)
+						bootp = arrayProportion(t_hat, t, "twoTail")
+					}
+					outputString +="<br>"
+				var visualization=(exists('hypMeanBoot')?document.getElementById('hypMeanBoot').innerHTML:"")
+					outputString +="Bootstrap(10,000) <i>p</i>-value: "+fixed(bootp)+"<span id='hypMeanBoot'>"+visualization+"</span>"
+				}
+				document.getElementById("hypMeanOutput").innerHTML=outputString
+				inferenceVisual('hypMean','T',n-1,0,0,1,cT0,cT1,t,cT0lab,cT1lab,'T',true,true)
+				if(bootstrapHT){
+					inferenceVisual('hypMeanBoot','empirical',t_hat,0,0, 1,tL,tU,t,cT0lab,cT1lab,'T',true,true)
+				}
+			}
+			
+			function hypSkew(){
+				var outputString="<table  border=\"0\">"
+					outputString+="<tr><td>H<sub>0</sub>: skew </td><td>=</td><td> 0</td></tr>"
+					outputString+="				<tr><td>H<sub>1</sub>: skew </td>"
+					outputString+="					<td>&ne;</td>"
+					outputString+="				<td>0</td></tr>"
+					outputString+="</table>"
+				var data = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+				var n = data.length
+				if(n<=20) {
+					outputString = "For sample size < 20, the skewness test is generally not done."
+				} else {
+					for(var i=0; i<data.length; i++) { data[i] = +data[i]; }
+					data.sort(function(a, b){return a-b})
+					var g1=0
+					var g1denom=0
+					var xbar = jStat.mean(data)
+					for(var i=0; i<data.length; i++){
+						g1 += Math.pow(data[i]-xbar, 3)
+						g1denom += Math.pow(data[i]-xbar,2)
+					}
+					g1 *= 1.0/n
+					g1denom *= 1.0/n
+					g1 = g1 / Math.pow(g1denom,1.5)
+
+					var G1 = Math.sqrt(n*(n-1))/(n-2)*g1
+					var SEG1 = Math.sqrt(6*n*(n-1)/((n-2)*(n+1)*(n+3)))
+				
+					var z = G1/SEG1
+					var alpha = parseFloat(document.getElementById("sigLevel").value)
+					
+					outputString += "Z stat: "+z.toFixed(precision)+"</br>\n"
+					criticalT = jStat.normal.inv(1-alpha/2,0,1)
+					var cT0 = -criticalT
+					var cT1 = criticalT
+					var cT0label="-z*"
+					var cT1label="z*"
+					outputString += "Rejection region: |Z|>"
+					outputString += +criticalT.toFixed(precision) +"</br>\n"
+					pValue = 2*jStat.normal.cdf(-z,0,1)
+					outputString += "Approximate (normal) <i>p</i>-value: "+pValue.toFixed(precision) +"<span id='hypSkewApprox'>"+innerHTMLof('hypSkewApprox')+"</span><br>"
+				}
+
+				hypSkewOutput.innerHTML=outputString
+				if(n>20) inferenceVisual('hypSkewApprox','Gaussian',0,1,0,1,cT0,cT1,z,cT0label,cT1label,'z',true,true)
+			}
+			
+			function hypVar(){
+				var data = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+				for(var i=0; i<data.length; i++) { data[i] = +data[i]; }
+				data.sort(function(a, b){return a-b})
+				var findCritical = (document.getElementById("sigLevel").value != "")
+				var alpha = parseFloat(document.getElementById("sigLevel").value)
+				var sigsq0=parseFloat(document.getElementById("sigsq0").value)
+				var testType = document.getElementById("hypvarIneq").selectedIndex;
+				document.getElementById("sigsq1").innerHTML=document.getElementById("sigsq0").value
+				var outputString=""
+				var t = null
+				var n=null
+				if (document.form1.whichHYPVAR[0].checked)
+				{
+					n = data.length
+					t = (n-1)*Math.pow(jStat.stdev(data,true),2)/ sigsq0 
+				}
+				else{
+					var s=parseFloat(document.getElementById("sH1").value)
+					n=parseFloat(document.getElementById("nH1").value)
+					t = (n-1)*Math.pow(s,2)/sigsq0
+				}
+				
+				var ineqStr = "&lt;"
+				if(testType==1) {ineqStr = "&gt;"} else if (testType==2) {ineqStr = "&ne;"}
+				outputString += "H<sub>0</sub>: &sigma;<sup>2</sup> = "+sigsq0 + "</br>\n"
+				outputString += "H<sub>1</sub>: &sigma;<sup>2</sup> "+ineqStr+" "+sigsq0 + "</br>\n"
+				outputString += "Test stat &chi;<sup>2</sup>: "+ +t.toFixed(precision) +"</br>\n"
+				var cT0=-1
+				var cT1= 99999999999
+				cT0lab = "\u03C7\u00B2*"
+				cT1lab = "\u03C7\u00B2*"
+				if(findCritical){
+					if(testType==0){
+						outputString += "Rejection region: &chi;<sup>2</sup> &lt; " + +jStat.chisquare.inv(alpha,n-1).toFixed(precision)
+						cT0=+jStat.chisquare.inv(alpha,n-1)
+						}else if(testType==1) {
+						outputString += "Rejection region: &chi;<sup>2</sup> &lt; "  + +jStat.chisquare.inv(1-alpha,n-1).toFixed(precision)
+						cT1= +jStat.chisquare.inv(1-alpha,n-1)
+						}else if(testType==2) {
+						outputString += "Rejection region: &chi;<sup>2</sup> &lt; " + +jStat.chisquare.inv(alpha/2,n-1).toFixed(precision) + " or &chi;<sup>2</sup> &gt; " + +jStat.chisquare.inv(1-alpha/2,n-1).toFixed(precision)
+						cT0=+jStat.chisquare.inv(alpha/2,n-1)
+						cT1=+jStat.chisquare.inv(1-alpha/2,n-1)
+						cT0lab = "\u03C7\u00B2\u2081*"
+						cT1lab = "\u03C7\u00B2\u2082*"
+					}
+					outputString += "</br>\n"
+				}
+				var pValue=0
+				
+				if(testType==0){
+					pValue = jStat.chisquare.cdf(t,n-1)
+					}else if(testType==1) {
+					pValue = 1-jStat.chisquare.cdf(t,n-1)
+					}else if(testType==2) {
+				pValue = 2*Math.min(jStat.chisquare.cdf(t,n-1) ,1-jStat.chisquare.cdf(t,n-1) )}
+				outputString += "<i>p</i>-value: "+ +pValue.toFixed(precision) +"<span id='hypVar'>"+innerHTMLof('hypVar')+"</span>"
+				document.getElementById("hypVarOutput").innerHTML=outputString
+				inferenceVisual('hypVar','chiSq',n-1,0,0,1,cT0,cT1,t,cT0lab,cT1lab,'\u03C7\u00B2',true,true)
+			}
+			
+			function hypProp(){
+				var data = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+				for(var i=0; i<data.length; i++) { data[i] = +data[i]; }
+				data.sort(function(a, b){return a-b})
+				var findCritical = (document.getElementById("sigLevel").value != "")
+				var alpha = parseFloat(document.getElementById("sigLevel").value)
+				var p0=parseFloat(document.getElementById("p0").value)
+				document.getElementById("p1").innerHTML=document.getElementById("p0").value
+				var testType = document.getElementById("hyppropIneq").selectedIndex;
+				var outputString = ""
+				var n = null
+				var x = 0
+				if (document.form1.whichHYPPROP[0].checked)
+				{		
+					n = data.length
+					var threshold = parseFloat(document.getElementById("propHSuccess").value)
+					var ineqType = document.getElementById("propHIneq").selectedIndex;
+					for(var i=0; i<data.length; i++){
+						if( (ineqType==0 && data[i]<threshold) || (ineqType==1 && data[i]<=threshold) || (ineqType==2 && data[i]>threshold) || (ineqType==3 && data[i]>=threshold) || (ineqType==4 && data[i]==threshold)) x++
+					}
+				}
+				else{
+					x=parseFloat(document.getElementById("xH").value)
+					n=parseFloat(document.getElementById("nH3").value)
+				}
+				
+				var pHat = x/n;
+				outputString += "Successes (x) = " + x + "</br>\n"
+				outputString += "Sample size (n) = " + n + "</br>\n"
+				outputString += "Sample Proportion (p&#770;) = " + +pHat.toFixed(precision) + "<hr>\n"
+				var z= (pHat-p0)/Math.sqrt((p0*(1-p0)/n))
+				
+				var ineqStr = "&lt;"
+				if(testType==1) {ineqStr = "&gt;"} else if (testType==2) {ineqStr = "&ne;"}
+				outputString += "H<sub>0</sub>: p = "+p0 + "</br>\n"
+				outputString += "H<sub>1</sub>: p "+ineqStr+" "+p0 + "</br>\n"
+				outputString += "Z stat: "+z.toFixed(precision)+"</br>\n"
+				var cT0=-4
+				var cT1=4
+				var cT0label="z*"
+				var cT1label="z*"
+				if(findCritical){
+					if(testType==0){
+						criticalT = jStat.normal.inv(alpha,0,1)
+						cT0=criticalT
+						outputString += "Rejection region: Z<"
+						}else if(testType==1) {
+						criticalT = jStat.normal.inv(1-alpha,0,1)
+						cT1 = criticalT
+						outputString += "Rejection region: Z>"
+						}else if(testType==2) {
+						criticalT = jStat.normal.inv(1-alpha/2,0,1)
+						cT0 = -criticalT
+						cT1 = criticalT
+						cT0label="-z*"
+						outputString += "Rejection region: |Z|>"
+					}
+					outputString += +criticalT.toFixed(precision) +"</br>\n"
+				}
+				var pValue=0
+				if(testType==0){
+					pValue = jStat.normal.cdf(z,0,1)
+					}else if(testType==1) {
+					pValue = 1-jStat.normal.cdf(z,0,1)
+					}else if(testType==2) {
+					if (z<0) z=-z
+					pValue = 2*jStat.normal.cdf(-z,0,1)
+				}
+				outputString += "Approximate (normal) <i>p</i>-value: "+ +pValue.toFixed(precision) +"<span id='hypPropApprox'>"+innerHTMLof('hypPropApprox')+"</span><br>"
+				var pValueApprox = pValue
+				pValue=0
+				if(testType==0){
+					pValue = jStat.binomial.cdf(x,n,p0)
+					}else if(testType==1) {
+					pValue = 1-jStat.binomial.cdf(x-1,n,p0)
+					}else if(testType==2) {
+					if(x<n*p0) pValue = 2*jStat.binomial.cdf(x,n,p0)
+					else pValue = Math.min(1,2*(1-jStat.binomial.cdf(x-1,n,p0)))
+				}
+				outputString += "Exact (binomial) <i>p</i>-value: "+ +pValue.toFixed(precision) +"\n"
+/*					outputString += "<div class=\"canvasdivTiny\" onClick=\"this.className='canvasdiv';\">"
+					outputString +="			<canvas id=\"hypPropExactVis\" width=\"485\" height=\"300\">"
+					outputString +="				<p>Your browser doesn't support canvas. Please update your browser.</p>"
+					outputString +="			</canvas>"
+					outputString +="			<a class=\"downloadButton topright\" href=\"\" onClick=\"downloadCanvas(this,'hypPropExactVis','hypPropExactVisual.png');\"></a></div><br>"
+*/				
+
+				document.getElementById("hypPropOutput").innerHTML=outputString
+				inferenceVisual('hypPropApprox','Gaussian',0,1,0,1,cT0,cT1,z,cT0label,cT1label,'z',true,true)
+				//inferenceVisualDiscrete('hypPropExactVis','Beta',x+.5,n-x+.5,0,1,0,1,0,'','','T',false,false)
+			}
+			
+			function dec2bin(dec){
+				return (dec >>> 0).toString(2);
+			}
+			
+			function hypMedian(){
+				var outputString = ""
+				var data = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+				for(var i=0; i<data.length; i++) { data[i] = +data[i]; }
+				data.sort(function(a, b){return a-b})
+				if(data.length<=1) return;
+			
+				var testType = +document.getElementById('hypmedianIneq').value
+				var nullMedian = +document.getElementById('median0').value
+				var ineqStr = "&lt;"
+				if(testType==2) {ineqStr = "&gt;"} else if (testType==3) {ineqStr = "&ne;"}
+				outputString += "H<sub>0</sub>: &theta; = "+nullMedian + "</br>\n"
+				outputString += "H<sub>1</sub>: &theta; "+ineqStr+" "+nullMedian + "</br>\n"
+				
+				//Pitman Test
+				outputString +="<br><strong>Pitman Test</strong><br>"
+				if(data.length<20){
+					var S1=0, S2=0
+					diffs=[]
+					absdiffs=[]
+					for(var i=0; i<data.length; i++){
+						diffs[i]=data[i]-nullMedian
+						absdiffs[i]=Math.abs(diffs[i])
+						if(diffs[i]>0) S2+=diffs[i]
+						if(diffs[i]<0) S1+=diffs[i]
+					}
+					var sumAbsDiffs=jStat.sum(absdiffs)
+					
+					var maxPerms=Math.pow(2,data.length)
+	//				console.log(absdiffs)
+					var x=0
+					var x1=0
+					for(var j=0; j<maxPerms; j++){
+						var signs = dec2bin(j)
+						var s=0
+						for(i=(data.length-signs.length);i<data.length; i++){
+							if(signs.charAt(i-(data.length-signs.length))=="1") s+=absdiffs[i]
+						}
+						if(testType==2 && s>=S2){
+	//						console.log(signs)
+	//						console.log(s)
+							x++
+						} else if (testType == 1 && s<=S2){
+							x++
+						} else if (testType == 3){
+							if(s<=S2) x1++
+							if(s>=S2) x++
+						}
+					}
+					if(testType==3){
+						x = 2*Math.min(x,x1)
+					}
+					var pvalue = x/maxPerms
+	//				outputString +="S<sup>-</sup> = "+S1 +"<br>"
+					outputString +="S<sup>+</sup> = "+fixed(S2) +"<br>"
+					outputString +="<i>p</i>-value = "+fixed(Math.min(1,pvalue))+"<br>"
+				} else {
+					var S2=0
+					diffs=[]
+					absdiffs=[]
+					var sumsisq = 0
+					for(var i=0; i<data.length; i++){
+						diffs[i]=data[i]-nullMedian
+						absdiffs[i]=Math.abs(diffs[i])
+						sumsisq += Math.pow(diffs[i],2)
+						if(diffs[i]>0) S2+=diffs[i]
+					}
+					var sumAbsDiffs=jStat.sum(absdiffs)	
+					var Z = (S2 - .5*sumAbsDiffs)/(.5*Math.sqrt(sumsisq))
+//					outputString +="Sample size too big for p-value calculation<br>"
+					outputString +="Z = "+fixed(Z)+"<br>"
+					pvalue = jStat.normal.cdf(Z,0,1)
+					if(testType==2) pvalue = 1-jStat.normal.cdf(Z,0,1)
+					if(testType==3) pvalue =jStat.normal.cdf(-Math.abs(Z),0,1)*2
+					outputString += "<i>p</i>-value = "+pvalue.toFixed(precision)+"<br>"			
+					
+					
+				}
+				
+				//Sign Test
+				S1=0, S2=0
+				for(var i=0; i<data.length; i++){
+					if(data[i]<nullMedian) S1++
+					if(data[i]>nullMedian) S2++
+				}
+				var n=S1+S2
+				
+				
+				var S = S1
+				if(testType==2) S = S2
+				if(testType==3) S = Math.max(S1,S2)
+//				console.log(S + " " + n)
+				var pvalue = (n>300? 1-jStat.normal.cdf(+S-1,n*.5,Math.sqrt(.25/n)):1-jStat.binomial.cdf(+S-1,+n,.5))
+
+//console.log(pvalue)
+				if(testType==3) pvalue = Math.min(pvalue*2,1)
+				outputString += "<br><strong>Sign Test</strong><br>"
+//				outputString += "n="+n+"<br>"
+				outputString += "S = "+S+"<br>\n"
+				outputString += "<i>p</i>-value = "+pvalue.toFixed(precision)+"<br>\n"
+				
+					//Wiloxon Signed Rank Test
+					
+//					var diffSign =Array(data.length)
+//					var absdiffs=Array(data.length)
+					var list=[]
+					var n=data.length
+					
+if(debug)					console.log(data)
+					for(var i=0; i<data.length; i++){
+						if(data[i]-nullMedian != 0){
+//							diffSign[i]=(Math.sign(+data[i]-nullMedian))
+//							absdiffs[i]=+(Math.abs(+data[i]-nullMedian))
+							list.push({'value': Math.abs(+data[i]-nullMedian), 'sign':Math.sign(+data[i]-nullMedian)});
+						} else {
+							n--
+						}
+					}
+					
+//				console.log(diffSign)
+//				console.log(absdiffs)
+//				diffSign = sortArrayBy(diffSign.slice(), absdiffs.slice())
+//				var absdiffsSorted = sortArray(absdiffs.slice())
+				
+//				console.log(list)
+				list.sort(function(a,b){
+					return ((a.value<b.value)?-1:((a.value==b.value)?0:1));});
+//				console.log(list)
+					var diffSign =Array(n)
+					var absdiffs=Array(n)
+					for (var k = 0; k < list.length; k++) {
+						absdiffs[k] = list[k].value;
+						diffSign[k] = list[k].sign;
+					}
+				
+//				console.log(sortArrayBy([1,2,3,4,5],[6,3,8,3,5]))
+				
+				if(debugTiming)console.log("Wilcoxon stage 1: "+checkTiming())
+				if(debug)console.log(diffSign)
+				if(debug)console.log(absdiffs)
+//				var testVals=[1,8,7,9,9,9,7,4,5,2,1,3,6]
+//				console.log(sortArray(testVals))
+//				console.log(sortedRank(sortArray(testVals)))
+
+
+//					ranks = jStat.rank(absdiffs)
+					ranks=sortedRank(absdiffs)
+					var W1=0, W2=0, WW=[0,0]
+					for(var i=0; i<ranks.length; i++){
+						WW[.5+.5*diffSign[i]]+=ranks[i]
+					}
+//					for(var i=0; i<ranks.length; i++){
+//						ranks[i]=ranks[i]*diffSign[i]
+//						if(diffSign[i]<0){W1-= ranks[i]} else {W2 += ranks[i]}
+	//				}
+				if(debugTiming)console.log("Wilcoxon stage 2: "+checkTiming())
+//				console.log(W1+ " "+W2+" " +WW)
+					var n= ranks.length
+					var W
+					if(testType==1) W = WW[0]
+					if(testType==2) W = WW[1]
+					if(testType==3) W = jStat.max(WW)//absolute value of W
+//					console.log(testType)
+//					console.log(W)
+					sigLevels = [.001, .005, .01, .025, .05, .1, .2]
+					//for 2-sided alpha .001, .005, .01, .025, .05, .1, .2
+					var Wcrit = [[1,1,1,1,1,1,1],
+								[3,3,3,3,3,3,3],
+								[6,6,6,6,6,6,5],
+								[10,10,10,10,10,9,7],
+								[15,15,15,15,14,12,11],
+								[21,21,21,20,18,17,15],
+								[28,28,27,25,24,22,19],
+								[36,35,34,32,30,27,24],
+								[45,43,41,39,36,34,30],
+								[54,51,49,46,44,40,36],
+								[64,60,58,55,52,48,43],
+								[75,70,68,64,60,56,50],
+								[86,81,78,73,69,64,58],
+								[98,92,89,83,79,73,66],
+								[111,104,100,94,89,83,75],
+								[124,116,112,106,100,93,85],
+								[138,129,125,118,111,104,95],
+								[152,143,138,130,123,115,105],
+								[168,157,152,143,136,127,116]]
+					outputString += "<br><strong>Wilcoxon Rank Sum Test</strong><br>"
+	//				outputString += "n = "+n +"<br>"
+					outputString += "W<sup>-</sup> = "+WW[0]+"<br>\n"
+					outputString += "W<sup>+</sup> = "+WW[1]+"<br>\n"
+	//				outputString += "W = "+W+"<br>\n"
+				if(debugTiming)console.log("Wilcoxon stage 3: "+checkTiming())
+					if(n<20){
+						for(var j=0; j<8; j++){
+							if(j==7){
+								outputString += "not significant<br>"
+								break
+							}
+							if(W > Wcrit[n-1][j]){
+								if(j>0) outputString += sigLevels[j-1]*(testType==3?2.0:1.0) + " < "
+								outputString += "<i>p</i>-value < "+sigLevels[j]*(testType==3?2.0:1.0)+"<br>"
+								break
+							}
+						}
+					} else {
+//						W = Math.max(W2,W1)
+						var muW = n*(n+1)/4
+						var sigmaW = Math.sqrt(n*(n+1)*(2*n+1)/24)
+						var z = (W-muW)/sigmaW
+						outputString += "W = "+W+"<br>"
+						outputString += "Z = "+z.toFixed(precision)+"<br>"
+						pvalue = jStat.normal.cdf(z,0,1)
+						if(testType==2) pvalue = 1-jStat.normal.cdf(z,0,1)
+						if(testType==3) pvalue =jStat.normal.cdf(-Math.abs(z),0,1)*2
+						outputString += "<i>p</i>-value = "+pvalue.toFixed(precision)+"<br>"
+					}
+				document.getElementById('hypMedianOutput').innerHTML=outputString
+			
+			}
+
+		//	var sampleProgress=0
+			
+			function arraySample(x, n, replace=false){
+//				console.log("sampling from "+x)
+//				console.log("sample size "+n)
+//				console.log("with"+(replace?"":"out")+" replacement")
+				if(replace==false){
+					return shuffle(x).splice(n)
+				} else {
+					var samp=[]
+					var xn=x.length
+//					var js = []
+//					console.log("x is "+xn+" long")
+					for(var i=0; i<n; i++){
+						var j=Math.floor(Math.min(xn-1,Math.random()*xn))
+//						console.log(j)
+//						js.push(j)
+						samp.push(x[j])
+					}
+//					console.log(js)
+					//console.log("sample: "+samp)
+					return samp
+				}
+			}
+			
+			
+			function sample(){
+				cleanDataInput(1)
+				sampleStats(1)
+				var data = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+				var sampleSize = parseFloat(document.getElementById("sampleN").value)
+				var nSamples = parseFloat(document.getElementById("nSamples").value)
+				var sampleText = ""
+				var sampleStat = document.getElementById("sampleStat").value
+				var sampleStatistics = ""
+				for(var i=0; i<nSamples; i++){
+					data = shuffle(data)
+					var sum=0;
+					var sampleData = []
+					for(var j=0; j<sampleSize; j++){
+						var k=j;
+						if (document.getElementById('withReplacement').selected==true){
+							data = shuffle(data);
+							k=0;
+						}
+						sampleText += data[k] + " "
+						sampleData.push(+data[k]);
+					}
+					if(i<nSamples-1) sampleText += "\n"
+				}
+				document.getElementById("samples").innerHTML=sampleText
+				recalcSampleStat()
+			}
+			
+/*			function recalcSampleStat(){
+				var allSampleData = document.getElementById("samples").innerHTML
+				var samples = allSampleData.split("\n");
+				var sampleStatID=document.getElementById("sampleStat").value;
+				var sampleStatistics="";
+				for(var i=0; i<samples.length; i++){
+					var sampleData = samples[i].trim().split(" ");
+					var data=[]
+					for(var k=0; k<sampleData.length; k++) 
+						data.push(+sampleData[k]);
+					data.sort(function(a, b){return a-b})
+					if(debug)console.log(data)
+					var sampleStat = 0
+					var FNS = fiveNumSum(data)
+					if(sampleStatID==1) sampleStat = fixed(jStat.mean(data));
+					if(sampleStatID==2) sampleStat = fixed(FNS[2]);
+					if(sampleStatID==3) sampleStat = fixed(jStat.stdev(data,true));
+					if(sampleStatID==4) sampleStat = fixed(FNS[1]);
+					if(sampleStatID==5) sampleStat = fixed(FNS[3]);
+					sampleStatistics += (i>0?"\n":"") + sampleStat
+				}
+				document.getElementById("sampleMeans").innerHTML=sampleStatistics
+			}*/
+			
+			function checkDiscrete(){
+				data = document.getElementById("data1").value.trim().split(/[\s,;\t\n]+/)
+				for(var i=0; i<data.length; i++) { data[i] = +data[i]; }
+				data.sort(function(a, b){return a-b})
+				var frequency=jStat.histogram(data, jStat.range(data)+1)
+				var nGaps=0
+				for(var i=0; i<frequency.length; i++){
+					if(frequency[i]==0) nGaps++
+				}
+				document.getElementById('discrete').checked=(nGaps>1?"":"checked")			
+			}
+			
+			function refresh(){
+				setPrecision(document.getElementById('precision').value)
+				cleanDataInput(1)
+				checkDiscrete()
+				sampleStats(1)
+				updateNames(1)
+				percentile(1)
+				ecdf()
+				refreshHistogram()
+				violinplot(1)
+				boxplot(1)
+				beeswarm(1)
+				refreshStemLeaf()
+				frequencyPolygon(1)
+				densityPlot(1)
+				refreshCI()
+				refreshHYP()
+				normality(1,false)
+				refreshNormalityPlot(parseData(1))				
+			} 
+			
+			function refreshStemLeaf(){
+				stemLeafPlot(["",document.getElementById('name1').value], [[],parseData(1)])			
+			}
+			
+			function refreshCI(){
+				ciMean()
+				ciVar()
+				ciProp()
+			}
+
+			function refreshHYP(){
+				hypMean()
+				hypProp()
+				hypVar()
+				hypSkew()	
+				hypMedian()
+			}
+// ranks of an array
+function sortedRank(arr) {
+  var arrlen = arr.length;
+  arr.push(Infinity)
+  var ranks = new Array(arrlen);
+  var i=0; r1=1; r2=0; x=arr[0]; fill=false
+  while(i<arrlen){
+	r2=i+1
+	if(arr[i+1]!=x){
+		x=arr[i+1]
+		var rank=(r2+r1)/2
+		for(;r1<=r2;r1++){
+			ranks[r1-1]=rank
+		}
+	}	
+	i++
+  }
+  return ranks
+}
+			
+			
+			
+			
+
+			
+		</script>
+
+		<style>
+		.css-content div .css-content, .css-content div .css-label{
+			padding-left:5px;
+			background-color:rgba(255,255,255,.3);}
+		</style>
+		
+
+	</head>
+	
+	<body onload="loadPrecision();loadColorChoice();linkMenu();generateSampleStatsTable(1,false);parseDataFromURL(1);checkDiscrete();setColors();fixInputSizes()">
+	<span class="measure" id="secretMeasure"></span>
+		<div id="container">
+			<div id="title" onClick="setColors()">StatPowers</div>
+			<div id="menu"></div>
+			<form name="form1">
+				<div class="container" >
+					<input type="checkbox" checked name="headerDataEntry" id="headerDataEntry" class="css-checkbox">
+					<label for="headerDataEntry" class="css-label">Data Entry</label>
+					<div class="content css-content">
+						<div class='helpDiv minimized'>
+							<a name='' onclick='toggle(this);' class='expander'>?</a>
+							<a name='' onclick='toggle(this);' class='collapser'>&#10006;</a>
+							<span>
+							Enter data separated by comma, semicolon, space, tab or newlines.<br>
+							To quickly enter the same number multiple times, use the syntax <b>FREQUENCYxVALUE</b> (e.g. 5x2 would become 2 2 2 2 2).
+							</span>
+						</div>
+						<div class='options'>
+						<span style="font-weight:bold">Data Set:</span> <input type="text" id="name1" value="" placeholder="unnamed" size="25" maxlength="10" onchange="refresh()" /><br/>
+						<span style="font-weight:bold">Variable Name:</span> <input type="text" id="varName1" value="" placeholder="variable name" size="10" maxlength="25" onchange="refresh()" />,  
+						<span style="font-weight:bold">units:</span> <input type="text" id="varUnits1" value="" placeholder="unset" size="10" maxlength="25" onchange="refresh()" /><br/>
+						<div>
+							<textarea name="data1" id="data1" class="smallTextArea" rows=6 cols=60 onChange="dataMessy[0]=true;refresh();"></textarea>
+						</div>
+						</div>
+						
+						<button TYPE=button VALUE="Calculate Now" onClick="refresh()">Calculate Now</button>
+						&nbsp;&nbsp;&nbsp;
+						<button TYPE=reset VALUE="Clear All" onClick="document.getElementById('data1').innerHTML='';document.getElementById('ciMeanSummary').style.display='none';document.getElementById('dataLink').innerHTML='';">Clear All</button>
+						&nbsp;&nbsp;&nbsp;
+						<button TYPE=button VALUE="Share Data" onClick="makeURL()">Share Data</button> 
+						<div id="dataLink" ></div><iframe id="frmFile" style="display: none;"></iframe>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerSummaryStats" class="css-checkbox">
+					<label for="headerSummaryStats" class="css-label">Summary Statistics</label>
+					<div class="content css-content">
+						<div class='helpDiv minimized'>
+							<a  onClick='toggle(this);' class='expander'>?</a>
+							<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+							<span>
+							<ul>
+							<li><b>Mean</b> is \(\overline{x}=\frac{1}{n}\sum_{i=1}^n x_i\)</li>
+							<li><b>Median</b> is the 50th percentile (i.e. half the data is less than or equal to \(\tilde x\)</li>
+							<li><b>Mode</b> is the most frequenly occuring value. Mostly applicable for categorical data.</li>
+							<li><b>Midrange</b> is mostly obsolete; it is the average of the minimum and maximum value, \(\frac{1}{2}(x_{(1)}+x_{(n)})\).</li>
+							<li><b>Range</b> is defined as the difference between the maximum and minimum values: \(x_{(n)}-x_{(1)}\)</li>
+							<li><b>IQR</b> is the difference between the 3<sup>rd</sup> and 1<sup>st</sup> quartiles.</li>
+							<li><b>Sample variance</b> is the average squared difference from the mean. \(s^2=\frac{1}{n-1}\sum_{i=1}^n(x_i-\overline{x})\)</li>
+							<li><b>Sample standard deviation</b> is the square root of the sample variance. \(s = \sqrt{s^2}\). Roughly it can be though of as the average distance to the mean.</li>
+							<li><b>Standard error of the mean</b> describes the standard deviation of the sampling distribution of \(\overline{X}\). This estimates the standard deviations of multiple sample means if they were all drawn from the same population.</li>
+							<li><b>Population Standard Deviation</b> should only be considered if your data represents the full population rather than a mere sample. \(\sigma = \sqrt{\frac{n-1}{n}}s\)</li>
+							<li><b>Sample percentiles</b> can be estimated at any percentile from 0 to 1. <a href="https://en.wikipedia.org/wiki/Quantile#Estimating_quantiles_from_a_sample">There are many formulas for calculating sample percentiles</a>, StatPowers uses method R-8.</li>
+							<li><b>Skew</b> is a measurement of how asymmetric the data is. A positive skew indicates a long tail on the high end of the data distribution. A negative tail indicates a long tail on the low end. A symmetric distribution will have a zero skew.</li>
+							<li><b>Kurtosis</b> measures how the tails differ from a Gaussian distribution; If kurtosis &gt; 3 the distribution has fat tails. If kurtosis &lt; 3 the distribution has skinny tails.</li>
+							</ul>
+							</span>
+						</div>
+						<div id="output" class="results">
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox"  id="headerCharts" class="css-checkbox">
+					<label for="headerCharts" class="css-label">Charts</label>
+					<div class="css-content">
+						<div> <!--Histogram-->
+							<input type="checkbox"  id="headerHistogram" class="css-checkbox" onClick="histogram()">
+							<label for="headerHistogram" class="css-label sub">Histogram</label>
+							<div class="content css-content">
+								<div class='helpDiv minimized'>
+									<a  onClick='toggle(this);' class='expander'>?</a>
+									<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+									<span>
+									If your data is discrete (integers) the histogram will probably look better if you select "Discrete Bars" - however if the range of your data is too large you will end up with spikes and gaps. In this case it would be better to not use Discrete Bars. You can use one of the rules of thumb (Square root n, Sturges', etc.) to automatically choose the number of bins, or you can specify from 4 to 20 bins.
+									</span>
+								</div>
+								<div class='options'>
+								<input type="checkbox" checked id="discrete" onclick="refreshHistogram();document.getElementById('nBinsOverride').disabled=(document.getElementById('discrete').checked==true)"> Discrete Bars (only for integer data)</br>
+								<input type="checkbox" id="overlayNormal" onClick="refreshHistogram();"> Overlay normal curve<br>
+								Number of bins: <select id="nBinsOverride" onchange="refreshHistogram();">
+									<script>
+									for (var k=0; k<histOptions.length; k++){
+										document.writeln("<option value=\""+histOptionValues[k]+"\" >"+histOptions[k]+"</option>\n")
+									}
+									</script>
+								</select>
+								</div>
+								<div class="canvasdiv">
+								<canvas id="histogram" class='zoomable' width="490" height="300">
+									<p>Your browser doesn't support canvas. Please update your browser.</p>
+								</canvas>
+								<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'histogram','histogram.png');"></a>
+								</div>
+							</div>
+						</div>
+						<div> <!--Empirical CDF-->
+							<input type="checkbox"  id="headerECDF" class="css-checkbox" onClick="ecdf()">
+							<label for="headerECDF" class="css-label sub">Empirical CDF</label>
+							<div class="content css-content">
+								<div class='helpDiv minimized'>
+									<a  onClick='toggle(this);' class='expander'>?</a>
+									<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+									<span>
+									The Empirical Cumulative Distribution Function shows the shape of the distribution without any binning. Each incremental vertical movement in the line represents a data point. the steeper the curve, the more dense the data is. A long vertical line indicates a big gap between data values.</span>
+								</div>
+								<div class="canvasdiv">
+								<canvas id="ecdf" width="490" height="300" class="zoomable">
+									<p>Your browser doesn't support canvas. Please update your browser.</p>
+								</canvas>
+								<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'ecdf','ecdf.png');"></a>
+								</div>
+							</div>
+						</div>
+						<div> <!--Frequency Polygon-->
+							<input type="checkbox"  id="headerfrequencyPolygon" class="css-checkbox">
+							<label for="headerfrequencyPolygon" class="css-label sub">Frequency Polygon</label>
+							<div class="content css-content">
+								<div class='helpDiv minimized'>
+									<a  onClick='toggle(this);' class='expander'>?</a>
+									<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+									<span>
+									The frequency polygon simply connects the top points of the histogram bars to estimate the population density. It is easier to compare different data distributions using this chart than a histogram.<br>
+									The cumulative frequency polygon will accumulate frequency until it reaches 100% of the data.</span>
+								</div>
+								<div class='options'>
+								<input type="checkbox" id="discreteFreq" onclick="frequencyPolygon(1);document.getElementById('nPointsOverride').disabled=(document.getElementById('discreteFreq').checked==true)">Discrete Ticks (only for integer data)</br>
+								<input type="checkbox" id="cumulative" onclick="frequencyPolygon(1)">Cumulative</br>
+								Number of bins: <select id="nPointsOverride" onchange="frequencyPolygon(1);">
+									<script>
+									for (var k=0; k<histOptions.length; k++){
+										document.writeln("<option value=\""+histOptionValues[k]+"\" >"+histOptions[k]+"</option>\n")
+									}
+									</script>
+								</select>
+								</div>
+								<div class="canvasdiv">
+								<canvas id="freqPolygon" width="490" height="300" class='zoomable'>
+									<p>Your browser doesn't support canvas. Please update your browser.</p>
+								</canvas>
+								<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'freqPolygon','freqPolygon.png');"></a>
+								</div>
+							</div>
+						</div>				
+						<div> <!--Boxplot-->
+							<input type="checkbox"  id="headerBoxplot" class="css-checkbox">
+							<label for="headerBoxplot" class="css-label sub">Boxplot</label>
+							<div class="content css-content">
+								<div class='helpDiv minimized'>
+									<a  onClick='toggle(this);' class='expander'>?</a>
+									<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+									<span>
+									The boxplot indicates the minimum, first quartile, median, third quartile and maximum of the data. Any data outside the fence (1.5 times the IQR from Q1 or Q3) will be indicated by a dot.</span>
+								</div>
+								<div class="canvasdiv">
+								<canvas id="boxplot" width="490" height="300"  class='zoomable'>
+									<p>Your browser doesn't support canvas. Please update your browser.</p>
+								</canvas>
+								<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'boxplot','boxplot.png');"></a>
+								</div>
+							</div>
+						</div>
+						<div> <!--Dot Plot-->
+							<input type="checkbox" id="headerBeeswarm" class="css-checkbox">
+							<label for="headerBeeswarm" class="css-label sub">Dot Plot</label>
+							<div class="content css-content">
+								<div class='helpDiv minimized'>
+									<a onClick='toggle(this);' class='expander'>?</a>
+									<a onClick='toggle(this);' class='collapser'>&#10006;</a>
+									<span>Neat will attempt to pack dots neatly. By row will stack dots. </span>
+								</div>
+								<div class='options'>
+								Style: <select id="beeswarmStyle" onchange="beeswarm(1);">
+									<option value="neat" selected >neat</option>
+									<option value="stack" >by row</option>
+									<option value="bars" >bottom aligned</option>
+									<option value="line" >line</option>
+									<option value="strip" >strip</option>
+									<!--option value="messy" >messy</option-->
+								</select>
+								</div>
+								<div class="canvasdiv">
+								<canvas id="beeswarm" width="490" height="300" class='zoomable' >
+									<p>Your browser doesn't support canvas. Please update your browser.</p>
+								</canvas>
+							<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'beeswarm','beeswarm.png');"></a>
+								</div>
+							</div>
+						</div>
+						<div> <!--Violin Plot-->
+							<input type="checkbox"  id="headerViolinPlot" class="css-checkbox">
+							<label for="headerViolinPlot" class="css-label sub">Violin Plot</label>
+							<div class="content css-content">
+								<div class='helpDiv minimized'>
+									<a  onClick='toggle(this);' class='expander'>?</a>
+									<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+									<span>
+									The violin plot estimates the density of the distribution the data is sampled from and mirrors the shape to make an adorable plot. You can add another chart to the interior of the violin.</span>
+								</div>
+								<div class='options'>
+								Interior: <select id="violinInterior" onchange="violinplot(1);">
+									<option value="blank" selected >empty</option>
+									<option value="boxplot" >Boxplot</option>
+									<option value="meanSD" >Mean+SD</option>
+									<option value="data" >Data</option>
+									<option value="strip" >Strip Chart</option>
+								</select>
+								</div>
+								<div class="canvasdiv">
+								<canvas id="violinplot" width="490" height="300"  class='zoomable'>
+									<p>Your browser doesn't support canvas. Please update your browser.</p>
+								</canvas>
+								<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'violinplot','violinplot.png');"></a>
+								</div>
+							</div>
+						</div>					
+						<div> <!--Density Plot-->
+							<input type="checkbox"  id="headerDensityPlot" class="css-checkbox">
+							<label for="headerDensityPlot" class="css-label sub">Density Plot</label>
+							<div class="content css-content">
+								<div class='helpDiv minimized'>
+									<a  onClick='toggle(this);' class='expander'>?</a>
+									<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+									<span>
+									The density plot attempts to estimate the population density shape. The density is built by stacking shapes at each data point. Uniform (rectangles, Triangles, Epanechnikov (half-ovals) and Gaussian (normal curves). The bandwidth determines how wide of the shape to stack at each data value.</span>
+								</div>
+								<div class='options'>
+								
+								Bandwidth: <input disabled type="number" id="bandwidth" onChange="densityPlot(1)" value="1" min=".01" max="10" step=".1"> <input type="checkbox" id="autoBandwidth" checked onclick="densityPlot(1, 'densityPlot');document.getElementById('bandwidth').disabled=this.checked;">Auto</br>
+								Kernel Function: <select id="kernelFunction" onchange="densityPlot(1);">
+									<option value="Uniform" >Uniform</option>
+									<option value="Triangle" >Triangle</option>
+									<option value="Epanechnikov" >Epanechnikov</option>
+									<option value="Gaussian" selected>Gaussian</option>
+								</select>
+								</div>
+								<div class="canvasdiv">
+								<canvas id="densityPlot" width="490" height="300"  class='zoomable'>
+									<p>Your browser doesn't support canvas. Please update your browser.</p>
+								</canvas>
+								<a class="downloadButton topright"  href="" onClick="downloadCanvas(this,'densityPlot','densityPlot.png');"></a>
+								</div>
+							</div>
+						</div>
+						<div> <!--Stem and Leaf Plot-->
+							<input type="checkbox" id="headerStemLeaf" class="css-checkbox">
+							<label for="headerStemLeaf" class="css-label sub">Stem and Leaf Plot</label>
+							<div class="content css-content">
+								<div class='helpDiv minimized'>
+									<a  onClick='toggle(this);' class='expander'>?</a>
+									<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+									<span>
+									The easiest way to make the stem and leaf plot is to specify the target number of stems and let the plot be auto-formatted. The stem and leaf plot is ideal for datasets of size less than 100 or so.</span>
+								</div>
+								<div class='options'>
+								<div style="width:100%;">
+								<div style="display:inline-block; width:30%;">
+								<input type="checkbox" id="autoStem" checked onClick="document.getElementById('stemSize').disabled=this.checked;document.getElementById('stemsplit').disabled=this.checked;refreshStemLeaf();">Auto Format</div>
+								<div style="display:inline-block; width:48%;">Target # of Stems: <input id="optimalStems" type='number' class='tinyNumber' value=10 min=5 max=30 step=1  onchange="refreshStemLeaf();">
+								
+								</div>
+								</div>
+								<div style="width:100%;">
+
+								<div style="display:inline-block; width:34%;">
+								Stem size: <select disabled id="stemSize" onchange="refreshStemLeaf();">
+									<option value="0.00001" >0.00001</option>
+									<option value="0.0001" >0.0001</option>
+									<option value="0.001" >0.001</option>
+									<option value="0.01" >0.01</option>
+									<option value="0.1" >0.1</option>
+									<option value="1" >1</option>
+									<option value="10" selected >10</option>
+									<option value="100" >100</option>
+									<option value="1000" >1,000</option>
+									<option value="10000" >10,000</option>
+									<option value="100000" >100,000</option>
+									<option value="1000000" >1,000,000</option>
+								</select>
+								</div>
+								<div style="display:inline-block; width:50%;">
+								Split stems: <select disabled id="stemsplit" onchange="refreshStemLeaf();">
+									<option value="1" selected>None</option>
+									<option value="2" >2 Parts</option>
+									<option value="5" >5 Parts</option>
+									<option value="10" >10 Parts</option>
+								</select>
+								</div>
+								</div>
+								</div>
+								<div class="canvasdiv">
+								<canvas id="stemleafplot" width="490" height="300"  class='zoomable'>
+									<p>Your browser doesn't support canvas. Please update your browser.</p>
+								</canvas>
+								<a class="downloadButton topright"  href="" onClick="downloadCanvas(this,'stemleafplot','stemleafplot.png');"></a>
+								</div>
+								<div id="stemLeafInfo"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="container" id='sampling-container'> <!--Sampling-->
+				</div>
+				<div class="container"> <!--Normality-->
+					<input type="checkbox" id="headerNormality" class="css-checkbox"/>
+					<label for="headerNormality" class="css-label">Normality</label>
+					<div class="content css-content">
+						<div class='helpDiv minimized'>
+							<a  onClick='toggle(this);' class='expander'>?</a>
+							<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+							<span>The hypothesis tests have the following hypotheses:<br>H<sub>0</sub>: The data was sampled from a normally distributed population.</br>H<sub>1</sub>: The data was not sampled from a normally distributed population.<br>A small <i>p</i>-value indicates non-normality.<ul><li>The <b>Shapiro-Wilk test</b> is appropriate for data sizes up to 100 or so.</li><li>For larger sample sizes the <b>KS test</b> is preferred.</li><li>If the data size is very large neither test will tolerate much deviation from normality. In this case, normality should be judged based on the <b>QQ plot</b> (or the histogram).</li></ul></span>
+						</div>
+						<div class='options'>
+								<input type="checkbox" id="qqbands" onClick="refreshNormalityPlot(parseData(1));"> 95% Bands 
+								<input type="checkbox" id="wormPlot" onClick="refreshNormalityPlot(parseData(1));"> Worm Plot
+								| GOF Bins: <input type='number' class='tinyNumber' min=4 step=1 id='GOFnBins' placeholder='auto' onChange='normality(1)'></input><br>
+						</div>
+						<div class="canvasdiv">
+							<canvas id="qqPlot" width="490" height="400" class='zoomable' >
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft"  href="" onClick="downloadCanvas(this,'qqPlot','qqPlot.png');"></a> 
+						</div>
+						<div id="normality" class='results'></div>
+					</div>
+				</div>	
+				<div class="container"> <!--Confidence Intervals-->
+					<h3>Confidence Intervals</h3>
+					<div id="commonCI" class="content">
+						Confidence Level <input type="number" id="cLevel" value="0.95" class="smallNumber" min="0" max=".99999" step=".01" onchange="ciMean();ciVar();ciProp();" />
+					</div>
+					<div> <!--Confidence Interval: Mean-->
+						<input type="checkbox" id="headerCIMean" class="css-checkbox">
+						<label for="headerCIMean" class="css-label sub">Mean Estimation</label>
+						<div class="css-content relative">
+							<div class='helpDiv minimized'>
+								<a  onClick='toggle(this);' class='expander'>?</a>
+								<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+								<span>
+								Enter the confidence level above (a decimal smaller than 1.0) and a confidence interval calculated using the t distribution will be constructed.<br>
+								The confidence interval should be interpreted 'We are X% confident that the interval accurately captures the population mean.'.
+								</span>
+							</div>
+							<div class="radio-toolbar">
+								<input type="radio" name="whichCIMEAN" id="whichCIMEAN1" checked onClick="document.getElementById('ciMeanSummary').style.display='none';ciMean();">
+								<label for="whichCIMEAN1"> Use data</label>
+								
+								<input type="radio" name="whichCIMEAN" id="whichCIMEAN2" onClick="document.getElementById('ciMeanSummary').style.display='block';ciMean();">
+								<label for="whichCIMEAN2"> Enter summary stats</label>
+							</div>
+							<div  class="content">
+								
+								<div id="ciMeanSummary" style="display:none;">
+									<table  border="0">
+										<tr>
+											<td>Sample Mean (x&#772;)</td>
+											<td><input type="number" class="smallNumber" id="mean" value="0" onchange="ciMean();copyVal('mean','meanH1')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Standard Deviation (s)</td>
+											<td> <input type="number" class="smallNumber" id="s" value="1" min="0.000001"  onchange="ciMean();copyVal('s','sH1')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Size (n)</td>
+											<td> <input type="number" class="smallNumber" id="n" value="30" min="2" step="1" onchange="ciMean();copyTo('nH1')" /></td>
+										</tr>
+									</table>	
+								</div>
+								<div id="ciMeanOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					<div> <!--Confidence Interval: Variance-->
+						<input type="checkbox" id="headerCIVar" class="css-checkbox">
+						<label for="headerCIVar" class="css-label sub">Variance Estimation</label>
+						<div class="css-content relative">
+							<div class='helpDiv minimized'>
+								<a  onClick='toggle(this);' class='expander'>?</a>
+								<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+								<span>
+								Enter the confidence level above (a decimal smaller than 1.0) and a confidence interval calculated using the chi squared distribution will be constructed.<br>
+								The confidence interval should be interpreted 'We are X% confident that the interval accurately captures the population variance.'.
+								</span>
+							</div>
+							<div class="radio-toolbar">
+								<input type="radio" name="whichCIVAR" id="whichCIVAR1" checked onClick="document.getElementById('ciVarSummary').style.display='none';ciVar();">
+								<label for="whichCIVAR1"> Use data</label>
+								<input type="radio" name="whichCIVAR" id="whichCIVAR2" onClick="document.getElementById('ciVarSummary').style.display='block';ciVar();">
+								<label for="whichCIVAR2"> Enter summary stats</label>
+							</div>
+							<div  class="content">
+								<div id="ciVarSummary" style="display:none;">
+									<table  border="0">
+										<tr>
+											<td>Sample Standard Deviation (s)</td>
+											<td> <input type="number" class="smallNumber" id="s1" value="1" min="0.000001" onchange="ciVar();copyTo('sH2')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Size (n)</td>
+											<td> <input type="number" class="smallNumber" id="n1" value="30" min="2" step="1" onchange="ciVar();copyTo('nH2')" /></td>
+										</tr>
+									</table>	
+								</div>
+								<div id="ciVarOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					<div> <!--Confidence Interval: Proportion-->
+						<input type="checkbox" id="headerCIProp" class="css-checkbox">
+						<label for="headerCIProp" class="css-label sub">Proportion Estimation</label>
+						<div class="css-content relative">
+							<div class='helpDiv minimized'>
+								<a  onClick='toggle(this);' class='expander'>?</a>
+								<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+								<span>
+								Enter the confidence level above (a decimal smaller than 1.0)<br>
+								<ul><li>The approximate (Wald) confidence interval uses the normal distribution to approximate the sampling distribution of p&#770;. This should not be used if the sample size is small enough that there are fewer than 10 successes or failures.</li>
+								<li>The Exact (Clopper-Pearson) interval uses a binomial distribution for the sampling distribution of p&#770;. It may be wider than it needs to be though.</li>
+								<li>The Wilson Score Interval is an improvement over the Wald approximation and performs well even for small sample sizes and extreme proportions.</li>
+								<li>The Agresti-Coull interval is cute approximation too the binomial interval; For a 95% confidence interval it uses the "add 2 success and 2 failures" rule of thumb.</li></ul>
+								</span>
+							</div>
+							<div class="radio-toolbar">
+								<input type="radio" name="whichCIPROP" id="whichCIPROP1" checked onClick="document.getElementById('ciPropStats').style.display='block';document.getElementById('ciPropSummary').style.display='none';ciProp();">
+								<label for="whichCIPROP1"> Use data</label>
+								<input type="radio" name="whichCIPROP" id="whichCIPROP2" onClick="document.getElementById('ciPropStats').style.display='none';document.getElementById('ciPropSummary').style.display='block';ciProp();">
+								<label for="whichCIPROP2"> Enter summary stats</label>
+							</div>
+							<div  class="content">
+								
+								<div id="ciPropStats" style="display:block;">
+									<table  border="0">
+										<tr>
+											<td>Consider a success: X</td>
+											<td> 
+												<select id="propIneq" onchange="ciProp();">
+													<option value="l">&lt;</option>
+													<option value="leq">&le;</option>
+													<option value="g">&gt;</option>
+													<option value="geq" selected>&ge;</option>
+													<option value="eq">=</option>
+												</select>
+											<input type="number" class="smallNumber" id="propSuccess" value="1" onchange="ciProp();" /></td>
+										</tr>
+									</table>	
+								</div>
+								<div id="ciPropSummary" style="display:none;">
+									<table  border="0">
+										<tr>
+											<td>Number of successes (x)</td>
+											<td> <input type="number" class="smallNumber" id="x" value="15" min="0" step="1" onchange="ciProp();copyTo('xH')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Size (n)</td>
+											<td> <input type="number" class="smallNumber" id="n2" value="30" min="2" step="1" onchange="ciProp();copyTo('nH3')" /></td>
+										</tr>
+									</table>	
+								</div>
+								<div id="ciPropOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="container"> <!--Hypothesis Testing-->
+					<h3>Hypothesis Testing</h3>
+					<div id="commonHYP" class="content">
+						Significance Level (&alpha;)
+						<input type="number" id="sigLevel" value="0.05" class="smallNumber" min="0" max="1" step=".01" onchange="hypMean();hypVar();hypProp();hypSkew();" placeholder='optional'/>
+					</div>
+					<div> <!--Hypothesis Testing: Mean-->
+						<input type="checkbox" id="headerHypMean" class="css-checkbox">
+						<label for="headerHypMean" class="css-label sub">T Test for Mean</label>
+						<div class="css-content relative">
+							<div class='helpDiv minimized'>
+								<a  onClick='toggle(this);' class='expander'>?</a>
+								<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+								<span>
+								The t test uses the t distribution to model the sampling distribution of the sample mean. \(t=\dfrac{\overline{x}-\mu_0}{s/\sqrt{n}}\).
+								</span>
+							</div>
+							<div class="radio-toolbar">
+								<input type="radio" name="whichHYPMEAN" id = "whichHYPMEAN1" checked onClick="document.getElementById('hypMeanSummary').style.display='none';hypMean();">
+								<label for="whichHYPMEAN1"> Use data</label>
+								
+								<input type="radio" name="whichHYPMEAN" id="whichHYPMEAN2" onClick="document.getElementById('hypMeanSummary').style.display='block';hypMean();">
+								<label for="whichHYPMEAN2"> Enter summary stats</label>
+								
+							</div>
+							<div  class="content">
+								<div id="hypMeanSummary" style="display:none;">
+									<table  border="0">
+										<tr>
+											<td>Sample Mean (x&#772;)</td>
+											<td><input type="number" class="smallNumber" id="meanH1"  value="0" onchange="hypMean();copyVal('meanH1','mean')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Standard Deviation (s)</td>
+											<td> <input type="number" class="smallNumber" id="sH1" value="1" min="0.000001" onchange="hypMean();copyVal('sH1','s')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Size (n)</td>
+											<td> <input type="number" id="nH1" value="30" class="smallNumber" min="2" step="1" onchange="hypMean();copyVal('nH1','n')" /></td>
+										</tr>
+									</table>	
+								</div>
+								<table  border="0">
+									<tr><td>H<sub>0</sub>: &mu; </td><td>=</td><td> <input type="number"  id="mu0" value="0" class="smallNumber" onchange="hypMean();" /></td></tr>
+									<tr><td>H<sub>1</sub>: &mu; </td>
+										<td><select id="hypmeanIneq" onchange="hypMean();">
+											<option value="l">&lt;</option>
+											<option value="g">&gt;</option>
+											<option value="ne" selected>&ne;</option>
+										</select></td>
+									<td id="mu1">0</td></tr>
+								</table>
+								<div id="hypMeanOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					<div> <!--Hypothesis Testing: Variance-->
+						<input type="checkbox" id="headerHypVar" class="css-checkbox">
+						<label for="headerHypVar" class="css-label sub">Test for Variance</label>
+						<div class="css-content relative">
+							<div class='helpDiv minimized'>
+								<a  onClick='toggle(this);' class='expander'>?</a>
+								<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+								<span>
+								(notes to come)
+								</span>
+							</div>
+							<div class="radio-toolbar">
+								<input type="radio" name="whichHYPVAR" id="whichHYPVAR1" checked onClick="document.getElementById('hypVarSummary').style.display='none';hypVar();">
+								<label for="whichHYPVAR1"> Use data</label>
+								<input type="radio" name="whichHYPVAR" id="whichHYPVAR2" onClick="document.getElementById('hypVarSummary').style.display='block';hypVar();">
+								<label for="whichHYPVAR2"> Enter summary stats</label>
+							</div>
+							<div  class="content">
+								<div id="hypVarSummary" style="display:none;">
+									<table  border="0">
+										<tr>
+											<td>Sample Standard Deviation (s)</td>
+											<td> <input type="number" id="sH2" value="1" min="0.000001" class="smallNumber" onchange="hypVar();copyTo('s1')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Size (n)</td>
+											<td> <input type="number" id="nH2" value="30" class="smallNumber" min="2" step="1" onchange="hypVar();copyTo('n1')" /></td>
+										</tr>
+									</table>	
+								</div>
+								<table  border="0">
+									<tr><td>H<sub>0</sub>: &sigma;<sup>2</sup> </td><td>=</td><td> <input name="sigsq0" type="number" id="sigsq0" value="1" class="smallNumber" min="0.0000001" onchange="hypVar();" /></td></tr>
+									<tr><td>H<sub>1</sub>: &sigma;<sup>2</sup> </td>
+										<td><select id="hypvarIneq" onchange="hypVar();">
+											<option value="l">&lt;</option>
+											<option value="g">&gt;</option>
+											<option value="ne" selected>&ne;</option>
+										</select></td>
+									<td id="sigsq1">1</td></tr>
+								</table>
+								<div id="hypVarOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					<div> <!--Hypothesis Testing: Proportion-->
+						<input type="checkbox" id="headerHypProp" class="css-checkbox">
+						<label for="headerHypProp" class="css-label sub">Test for Proportion</label>
+						<div class="css-content relative">
+							<div class='helpDiv minimized'>
+								<a  onClick='toggle(this);' class='expander'>?</a>
+								<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+								<span>
+								Two tests are done- one using the Wald approximation (normal approximation) to the sampling distribution of the sample proportion.<br>
+								The Exact test uses the binomial distribution to calculate the <i>p</i>-value. 
+								</span>
+							</div>
+							<div class="radio-toolbar">
+								<input type="radio" name="whichHYPPROP" id="whichHYPPROP1" checked onClick="document.getElementById('hypPropStats').style.display='block';document.getElementById('hypPropSummary').style.display='none';hypProp();">
+								<label for="whichHYPPROP1"> Use data</label>
+								<input type="radio" name="whichHYPPROP" id="whichHYPPROP2" onClick="document.getElementById('hypPropStats').style.display='none';document.getElementById('hypPropSummary').style.display='block';hypProp();">
+								<label for="whichHYPPROP2"> Enter summary stats</label>
+							</div>
+							<div  class="content">
+								<div id="hypPropStats" style="display:block;">
+									<table  border="0">
+										<tr>
+											<td>Consider a success: X</td>
+											<td> 
+												<select id="propHIneq" onchange="hypProp();">
+													<option value="l">&lt;</option>
+													<option value="leq">&le;</option>
+													<option value="g">&gt;</option>
+													<option value="geq" selected>&ge;</option>
+													<option value="eq">=</option>
+												</select>
+											<input name="propHSuccess" type="number" id="propHSuccess" value="1" class='smallNumber' onchange="hypProp();" /></td>
+										</tr>
+									</table>	
+								</div>
+								<div id="hypPropSummary" style="display:none;">
+									<table  border="0">
+										<tr>
+											<td>Number of successes (x)</td>
+											<td> <input type="number" class="smallNumber" id="xH" value="15" min="0" step="1" onchange="hypProp();copyTo('x')" /></td>
+										</tr>
+										<tr>
+											<td>Sample Size (n)</td>
+											<td> <input type="number" class="smallNumber" id="nH3" value="30" min="2" step="1" onchange="hypProp();copyTo('n2')" /></td>
+										</tr>
+									</table>	
+								</div>
+								<table  border="0">
+									<tr><td>H<sub>0</sub>: p </td><td>=</td><td> <input type="number" id="p0" value=".5" class="smallNumber" min="0" max="1" step="0.01" onchange="hypProp();" /></td></tr>
+									<tr><td>H<sub>1</sub>: p </td>
+										<td><select id="hyppropIneq" onchange="hypProp();">
+											<option value="l">&lt;</option>
+											<option value="g">&gt;</option>
+											<option value="ne" selected>&ne;</option>
+										</select></td>
+									<td id="p1">.5</td></tr>
+								</table>
+								<div id="hypPropOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					<div> <!--Hypothesis Testing: Skewness-->
+						<input type="checkbox" id="headerHypSkew" class="css-checkbox">
+						<label for="headerHypSkew" class="css-label sub">Test for Skewness</label>
+						<div class="css-content relative">
+							<div class='helpDiv minimized'>
+								<a  onClick='toggle(this);' class='expander'>?</a>
+								<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+								<span>
+								(notes to come)
+								</span>
+							</div>
+							<div  class="content">
+								<div id="hypSkewOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					<div> <!--Hypothesis Testing: Median-->
+						<input type="checkbox" id="headerHypMedian" class="css-checkbox">
+						<label for="headerHypMedian" class="css-label sub">Test for Median</label>
+						<div class="css-content relative">
+							<div class='helpDiv minimized'>
+								<a  onClick='toggle(this);' class='expander'>?</a>
+								<a  onClick='toggle(this);' class='collapser'>&#10006;</a>
+								<span>
+								(notes to come)
+								</span>
+							</div>
+							<div  class="content">
+								<table  border="0">
+									<tr><td>H<sub>0</sub>: &theta; </td><td>=</td><td> <input type="number"  id="median0" value="0" class="smallNumber" onchange="document.getElementById('median1').innerHTML=this.value;hypMedian();" /></td></tr>
+									<tr><td>H<sub>1</sub>: &theta; </td>
+										<td><select id="hypmedianIneq" onchange="hypMedian();">
+											<option value="1">&lt;</option>
+											<option value="2">&gt;</option>
+											<option value="3" selected>&ne;</option>
+										</select></td>
+									<td id="median1">0</td></tr>
+								</table>
+								<div id="hypMedianOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</form>
+		</div>
+	</body>
+</html>			
+<script>
+document.querySelector('#container').onclick=function(ev) {
+if(ev.target.value && ev.target.id.substring(0,6)=="header"){
+	//alert(ev.target.id)
+	if(ev.target.id == "headerHisotgram") histogram();
+	if(ev.target.id == "headerfrequencyPolygon") frequencyPolygon(1);
+	if(ev.target.id == "headerBoxplot") boxplot(1);
+	if(ev.target.id == "headerBeeswarm") beeswarm(1);
+	if(ev.target.id == "headerDensityPlot") densityPlot(1);
+	if(ev.target.id == "headerViolinPlot") violinplot(1);
+	if(ev.target.id == "headerStemLeaf") refreshStemLeaf();
+	if(ev.target.id == "headerNormality") {	normality(1,false);	refreshNormalityPlot(parseData(1)) }
+	}
+}
+buildPanel("sampling","Sampling",[true],"You can make one or many samples from the dataset. Specify the sample size and the number of samples. If you sample with replacement, then the same data point may be sampled more than once. If the sample size is greater than the data size, you may only sample with replacement.<br>\n	You can choose which sample stat to calculate for each sample.")
+</script>

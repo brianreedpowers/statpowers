@@ -1,0 +1,1724 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Survival Analysis</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+		<style>
+			.tableHeader {font-weight: bold;}
+		.hideRows tbody{
+			display:none;
+		}
+		
+		.invisCheck{
+			/*display:None;*/
+		}
+		.invisCheck:checked + .strikeThroughLabel{
+			text-decoration: none;
+		}
+		.invisCheck + .strikeThroughLabel{
+			text-decoration: line-through;
+		}
+		radio[disabled] {color:#EEE;}
+		
+		:checked + span {font-style: italic; color: #999;}
+		.baseline { font-style: italic; color: #999;}
+		
+		.dummyChoices{border: 1px solid gray; background-color:#F5F5F5;}
+		
+		.blackBorder{border: 1px solid black;}
+		
+		.collapse{border-collapse: collapse;}
+		
+		.interactionTable {border:solid black 1px;}
+		.interactionTable tr{border-bottom: solid #DDD 1px;}
+		.interactionTable th{padding-right: 4px;}
+		.interactionTable td{vertical-align:top; padding-right: 4px;}
+		
+		#dataMatrix{overflow-x: auto;}
+		#corMatrix{overflow-x: auto;}
+		
+		.rTop td, .rRow td, .rBot td{
+			background-color:#FFC;
+			margin:.1em;
+			border-radius:.2em;
+			padding: .2em;
+		}
+		tr.rTop td{border-top:black solid .01em;}
+		tr.rBot td{border-bottom:black solid .01em;}
+		tr.rRow td:first-child{border-left:black solid .01em;}
+		tr.rRow td:last-child{border-right:black solid .01em;}
+		</style>
+		<link rel="stylesheet" type="text/css" href="styles/tln.min.css"/>
+		<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+		<script type="text/javascript" src="js/jstat.js"></script>
+		<script type="text/javascript" src="js/commonFunctions.js"></script>
+		<script type="text/javascript" src="js/chartFunctions.js"></script>
+		<script type="text/javascript" src="js/mlr.js"></script>
+		<script type="text/javascript" src="js/numeric-1.2.6.min.js"></script>
+		<script type="text/javascript" src="js/shapiro-wilk.js"></script>
+		<script type="text/javascript" src="js/cphm.js"></script>
+		<script type="text/javascript" src="js/tln.min.js"></script>
+		<script language="javascript">
+			var nSets = 1
+			var nSamples = nSets
+			var nCovars=nSets-1
+			var nVars = nSets
+			var maxNSets = 3
+			var dataSets = []
+			var dataCensored = []
+			var t=[]
+			var St=[]
+			var SESt=[]
+			var debug=false
+			
+			function cleanSurvivalData(nDataSets=nSets){
+				for(var set=1; set<=nSets; set++){
+					result = parseSurvivalData(set)
+					dataSets[set-1]=result[0]
+					dataCensored[set-1]=result[1]
+					
+					var cleanedData = ""
+					for(var k=0; k<result[0].length; k++){						
+						cleanedData+=(k>0?", ":"")+result[0][k] + (result[1][k]?"+":"")
+					}
+					document.getElementById("data"+set).value=cleanedData
+				}
+			}
+			
+			function refresh(){
+				setPrecision(document.getElementById('precision').value)
+				nSets = +document.getElementById('nSamples').value;
+				showDataEntry()
+				cleanSurvivalData()
+				survivalPlot()
+				updateNames()
+				generateSurvivalStatsTable()
+				survivalStats()
+				if(nSets>1){
+					survivalZTest()
+					logRankTest()
+					logRankTest2()
+				} 
+			}
+			
+			function updateNames(){
+				for(var i=1; i<=nSets; i++){
+					if(exists('statsName'+i))document.getElementById("statsName"+i).innerHTML=document.getElementById("name"+i).value;
+				}
+				
+			}
+
+			function survivalPlot(nDataSets=nSets){
+				var sfMethod=+document.getElementById('sfMethod').value
+				var cphmX=[]
+				var legendNames=[]
+				if(document.getElementById('whichData2').checked){
+					//sfMethod=1
+					dataSets=[]
+					dataCensored=[]
+					var groupBy = +document.getElementById('SFgroupBy').value
+					if(groupBy>-1){
+						for(var k=0; k<levels[groupBy].length; k++){
+							legendNames.push(levels[groupBy][k])
+							cphmX[k]=cphmMeans.slice()
+							for(var i=0; i<cphmCoeff.length; i++){
+							
+								if(debug)console.log("model var "+i+":"+modelVarNamesVarNum[i+1])
+								//This will be a problem when the values aren't 0 and 1.
+								if(modelVarNamesVarNum[i+1]==groupBy) cphmX[k][i]=k
+							
+							}
+							dataSets[k]=[]
+							dataCensored[k]=[]
+							for(var i=0; i<Y.length; i++){
+								if(varMatrix[groupBy][i]==levels[groupBy][k]){
+									dataSets[k].push(Y[i])
+									dataCensored[k].push(Yc[i])
+								}
+							}
+						}
+					} else {
+						dataSets[0]=Y.slice()
+						dataCensored[0]=Yc.slice()
+					}
+				//	console.log(dataSets)
+				//	console.log(dataCensored)
+					for(var k=0; k<dataSets.length; k++){
+						for(var i=0; i<dataSets[k].length-1; i++){
+							for(var j=i+1; j<dataSets[k].length; j++){
+								if(dataSets[k][j]<dataSets[k][i]){
+									var tempY = dataSets[k][i]
+									var tempC = dataCensored[k][i]
+									dataSets[k][i]=dataSets[k][j]
+									dataCensored[k][i]=dataCensored[k][j]
+									dataSets[k][j]=tempY
+									dataCensored[k][j]=tempC
+								}
+							}
+						}
+					}
+
+				} else {
+					for(var i=0; i<nSets; i++){
+						legendNames.push(document.getElementById('name'+(i+1)).value)
+					}
+				
+				}
+				//console.log(cphmX)
+//				init('survivalPlot')
+				var c=document.getElementById("survivalPlot")
+				var ctx=c.getContext("2d")
+				ctx.font = "12px sans-serif";
+				ctx.save();
+				ctx.fillStyle = "white";
+				ctx.fillRect(0, 0, c.width, c.height);	
+				var scale=c.width/490
+				var lMargin=50*scale
+				var rMargin=10*scale
+				var tMargin=20*scale
+				var bMargin=50*scale
+				var chartWidth = c.width-lMargin-rMargin
+				var chartHeight = c.height-tMargin-bMargin	
+				var chartMargin = 0
+				
+				var tMax = jStat.max(dataSets[0])
+//				alert(nDataSets)
+				if(nDataSets>1 && dataSets[1].length>0) tMax = Math.max(tMax, jStat.max(dataSets[1]))
+			
+				ctx.strokeStyle="black"
+				ctx.beginPath()
+				ctx.moveTo(lMargin,tMargin)
+				ctx.lineTo(lMargin,tMargin+chartHeight)
+				ctx.stroke();
+				
+				chartAxisX(ctx,tMargin+chartHeight+1,lMargin+chartMargin,lMargin+chartWidth-chartMargin,0,Math.ceil(tMax),Math.ceil(tMax),"time"+(document.getElementById("varUnits1").value==""?"":" ("+document.getElementById("varUnits1").value+")"),false,[],12*scale)
+				chartAxisY(ctx,lMargin,tMargin+chartHeight-chartMargin,tMargin+chartMargin,0,1,5,"Probability of Survival",true, c.width-rMargin,true,12*scale)
+			
+				
+				for(var set=1; set<=dataSets.length; set++){
+					if(debug)console.log(dataSets[set-1])
+					if(document.getElementById("useColors").checked) ctx.strokeStyle=colors[set-1];
+					t[set-1]=[0]
+					St[set-1]=[1]
+					SESt[set-1]=[0]
+					//var Nt = dataSets[set-1].length; //Number at risk
+					//var Dt = 0 //number of deaths
+					if(sfMethod==0){
+						var sumDtOverNtNtminusDt = 0
+						for(var i=0; i<dataSets[set-1].length; ){
+							var thisT = dataSets[set-1][i]
+							t[set-1].push(dataSets[set-1][i])
+							
+							var numerator = 0
+							var denominator = dataSets[set-1].length
+							for(var k=0; k<dataSets[set-1].length; k++){
+								if(dataSets[set-1][k]>thisT){ 
+									break;
+								} else if(dataSets[set-1][k]==thisT && !dataCensored[set-1][k]) {
+									numerator++;
+								} else if(dataSets[set-1][k]<thisT){ 
+									denominator--;
+								}
+							}
+							var prevST = St[set-1][St[set-1].length-1]
+							sumDtOverNtNtminusDt += numerator / (denominator * (denominator-numerator))
+						//	alert(numerator + "/" + denominator)
+							St[set-1].push((1-numerator/denominator) * prevST)
+							SESt[set-1].push((1-numerator/denominator) * prevST * Math.sqrt(sumDtOverNtNtminusDt))
+							while(dataSets[set-1][i]==thisT && i<dataSets[set-1].length) i++;
+						//	alert(t + " " +St)
+						}
+					} else if (sfMethod==1){
+						if(cphmX.length==0){
+							for(var i=0; i<S0[0].length; i++){
+								t[set-1].push(S0[0][i])
+								St[set-1].push(S0[2][i])
+							}
+						} else {
+							var sum=0
+							console.log(cphmCoeff)
+							for(var i=0; i<cphmCoeff.length; i++){
+								sum+= cphmCoeff[i]*cphmX[set-1][i]
+							}
+							console.log(sum)
+							var pwr=Math.exp(sum)
+							console.log("power: "+pwr)
+							for(var i=0; i<dataSets[set-1].length; i++){
+								t[set-1].push(dataSets[set-1][i])
+								var st=Math.pow(+S0[2][0],pwr/cphmMeanPower)
+								for(var k=0; k<S0[0].length; k++){
+									if(S0[0][k]>=dataSets[set-1][i]){
+										St[set-1].push(st)
+										break;
+									}
+									st = Math.pow(+S0[2][k],pwr/cphmMeanPower)
+									if(k==S0[0].length-1) St[set-1].push(st)
+								}
+							}
+						}
+						console.log(t[set-1] + " " +St[set-1])
+					}
+					//alert(t + " " +St)
+					//console.log(SESt[set-1])
+					
+					if(document.getElementById("showBands").checked && sfMethod==0){
+						//confidence Bounds
+						ctx.setLineDash([5, 3]);
+						for(var k=-1; k<=1; k+=2){
+							ctx.beginPath()
+							var prevX = lMargin
+							var prevY = tMargin
+							for(var i=0; i<t[set-1].length; i++){
+								var x=t[set-1][i]/tMax * chartWidth + lMargin
+	//							var y=tMargin + (1-St[set-1][i]+k*1.96*SESt[set-1][i])*chartHeight
+								var y=tMargin;
+								if(i>0) y=tMargin + (1-Math.pow(St[set-1][i],Math.exp(k*1.96*SESt[set-1][i]/(St[set-1][i]*Math.log(St[set-1][i])))))*chartHeight
+								if(y<tMargin) y=tMargin
+								if(y>tMargin+chartHeight) y=tMargin+chartHeight
+								if(i==0){ 
+									ctx.moveTo(x,y); 
+								} else {
+									ctx.lineTo(x,prevY)
+									ctx.lineTo(x,y)
+								}
+								prevY=y
+							}
+							ctx.stroke();					
+						}
+						ctx.setLineDash([1, 0]);
+					}
+					
+					ctx.beginPath()
+					var prevX = lMargin
+					var prevY = tMargin
+					for(var i=0; i<t[set-1].length; i++){
+						var x=t[set-1][i]/tMax * chartWidth + lMargin
+						var y=tMargin + (1-St[set-1][i])*chartHeight
+						if(i==0){ 
+							ctx.moveTo(x,y); 
+						} else {
+							ctx.lineTo(x,prevY)
+							ctx.lineTo(x,y)
+						}
+						prevY=y
+					}
+					ctx.stroke();
+					
+					if(sfMethod==0){
+					for(var i=0; i<dataSets[set-1].length; i++){
+						if(dataCensored[set-1][i]){
+							var tickT=dataSets[set-1][i];
+							var tickSt=St[set-1][0]
+							for(var k=0; k<St[set-1].length && tickT>t[set-1][k]; k++){
+								tickSt = St[set-1][k]
+							}
+							var x=tickT/tMax * chartWidth + lMargin
+							var y=tMargin + (1-tickSt)*chartHeight
+							//alert(x+" " +y)
+							ctx.beginPath()
+							ctx.moveTo(x,y-5)
+							ctx.lineTo(x,y+5)
+							ctx.stroke()
+						}
+					}
+					}
+				}
+				if(legendNames.length>1) makeLegend(ctx,c.width-10*scale, 10+tMargin, legendNames, bg="white", symb="lines",topRight=true,12*scale)
+			}
+			
+			function survivalStats(nDataSets=nSets){
+				for (var i=1; i<=nSets; i++){
+					var n=dataSets[i-1].length;
+					var nCensored = dataCensored[i-1].filter(x => x).length
+					document.getElementById("stat_n"+i).innerHTML=n
+					document.getElementById("censored_n"+i).innerHTML=nCensored
+					document.getElementById("failed_n"+i).innerHTML=n-nCensored
+					
+					var sumi=0
+					for(var k=0; k<dataSets[i-1].length; k++){
+						if(!dataCensored[i-1][k]) sumi+=dataSets[i-1][k]
+					}
+					
+					document.getElementById("stat_Tbar"+i).innerHTML=fixed(sumi/(n-nCensored))
+					
+//					document.getElementById("stat_Tbar"+i).innerHTML=fixed(jStat.mean(dataSets[i-1]))
+					var sumT = jStat.sum(dataSets[i-1]);
+					document.getElementById("stat_hbar"+i).innerHTML=fixed((n-nCensored)/sumT)
+					
+					for(var k=0; k<t[i-1].length; k++){
+						if(St[i-1][k]<.5){
+							document.getElementById("stat_Tmedian"+i).innerHTML=t[i-1][k];
+							break;
+						}
+					}
+				
+				}
+			}
+			
+			function generateSurvivalStatsTable(nSamples=nSets, columns=false, differences=false){
+				var tableContent = ""
+				var labels=["Statistic",
+							"Sample<br>Size<br>(n) = ",
+							"Censored = ",
+							"Failed = ",
+							"Measures of Center",
+							"Average Survival Time<br>(T&#772;) = ",
+							"Median Survival Time  = ",
+							"Average Hazard Rate (h&#772;) = "]
+				var ids=[	"statsName",
+							"stat_n",
+							"censored_n",
+							"failed_n",
+							"",
+							"stat_Tbar",
+							"stat_Tmedian",
+							"stat_hbar"]
+				if(columns){
+
+				} else {
+					tableContent+="						<table width=\"100%\">"
+					for(var j=0; j<labels.length; j++){
+						labels[j]=labels[j].replace(/<br>/g," ");
+						tableContent+="<tr"+(j==0?" class='tableHeader'":"")+">"
+						tableContent+="<td"+(ids[j]==""?" colspan=\""+(1+nSets)+"\"":"")+">"+(ids[j]==""?"<strong>":"")+labels[j]+(ids[j]==""?"</strong>":"")+"</td>"
+						for(var i=1; i<=nSets+(differences?1:0) && ids[j]!=""; i++)
+							tableContent+="<td "+(j==0?"class=\"Name"+i+"\" ":"")+"id=\""+ids[j]+i+"\"></td>"
+						tableContent+="</tr>"
+					}
+					tableContent+="						</table>"
+				}
+				document.getElementById("output").innerHTML=tableContent;
+				if(differences) document.getElementById('statsName3').innerHTML="Difference"
+				updateNames();
+			}
+
+			function showDataEntry(){
+				//alert("show")
+				
+				for(var i=1; i<=maxNSets; i++){
+					document.getElementById("dataArea"+i).style.display=(i<=nSets?"block":"none")
+					
+				}
+				document.getElementById("hypTestingPanel").style.display=(nSets>1?"block":"none")
+				refreshHypSetA()
+				refreshHypSetB()
+				refreshZHypSetA()
+				refreshZHypSetB()
+				refreshZAltHyp()
+				refreshLogRankAltHyp()
+				
+				document.getElementById("useColors").checked=(nSets>1)
+			}
+			
+			function refreshHypSetA(){
+				var options = ""
+				for (var i=1; i<=nSets; i++){
+					options += "<option value = '"+i+"' >S&#x208"+i+";(&middot;)</option>\n"
+				}
+				document.getElementById("hypSetA").innerHTML=options			
+			}
+
+			function refreshHypSetB(){
+				var options = ""
+				for (var i=1; i<=nSets; i++){
+					if(i!=document.getElementById("hypSetA").value) options += "<option value = '"+i+"' >S&#x208"+i+";(&middot;)</option>\n"
+				}
+				document.getElementById("hypSetB").innerHTML=options			
+			}
+			
+			function refreshLogRankAltHyp(){
+				document.getElementById("logRankAltHyp").innerHTML = "S&#x208"+document.getElementById("hypSetA").value+";(&middot;)    &ne; S&#x208"+document.getElementById("hypSetB").value+";(&middot;)"
+			}
+
+			function refreshZHypSetA(){
+				var options = ""
+				var testT = document.getElementById("testT").value
+				for (var i=1; i<=nSets; i++){
+					options += "<option value = '"+i+"' >S&#x208"+i+";("+testT+")</option>\n"
+				}
+				document.getElementById("hypZSetA").innerHTML=options			
+			}
+
+			function refreshZHypSetB(){
+				var testT = document.getElementById("testT").value
+				var options = ""
+				for (var i=1; i<=nSets; i++){
+					if(i!=document.getElementById("hypZSetA").value) options += "<option value = '"+i+"' >S&#x208"+i+";("+testT+")</option>\n"
+				}
+				document.getElementById("hypZSetB").innerHTML=options			
+			}
+			
+			function refreshZAltHyp(){
+				var testT = document.getElementById("testT").value
+				document.getElementById("ZAltHyp").innerHTML = "S&#x208"+document.getElementById("hypZSetA").value+";("+testT+")    &ne; S&#x208"+document.getElementById("hypZSetB").value+";("+testT+")"
+			}
+			
+			function generateDataAreas(){
+				var dataAreaHTML="";
+				for(var i=1; i<=maxNSets; i++){
+					dataAreaHTML+="<div id=\"dataArea"+i+"\"><span style=\"color:"+colors[i-1]+"\">Data Set "+String.fromCharCode(64+i)+":</span> <input type=\"text\" id=\"name"+i+"\" value=\"Group "+String.fromCharCode(64+i)+"\" size=\"25\" maxlength=\"25\" onChange=\"updateNames()\" /><br/>"
+					dataAreaHTML+="<textarea id=\"data"+i+"\" rows=6 cols=60></textarea></div>"
+					
+				}
+				document.getElementById("dataAreas").innerHTML=dataAreaHTML
+				showDataEntry()
+				
+			}			
+
+			function survivalZTest(){
+				var testT = +document.getElementById("testT").value
+				var A= +document.getElementById("hypZSetA").value-1
+				var B= +document.getElementById("hypZSetB").value-1
+				//console.log(A+" "+B)
+				var iA = 0
+				var iB = 0	
+				//console.log(t[A])
+				//console.log(St[A].length)
+				for(var i=0; i<St[A].length && t[A][i]<=testT; i++){
+					//console.log(i + " " + t[A][i] + "< " + testT)
+					iA=i
+				}
+				for(var i=0; i<St[B].length && t[B][i]<=testT; i++) iB=i
+				
+				var SA = St[A][iA]
+				var SB = St[B][iB]
+				var SEA = SESt[A][iA]
+				var SEB = SESt[B][iB]
+				
+				//console.log(iA + " "+iB)
+				//console.log(SA + " "+SB)
+				var output = ""
+				output += "H<sub>0</sub> : S<sub>"+(A+1)+"</sub>("+testT+") = S<sub>"+(B+1)+"</sub>("+testT+")<br>"
+				output += "H<sub>1</sub> : S<sub>"+(A+1)+"</sub>("+testT+") &ne; S<sub>"+(B+1)+"</sub>("+testT+")<br>"
+				output +="<hr>"
+				output += "S&#770;<sub>"+(A+1)+"</sub>("+testT+") = "+fixed(SA) + "<br>"
+				output += "S&#770;<sub>"+(B+1)+"</sub>("+testT+") = "+fixed(SB) + "<br>"
+				var Z=0
+				if(SEA>0 || SEB>0) Z = (SA - SB)/Math.sqrt(Math.pow(SEA,2)+Math.pow(SEB,2))
+				output += "Z = "+fixed(Z)+"<br>"
+				var pvalue = 2*(1-jStat.normal.cdf(Math.abs(Z),0,1))
+				output += "<i>p</i>-value = " +fixed(pvalue)+"<br>"
+				
+				document.getElementById("survivalZTestOutput").innerHTML=output
+				
+			
+			}
+	
+			function logRankTest(){
+				var a=[] //failures
+				var b=[] //failures
+				var c=[] //risk set
+				var d=[] //risk set
+				var i=-1
+				var A= +document.getElementById("hypSetA").value-1
+				var B= +document.getElementById("hypSetB").value-1
+				var iA = 0
+				var iB = 0
+				
+				//alert(A + " " + B)
+				
+				c[i+1]=dataSets[A].length
+				d[i+1]=dataSets[B].length
+				
+				
+				
+				//c and d start with the initial sample sizes
+				//at each index, we will be modifying c[index+1] and d[index+1]
+				
+				
+				var prevT = 0
+				var allT = []
+				while(iA < dataSets[A].length || iB < dataSets[B].length){
+				//Go through the dataSet[A] and dataSet[B] index by index. 
+				//take whichever has a lower value
+					var useSet = -1
+					if(iA>=dataSets[A].length){ 
+						useSet = B
+					} else if (iB >= dataSets[B].length){
+						useSet = A;
+					} else {
+						useSet = (dataSets[A][iA]<=dataSets[B][iB]?A:B)
+					}
+					var useIndex = (useSet==A?iA:iB)
+					var newT = dataSets[useSet][useIndex]
+					//console.log(useSet + " " + useIndex + " " +newT)
+					if(newT>prevT){
+				//If the time is different from the previous T, then increment index
+						i++
+						allT[i]=newT
+						a[i]=0
+						b[i]=0
+					//copy c and d
+						c[i+1]=c[i]
+						d[i+1]=d[i]
+					} 
+					
+				//if uncensored, increase a/c and decrease b/d FOR THE  by 1
+				//if censored, decrease b/d by 1
+					if(!dataCensored[useSet][useIndex]){
+						if(useSet==A){
+							a[i]++
+						} else {
+							b[i]++
+						}
+					}
+					if(useSet==A){
+						c[i+1]--
+					} else {
+						d[i+1]--
+					}
+				
+					prevT = newT
+					if(useSet==A){ iA++ } else {iB++}
+				//repeat
+				}
+				
+				//by the end, we have the array of a,b,c d ready to compute the statistic
+				//we don't use the LAST indices of c and d.
+				
+				//for each j (time index) we get 
+				//e[0][j]=(c[j] / (c[j]+d[j]) * (a[j]+b[j]) 
+				var e=[]
+				var numerator = 0
+				var denominator = 0
+				for(var j=0; j<a.length; j++){
+					e[j] = (c[j] / (c[j]+d[j])) * (a[j]+b[j]) 
+					
+					numerator += a[j]-e[j]
+					if(c[j]*d[j]>0) 
+						denominator += c[j]*d[j]*(a[j]+b[j])*(c[j]+d[j]-a[j]-b[j]) / (Math.pow(c[j]+d[j],2) * (c[j]+d[j]-1))
+					//console.log(j + " " + numerator + " " + denominator)
+				}
+				var chisq = Math.pow(numerator,2)/denominator
+				
+				//log rank statistic = (obs-Exp)^2 / var(Obs-Exp)
+				
+				//statistic follows chi sqared distribution with 1 df.
+				var result = "H<sub>0</sub>: S<sub>"+(A+1)+"</sub>(&middot;) = S<sub>"+(B+1)+"</sub>(&middot;)<br>"
+				result += "H<sub>1</sub>: S<sub>"+(A+1)+"</sub>(&middot;) &ne; S<sub>"+(B+1)+"</sub>(&middot;)<br>"
+				result += "&Chi;<sup>2</sup> = "+fixed(chisq)+"<br>"
+				if(document.getElementById("sigLevel").value !=""){
+					result += "&Chi;<sup>2</sup>* = "+fixed(jStat.chisquare.inv(1-document.getElementById("sigLevel").value,1)) + "<br>"
+				}
+				result += "<i>p</i>-value: "+fixed(1-jStat.chisquare.cdf(chisq,1)) + "<br>"
+				document.getElementById("logRankTestOutput").innerHTML = result;
+			}
+
+			function logRankTest2(){
+				var G=nSets
+				if(G<3) return false;
+				var fTimes = [] //distinct failure times
+				for(var i=0; i<G; i++){
+					for(j=0; j<dataSets[i].length; j++){
+						if(!dataCensored[i][j]) fTimes.push(+dataSets[i][j])
+					}
+				}
+				fTimes = fTimes.filter( onlyUnique )
+				fTimes.sort(function(a, b) {return a - b;});
+		//		console.log(fTimes)
+				var n=[] //n[i][j] #at risk in ith group at jth ordered failure time
+				var m=[] //m[i][j] observe # failures in ith group at jth ordered failure time
+				var e=[] //expected # failures in ith group at jth ordered failure time
+						// =(nij)/(n1j+...+nGj) (m1j+...+mGj)
+				
+				for(var i=0; i<G; i++){
+					n[i]=[]
+					m[i]=[]
+					e[i]=[]
+					for(var j=0; j<fTimes.length; j++){
+						n[i][j]=0
+						m[i][j]=0
+						e[i][j]=0
+						for(var k=0; k<dataSets[i].length; k++) {
+							if(dataSets[i][k] >=fTimes[j]) n[i][j]++
+							if(dataSets[i][k] == fTimes[j] && !dataCensored[i][k]) m[i][j]++
+						}
+					}
+				}
+			
+
+		//		console.log(n)
+		//		console.log(m)
+
+				for(var j=0; j<fTimes.length; j++){
+					var numerator = 0
+					var denominator = 0
+					for(var i=0; i<G; i++){
+						numerator += m[i][j]
+						denominator +=n[i][j]
+					}
+					for(var i=0; i<G; i++){
+						e[i][j] = (n[i][j]==0?0:n[i][j]*numerator/denominator)
+					}
+				}
+		//		console.log(e)
+				
+				var nj=[]
+				var mj=[]
+				for(var j=0; j<fTimes.length; j++){
+					nj[j]=0
+					mj[j]=0
+					for(var i=0; i<G; i++){
+						nj[j]+= n[i][j]
+						mj[j]+= m[i][j]
+					}
+				}
+				
+		//		console.log(nj)
+		//		console.log(mj)
+				
+				var d=[]// = i=1,...,k sum_j (m[i][j]-e[i][j])
+				var V=[]
+
+
+				for(var i=0; i<G-1; i++){
+					V[i]=[]
+					for(var l=0; l<G-1; l++) V[i][l]=0
+				}
+				for(var i=0; i<G-1; i++){
+					d[i]=jStat.sum(m[i]) - jStat.sum(e[i])
+					for(var j=0; j<fTimes.length-1; j++){
+						V[i][i] += n[i][j]*(nj[j]-n[i][j])*mj[j]*(nj[j]-mj[j])/(nj[j]*nj[j]*(nj[j]-1))
+					}
+					for(var l=i+1; l<G-1; l++){
+						for(var j=0; j<fTimes.length-1; j++){
+								V[i][l] += -n[i][j]*n[l][j]*mj[j]*(nj[j]-mj[j])/(nj[j]*nj[j]*(nj[j]-1))
+							}
+						V[l][i]=V[i][l]
+					}
+				}
+				
+			//	console.log(V)
+			//	console.log(d)
+			//	console.log(pinv(V))
+				var LRS = (numeric.dot(numeric.dot(d, pinv(V)),d))
+
+				var outputString = ""
+				outputString +="<table class='anova'><tr><th>Group</th><th>Events observed</th><th>Events expected</th></tr>"
+				var sumObs=0, sumExp=0;
+				for(var i=0; i<G; i++){
+					outputString +="<tr><td>"+document.getElementById('name'+(i+1)).value + "</td><td>"+ jStat.sum(m[i]) + "</td><td>" + fixed(jStat.sum(e[i])) + "</td></tr>"
+					sumObs += jStat.sum(m[i])
+					sumExp += jStat.sum(e[i])
+				}
+				outputString +="<tr><td>Total</td><td>"+fixed(sumObs)+"</td><td>"+fixed(sumExp)+"</td></tr>"
+				outputString +="</table>"
+
+				outputString +="Log-rank = &Chi;<sup>2</sup> ="+fixed(LRS)+"<br>"
+				outputString +="<i>p</i>-value = "+fixed(1-jStat.chisquare.cdf(LRS, G-1)) +"</br>"
+				outputString +="G="+G+" groups; df="+(G-1)+"<br>"
+				
+				document.getElementById('logRankTestOutput2').innerHTML=outputString
+			}
+					
+			function hideDataTabs(){
+				document.getElementById('whichData1div').style.display='none'
+				document.getElementById('whichData2div').style.display='none'				
+			}
+			
+			function dataTab(tabID){
+				hideDataTabs()
+				document.getElementById(tabID).style.display='block'	
+				document.getElementById('multiVarPanels').style.display=(tabID=='whichData2div'?'block':'none')
+//				document.getElementById('LRTpanel').style.display=(tabID=='whichData1div'?'block':'none')
+//				document.getElementById('SZTpanel').style.display=(tabID=='whichData1div'?'block':'none')
+			}
+			
+			function refreshCovariates(regenVarNameInputs=true){
+				//alert(document.activeElement.tagName)
+				//var activeElementID = document.activeElement.id;
+				//alert(activeElementID)
+				
+				nCovars = +parseFloat(document.getElementById('nCovars').value)
+				nVars=nCovars+1
+//				console.log("there are "+nVars+" variables")
+				
+//				console.log("refreshing table")
+				document.getElementById('wrapper').style.width= (200*nCovars+253)+"px"
+				document.getElementById('dataGrid').style.width= (200*nVars)+"px"
+				
+				if(regenVarNameInputs){
+					var outputString=""
+					for(var i = 1; i<= nCovars+1; i++){
+						var val = "x"+(i)
+						if(exists("variableName"+i)) val = document.getElementById("variableName"+i).value;
+//						console.log(i+' '+val)
+						outputString+='<input type="text" id="variableName'+i+'" value="'+val+'" size="20" maxlength="25" onchange="refreshCovariates(false);" style="position:absolute; left:'+ (48+200*(i-1))+'px; width:201px;"/>'
+					}
+					document.getElementById('varnames').innerHTML=outputString;
+				}
+				
+				varNames=[]
+				for(var i=0; i<nVars; i++) varNames[i]=document.getElementById('variableName'+(i+1)).value
+//				generateSampleStatsTable(nCovars+1,true);
+//				rebuildChooseResponseOptions()
+//				rebuildModelCovariatesTable()
+//				rebuildQQPlotSelect()
+				//if(validRegression) refreshQQplot()
+//				if(validRegression) buildPrediction(calcPrediction)
+			
+			//if(exists(activeElementID)) document.getElementById(activeElementID).focus()
+				refreshChooseResponse()
+			}			
+				
+			function transformName(varNum, transform){
+				var varName = varNames[varNum]
+				if(transform==1) varName = varName+"²"
+				if(transform==2) varName = varName+"³"
+				if(transform==3) varName = "ln("+varName+")"
+				if(transform==4) varName = "\u221A<span style='text-decoration:overline'>"+varName+"</span>"			
+				return varName
+			}
+
+			function shareData(){
+				if(document.getElementById('whichData1').checked){
+					makeURL(nSets,false);
+				} else {
+					var myURL = window.location.href.split('?')[0];
+					myURL = myURL.split('#')[0]
+					var n=nVars
+					for(var i=1; i<=n; i++){
+						if(exists("variableName"+i)) myURL+=(i>1?"&":"?")+"variableName"+i+"="+encode(document.getElementById("variableName"+i).value)
+					}
+					var	data=document.getElementById("dataGrid").value
+					myURL+="&dataGrid"+"="+encode(data)	
+					if(exists("ChooseResponse")) myURL+="&response="+document.getElementById('ChooseResponse').value
+					if(exists("censorChoice")) myURL+="&censor="+document.getElementById('censorChoice').value
+					getTinyURL(myURL)
+				}
+			}
+			
+			function parseURL(){
+				var dataType=1
+				if(getQueryVariable('variableName1')!="") dataType=2
+				
+				for(var i=maxNSets; i>=1; i--){
+					if(getQueryVariable("name"+i)!=null){
+						nSamples = i;
+						nSets=i;
+						document.getElementById("nSamples").value = nSets
+						dataType=1
+						break;
+					} 
+				}
+				generateDataAreas();
+				generateSurvivalStatsTable();
+				if(dataType==1){
+					//alert('data Type 1')
+					document.getElementById('whichData1').checked=true
+
+					parseDataFromURL(nSets);
+				} else if(dataType==2) {
+					//alert('data Type 2')
+					document.getElementById('whichData2').checked=true
+					dataTab('whichData2div')
+					nVars=2
+					for(var i=1; ;i++){
+						if(getQueryVariable("variableName"+i)==false){
+							break;
+						} else {
+							nVars=i
+						} 
+					}
+					document.getElementById('nCovars').value=nVars-1
+					refreshCovariates()
+					for(var i=1; i<=nVars; i++){
+						document.getElementById('variableName'+i).value=getQueryVariable("variableName"+i)
+					}
+					document.getElementById('dataGrid').value=decode(getQueryVariable('dataGrid'))
+					responseVar=getQueryVariable("response")
+					chooseCensor=getQueryVariable('censor')
+					cleanDataGrid()						
+					refreshCovariates()
+					//document.getElementById('dataGrid').style.width= (200*nVars)+"px"
+				}
+			}
+			
+			var varMatrix =[]
+			var varNames=[]
+			var ignoreGridChange=false
+			var isFactor=[]
+			var isInteger=[]
+			var baselineLevel=[]
+			var levels=[]
+			var dataMatrix=[[]]
+			
+			function cleanDataGrid(){
+				if(debug) console.log("Cleaning Data Grid")
+				if(ignoreGridChange) return false;
+				var data = document.getElementById("dataGrid").value.trim().split(/[\n]+/)
+				if(debug)console.log(data)
+				var n=data.length
+				if(n==1 && data[0]=="") n=0;
+				var myArray = [];
+				
+//				console.log('nVars='+nVars)
+				
+				//Make Var Matrix
+				varMatrix=new Array(nVars)
+				for(var i=0; i<nVars; i++){
+					varMatrix[i]=new Array(n)
+				}
+				if(debug)console.log(varMatrix)
+				
+				var delimRegEx = "["
+				if(document.getElementById('delimSpace').checked) delimRegEx +="\\s"
+				if(document.getElementById('delimComma').checked) delimRegEx +=","
+				if(document.getElementById('delimSemicolon').checked) delimRegEx +=";"
+				if(document.getElementById('delimTab').checked) delimRegEx +="\\t"
+				delimRegEx += "]+"
+				delimRegEx = new RegExp(delimRegEx)
+				for (var i = 0; i<n; i++){				
+					var vars = data[i].trim().split(delimRegEx)
+					myArray.push(vars)
+
+					if(debug) console.log("There are "+vars.length+" vars: "+vars)
+					for(var j=0; j<vars.length; j++) {
+						varMatrix[j][i]=vars[j]
+					}
+				}
+				
+				var dataInput = ""
+				
+				for( var i=0; i<n; i++){
+					for(var k=0; k<varMatrix.length; k++){
+						if (k>0) dataInput += "\t"
+						dataInput += varMatrix[k][i] 
+					}
+					if(i<n-1) dataInput += "\n"
+				}
+				ignoreGridChange=true
+				document.getElementById("dataGrid").value=dataInput
+				ignoreGridChange=false
+				
+				for(var k=0; k<varMatrix.length; k++){
+					isFactor[k]=false;
+					isInteger[k]=true;
+					containsPluses[k]=false
+					censors[k]=[]
+					for(var i=0; i<n; i++){
+						var plusPart = varMatrix[k][i].split('+')
+						if(plusPart.length==1){
+							censors[k][i]=false
+						} else {
+							censors[k][i]=true
+							containsPluses[k]=true
+							varMatrix[k][i]=+plusPart[0]
+						}
+					}
+					
+					for(var i=0; i<n; i++){
+	//					console.log(varMatrix[k][i] + " "+isFloat(varMatrix[k][i]))
+						if (!isNumeric(varMatrix[k][i]) || isFloat(varMatrix[k][i])){
+	//						console.log('var '+k+' is not an integer')
+							isInteger[k]=false
+							break;
+						}
+					}
+					if(n>0){
+						if(!isNumeric(varMatrix[k][0])) isFactor[k]=true;
+						if(!isNumeric(varMatrix[k][0]) || isInteger[k]){
+							levels[k] = varMatrix[k].filter( onlyUnique )
+							levels[k].sort();
+							//if(baselineLevel[k]==null) baselineLevel[k]=0
+							//alert(data.filter( onlyUnique ));
+						}
+					}
+				}
+//				console.log(isFloat(1.23))
+				if(debug)console.log(levels)
+//				console.log(isFactor)
+//				console.log(isInteger)
+//				console.log(varMatrix)
+				createDataMatrix()
+			}
+				
+			function createDataMatrix(){
+//				alert('creating data matrix')
+				dataMatrix=[]
+				var activeCol = 0
+				for(var i=0; i< nVars; i++){
+					varCol[i] = activeCol
+					var data=varMatrix[i].slice()
+					var n=data.length
+//					console.log("ResponseVarNum="+responseVarNum+", regType="+regType)
+					if(isFactor[i]==true || exists("v"+i+"d") && document.getElementById("v"+i+"d").checked){
+//						varMatrix.push(data)
+						for(var lvl=0; lvl<levels[i].length; lvl++){
+							var dummyColumn= []
+							for(var k=0; k<n; k++){
+								dummyColumn[k] = (data[k]===levels[i][lvl]?1:0)
+							}
+							dataMatrix.push(dummyColumn.map(i => +i))
+							activeCol++
+						}
+					}else{
+						dataMatrix.push(data.map(i => +i))
+						activeCol++
+//						varMatrix.push(data.map(i => +i))
+					}
+				}
+			//	console.log(dataMatrix)
+			}			
+		
+			var containsPluses=[]
+			var censors=[]
+			var responseVar=0
+			var chooseCensor=-1
+			var chooseCensorLevel=0
+			var varInModel=[]
+			var LevelInModel=[]
+			var TransformInModel=[]
+			
+			
+			function updateChooseResponseVar(){
+				responseVar =document.getElementById('ChooseResponse').value
+				refreshChooseCensor()
+			}
+			
+			function updateChooseCensor(){
+				chooseCensor = +document.getElementById('censorChoice').value
+				refreshChooseCensorLevel()
+				refreshModelCovariates()
+			}
+			
+			function refreshChooseResponse(){
+				if(levels.length==0)return
+				var options = ""
+				for(var i=0; i<nVars; i++){
+					options +="<option value="+i+" "+(responseVar==i?'selected':'')+">"+varNames[i]+"</option>\n"
+				}
+				document.getElementById('ChooseResponse').innerHTML=options
+				refreshChooseCensor()
+			}
+
+			function refreshChooseCensor(){
+				var options = "<option value=-1 "+(censorChoice==-1?'selected':'')+">none (indicated with +)</option>\n"
+				for(var i=0; i<nVars; i++){
+					if(i!=responseVar && levels[i]!=null && levels[i].length==2) options +="<option value="+i+" "+(chooseCensor==i?'selected':'')+">"+varNames[i]+"</option>\n"
+				}
+				document.getElementById('censorChoice').innerHTML=options
+				refreshChooseCensorLevel()
+				refreshModelCovariates()
+			}
+
+			function refreshChooseCensorLevel(){
+				var options=""
+				if(chooseCensor>-1){
+					options = "<select id='chooseCensorLevel' onChange='refreshCensorValue()'>"
+					for(var i=0; i<levels[chooseCensor].length;  i++){
+						options +="<option value="+i+" "+(chooseCensorLevel==i?'selected':'')+">"+levels[chooseCensor][i]+"</option>\n"
+					}
+					options +="</select>"
+				}
+				document.getElementById('censorValue').innerHTML=options
+				refreshSFgroupBy()
+			}
+			
+			function refreshCensorValue(){
+				chooseCensorLevel=+document.getElementById('chooseCensorLevel').value
+				refreshSFgroupBy()
+				refitCPHM()
+			}
+			
+			function refreshSFgroupBy(){
+				outputString="Group By: <select id='SFgroupBy' onChange='groupByData();survivalPlot()'>"
+				outputString+="<option id=-1>none</option>"
+				if(varMatrix.length==0)return;
+				for(var i = 0; i<nVars; i++){
+					if(i != responseVar && i!=chooseCensor){
+						if(isFactor[i] || isInteger[i]){
+							outputString +="<option value="+i+">"+varNames[i]+"</option>"
+						}
+					}
+				}
+				outputString +="</select>"
+				document.getElementById('SFgroupBySpan').innerHTML=outputString
+			}
+			
+			function groupByData(){
+				var groupBy = document.getElementById('SFgroupBy').value
+				if(groupBy>-1){
+					var groupVar = varMatrix[groupBy]
+					for(var i=0; i<Math.min(3,levels[groupBy].length); i++){
+						var sTimes=""
+						for(var j=0; j<Y.length; j++){
+							if(groupVar[j]==levels[groupBy][i]){
+								sTimes += Y[j]+(Yc[j]?"+ ":" ")
+							}
+						}
+						document.getElementById('name'+(i+1)).value = varNames[groupBy]+"_"+levels[groupBy][i]
+						document.getElementById('data'+(i+1)).value = sTimes
+						nSets=(i+1)
+						document.getElementById('nSamples').value = (i+1)
+					}
+				} else {
+					nSets=1
+					document.getElementById('nSamples').value = 1
+						var sTimes=""
+						for(var j=0; j<Y.length; j++){
+							sTimes += Y[j]+(Yc[j]?"+ ":" ")
+						}
+						document.getElementById('name1').value = 'survival times'
+						document.getElementById('data1').value = sTimes
+				}
+				showDataEntry()
+				generateSurvivalStatsTable()
+				cleanSurvivalData()
+				updateNames()
+				survivalPlot()
+				survivalStats()
+				if(nSets>1){
+					survivalZTest()
+					logRankTest()
+				} 
+			}
+
+			function refreshModelCovariates(){
+				outputString=""
+				if(varMatrix.length==0)return;
+				for(var i = 0; i<nVars; i++){
+					if(i != responseVar && i!=chooseCensor){
+						var data=varMatrix[i]
+//						console.log(data)
+						var n=data.length
+						var allInt = true
+						var allPos = true
+						var someNeg = false
+						for(var j=0; j<n; j++){
+							if(isFloat(data[j])) allInt = false;
+							if (data[j] < 0) {someNeg = true;}
+							if (data[j] <= 0) allPos = false;
+						}
+						outputString+="<tr><td>"+varNames[i]+"</td>"
+						//alert("Var "+i+" is factor?"+isFactor[i])
+						for(var k=0; k<5; k++){
+							var checked=""
+							if(k==0 && !exists("v"+i+"t"+k) && !isFactor[i] ) checked=" checked"
+							if (exists("v"+i+"t"+k) && document.getElementById("v"+i+"t"+k).checked==true) checked=" checked"
+							outputString += "<td>"
+							//var disabled = (isFactor[i]?" disabled":"")
+							if(!isFactor[i] && (k<3 || (k==3 && allPos==true) || (k==4 && someNeg==false))) outputString +="<input type='checkbox' id='v"+i+"t"+k+"'"+checked+" onchange='clearDummy("+i+");rebuildInteractionOptions();'/>"
+							outputString+="</td>"
+						}
+						
+						//Are all checked?
+						var checked=""
+						if(dataMatrix[0].length==0) checked=""
+						if(isFactor[i]) checked=" checked"
+						if(exists("v"+i+"d") &&  document.getElementById("v"+i+"d").checked==true){
+							checked=" checked"
+//							console.log("carvar"+i+" checked!")
+						}
+						outputString+="<td>"
+						if(allInt || isFactor[i]){ 
+							outputString+= "<input type='checkbox' id='v"+i+"d'"+checked+" onchange='clearChecks("+i+");rebuildDummyOptions("+i+");'/>"
+						}
+						outputString+="<span id='v"+i+"d0'></span></td>"
+						outputString+="</tr>\n"
+						if(allInt || isFactor[i]){
+							outputString+="<tr id='dummyOptions"+i+"' style='display:none;'><td colspan='6'></td>"
+							outputString+="<td id='dummyChoices"+i+"' class='dummyChoices'></td></tr>\n"
+						}
+					}
+				}
+				document.getElementById("modelCovariatesTBODY").innerHTML=outputString
+				for(var i = 1; i<=nCovars+1; i++){
+					if(i != document.getElementById("ChooseResponse").value){
+						clearChecks(i)
+						var data=getColumn(i)
+						var allInt = true
+						for(var j=0; j<n; j++){
+							if(isFloat(data[j])) allInt = false;
+						}
+						if(allInt || exists("v"+i+"d") &&  document.getElementById("v"+i+"d").checked==true) rebuildDummyOptions(i)
+					}
+				}
+				rebuildInteractionOptions()
+			}
+	
+			function toggleHideInteractions(){
+				document.getElementById('modelInteractions').classList.toggle('hideRows')
+			}	
+			function rebuildInteractionOptions(){
+				determineVarsInModel()
+				var optionString=""
+				var varsFound = 0
+				if(debug)console.log("vars in Model: "+varInModel)
+				for(var i=0; i<nVars; i++){
+					if(varInModel[i]){
+						varsFound++
+						if(varsFound>1){
+							optionString+="<tr><td>"+varNames[i]+"</td><td>"
+							
+							for(var j=0; j<i; j++){
+								if(debug)console.log("i="+i+", j="+j)
+								if(varInModel[j]){
+									var checked=(exists("int_"+i+"."+j) && document.getElementById("int_"+i+"."+j).checked ? ' checked':'')
+									optionString +="<input type='checkbox' id='int_"+i+"."+j+"'"+checked+" onClick='refresh();refitCPHM()'>"+varNames[j]+"<br>"
+								}
+							}
+							optionString+="</td></tr>"
+						}
+					}
+				}
+				document.getElementById('modelInteractionsTBODY').innerHTML=optionString
+				createModelMatrix()
+			}
+			
+			function determineVarsInModel(){
+				//baselineLevel = []
+				varInModel=[]
+				varLevelInModel=[]
+				varTransformInModel=[]
+				for(var varNum=0; varNum<nVars; varNum++){
+					varLevelInModel[varNum]=[]
+					varTransformInModel[varNum]=[]
+					varInModel[varNum]=false
+					for(var k=0; k<=4; k++){
+						varTransformInModel[varNum][k]=false
+						if(exists('v'+varNum+"t"+k) && document.getElementById('v'+varNum+"t"+k).checked){
+							varInModel[varNum]=true
+							varTransformInModel[varNum][k]=true
+						}
+					}
+					if(exists("v"+varNum+"d") && document.getElementById("v"+varNum+"d").checked==true){
+						varInModel[varNum]=true
+						for(var j=0; j<levels[varNum].length; j++){
+							if(exists("v"+varNum+"_"+levels[varNum][j]) && document.getElementById("v"+varNum+"_"+levels[varNum][j]).checked==true){
+								varLevelInModel[varNum][j]=true
+							}
+						}						
+					}
+				}
+				
+//				console.log(varInModel)
+//				console.log(varLevelInModel)
+//				console.log(varTransformInModel)
+			}
+
+			function rebuildDummyOptions(varNum){
+//				alert("Rebuild dummy "+varNum);
+				if(debug)console.log(levels[varNum])
+				if(exists("v"+varNum+"d")){
+//					console.log("var"+varNum+" checked="+ document.getElementById("v"+varNum+"d").checked)
+					var outputString = "";
+					if(document.getElementById("v"+varNum+"d").checked==true){
+						document.getElementById("dummyOptions"+varNum).style.display="table-row"
+						var allDummies=true
+						var baselineSelected=false
+						for(var k=0; k<levels[varNum].length; k++){
+							if(exists("v"+varNum+"_"+levels[varNum][j])){
+								if (!document.getElementById("v"+varNum+"_"+levels[varNum][j]).checked){
+									allDummies=false;
+								} 
+							//	if (document.getElementById("v"+varNum+"_"+k+"_b").checked)
+							//		baselineSelected=true
+							}
+						}
+						for(var j=0; j<levels[varNum].length; j++){
+							dummyLabel = levels[varNum][j]
+							var checked = "checked"
+							if(exists("v"+varNum+"_"+dummyLabel))
+								checked = document.getElementById("v"+varNum+"_"+dummyLabel).checked
+							if(allDummies){
+								var radioChecked=(baselineLevel[varNum]==j ? 'checked':'')
+							
+								if(allDummies && !baselineSelected && j==0) radioChecked="checked"
+								outputString+="<input type='radio' id='v"+varNum+"_"+j+"_b' name='baseline"+varNum+"' onclick='baselineLevel["+(varNum)+"]="+j+";refitCPHM();' value="+j+(!checked?' disabled':'')+" "+radioChecked+">"
+								if(radioChecked=="checked") baselineLevel[varNum]=j
+							}
+						var checkVis = (levels[varNum].length>=3 ? "inline":"none") 
+						outputString+="<span id='v"+varNum+"_"+j+"_lbl'><input type='checkbox' id='v"+varNum+"_"+dummyLabel+"'"+checked+" onchange='disableRadio("+varNum+","+j+");' style='display:"+checkVis+"'/>"
+						outputString += ""+dummyLabel +"</span><br>\n"
+						}
+						
+						
+						document.getElementById('dummyChoices'+varNum).innerHTML = outputString
+		//				alert(outputString)
+						
+					} else {
+						document.getElementById('dummyChoices'+varNum).innerHTML = outputString
+						document.getElementById("dummyOptions"+varNum).style.display="none"
+					}
+				}
+			}
+			
+			function disableRadio(varNum,j){
+				var noDummies=true
+				var allDummies=true
+				for(var k=0; k<levels[varNum].length; k++){
+					if(exists("v"+varNum+"_"+levels[varNum][k])){
+						if (!document.getElementById("v"+varNum+"_"+levels[varNum][k]).checked){
+							//document.getElementById("v"+varNum+"_"+k+"_lbl").className="baseline"
+							allDummies=false;
+							//document.getElementById("v"+varNum+"_"+k+"_b").checked=true
+							//baselineLevel[varNum]=k
+						}else {
+							document.getElementById("v"+varNum+"_"+k+"_lbl").className=""
+							noDummies= false;
+						}
+					}else {
+						noDummies = false
+					}
+				}
+			
+				
+				//for(var i=0; i<levels[varNum-1].length; i++){
+				//	document.getElementById("v"+varNum+"_"+i+"_b").disabled=!allDummies
+				//	document.getElementById("v"+varNum+"_"+i+"_b").style.display= (allDummies?"":"none")
+				//}
+				//document.getElementById("v"+varNum+"_"+0+"_b").checked=true
+				if(noDummies){ 
+					document.getElementById("v"+varNum+"d").checked=false
+					document.getElementById("dummyOptions"+varNum).style.display="none"
+				}
+				refitCPHM()
+			}
+			
+			function clearChecks(varNum){
+				if(exists("v"+varNum+"d") && document.getElementById("v"+varNum+"d").checked==true){
+					for(var k=0; k<5; k++){
+						if(exists("v"+varNum+"t"+k)) document.getElementById("v"+varNum+"t"+k).checked=false
+					}
+				}
+				//rebuildInteractionOptions()
+			}
+			
+			function clearDummy(varNum){
+				if(exists("v"+varNum+"d")){
+					document.getElementById("v"+varNum+"d").checked=false
+					document.getElementById("dummyOptions"+varNum).style.display="none"
+				}
+//				rebuildInteractionOptions()
+			}
+			
+			function initialOptions(){
+//				console.log("initial options!")
+				for(var i = 1; i<=nCovars+1; i++){
+					if(i != document.getElementById("ChooseResponse").value){
+						if(!isFactor[i]) {
+							document.getElementById("v"+i+"t0").checked=true
+						} else {
+							document.getElementById("v"+i+"d").checked=true
+						}
+					}
+				}
+			}
+
+			var modelN, modelVarNames, modelVarIsFactor, modelVarNamesTransform, modelVarNamesVarNum, modelVarNamesFactorValue, coeff,X,Y,Yc,n
+			var varCol = []
+			var lvlCol = []
+
+			function getData(varIndex, level=0){
+				if(varIndex<0){return false;}
+				if(debug) console.log("var index "+varIndex+" level "+level+" in col "+(varCol[varIndex]+level));
+				if(debug) console.log(dataMatrix[varCol[varIndex]+level])
+				if(dataMatrix.length>0 && dataMatrix.length> +(varCol[varIndex]+level)){
+					return dataMatrix[+varCol[varIndex]+level].slice(0)
+				} else {
+					return false;
+				}
+			}
+
+			function createModelMatrix(){
+				modelN=0 //counts the number of predictors (slope coefficients)
+				modelVarNames = []
+				modelVarIsFactor = []
+				modelVarNamesTransform=[]
+				modelVarNamesVarNum=[]
+				modelVarNamesFactorValue=[]
+				coeff=[]
+				modelVarNames[0]="Intercept"
+				modelVarIsFactor[0] = false
+				modelVarNamesVarNum[0]=0
+				modelVarNamesTransform[0]=0
+				nQuantPredictors = 0
+				n=varMatrix[0].length
+				
+				if(debug)console.log(baselineLevel)
+				X=[]
+				for(var varNum=0; varNum<nVars; varNum++){
+					if(varInModel[varNum]){
+						data=varMatrix[varNum]
+						var quantPredictorCounted=false
+						for(var k=0; k<5; k++){
+							if(varTransformInModel[varNum][k]){
+								if(!quantPredictorCounted){
+									nQuantPredictors++
+									quantPredictorCounted=true
+								}
+								modelN++
+								var tData = new Array(n)
+								for(var j=0; j<n; j++) tData[j] = +transform(+data[j],k); 
+								X.push(tData)
+								modelVarNames.push(transformName(varNum,k))
+								modelVarIsFactor.push(false);
+								modelVarNamesVarNum.push(varNum)
+								modelVarNamesTransform.push(k)
+								modelVarNamesFactorValue.push(0)
+							}
+						}
+//						if (baselineLevel[varNum]=null) baselineLevel[varNum]=0
+						for(var lvl=0; lvl<varLevelInModel[varNum].length; lvl++){
+							if(varLevelInModel[varNum][lvl] && baselineLevel[varNum]!=lvl){
+								var dummyX = getData(varNum, lvl)
+								X.push(dummyX)
+								modelVarNames.push(document.getElementById("variableName"+(varNum+1)).value+"<sub>"+levels[varNum][lvl]+"</sub>")
+								modelVarIsFactor.push(true)
+								modelVarNamesVarNum.push(varNum)
+								modelVarNamesTransform.push(0)
+								modelVarNamesFactorValue.push(levels[varNum][lvl])
+								modelN++
+							}
+						}
+					}
+				}
+				for(var varNumA=1; varNumA<nVars; varNumA++){
+					var aData = varMatrix[varNumA]
+					for(var varNumB=0; varNumB<varNumA; varNumB++){
+						var bData = varMatrix[varNumB]
+						if(interactionInModel(varNumB,varNumA)){
+							var quantA=!isFactor[varNumA]
+							var quantB=!isFactor[varNumB]
+							if(quantA && quantB){
+								modelN++
+								var tData = new Array(n)
+								for(var i=0; i<n; i++) tData[i]=aData[i]*bData[i]
+								X.push(tData)
+								modelVarNames.push(varNames[varNumB]+"&#215;"+varNames[varNumA])
+								modelVarNamesVarNum.push(varNumB + "."+varNumA)
+								modelVarNamesTransform.push(0)
+								modelVarNamesFactorValue.push(0)
+							}else{
+								if(debug)console.log("Interaction of "+varNumA+" and "+varNumB)
+								var nLevelsA = (quantA?1:levels[varNumA].length)
+								var nLevelsB = (quantB?1:levels[varNumB].length)
+								if(debug)console.log("var"+varNumA+" has "+nLevelsA+" levels, var"+varNumB+" has "+nLevelsB+" levels")
+								for(var a=0; a<nLevelsA; a++){
+									if(quantA || varLevelInModel[varNumA][a] && baselineLevel[varNumA]!=a){
+										aData = getData(varNumA,a)
+										for(var b=0; b<nLevelsB; b++){
+											if(quantB || varLevelInModel[varNumB][b] && baselineLevel[varNumB]!=b){
+												bData = getData(varNumB,b)
+												modelN++
+												var tData = new Array(n)
+												for(var i=0; i<n; i++) tData[i]=aData[i]*bData[i]
+												X.push(tData)
+												var nameA = varNames[varNumA] + (quantA?"":"<sub>"+levels[varNumA][a]+"</sub>")
+												var nameB = varNames[varNumB] + (quantB?"":"<sub>"+levels[varNumB][b]+"</sub>")
+												modelVarNames.push(nameA + "&#215;" + nameB)
+												modelVarNamesVarNum.push(varNumB + "."+varNumA)
+												modelVarNamesTransform.push(0)
+												modelVarNamesFactorValue.push((quantB?"_":levels[varNumB][b])+"."+(quantA?"_":levels[varNumA][a]))
+											}
+										}	
+									}
+								}
+							}
+						}
+					}
+				}
+				if(debug)console.log(modelVarNames)
+				if(debug)console.log(modelVarNamesVarNum)
+				if(debug)console.log(modelVarNamesFactorValue)
+
+
+//				if(debug)console.log("newX = "+newX)
+				if(debug)console.log("modelVarNamesVarNum="+modelVarNamesVarNum)
+				if(debug)console.log("modelVarNamesFactorValue="+modelVarNamesFactorValue)
+				if(debug)console.log("modelVarNamesTransform="+modelVarNamesTransform)
+				if(debug)console.log("modelVarIsFactor="+modelVarIsFactor)
+				
+				if(debug)console.log(X)
+				
+				Y = varMatrix[responseVar].slice()
+				for(var i=0; i<Y.length; i++)	Y[i]=+Y[i]
+				
+				//console.log(chooseCensor)
+				//console.log(chooseCensorLevel)
+				Yc = []
+				var censors = getData(chooseCensor)
+				if(!censors){
+					for(var i=0; i<Y.length; i++) Yc.push(0)
+				}
+				for(var i=0; i<censors.length; i++)	Yc.push(censors[i]==levels[chooseCensor][chooseCensorLevel]?1:0)
+								
+				if(debug)console.log(Y)
+				if(debug)console.log(Yc)
+				fitCPHM()
+				survivalPlot()
+			}				
+			
+			var S0=[]
+			
+			function refitCPHM(){
+				determineVarsInModel()
+				createModelMatrix();
+			}
+			
+			function forceTabSwitch(){
+				if(debug)console.log(document.getElementById('forceDataEntryMethod').value)
+				if(+document.getElementById('forceDataEntryMethod').value==1){
+					document.getElementById('whichData1').checked=true
+					dataTab('whichData1div')
+				} else if(+document.getElementById('forceDataEntryMethod').value==2) {
+					document.getElementById('whichData2').checked=true
+					document.getElementById('whichData1div').style.display='none'
+					document.getElementById('whichData2div').style.display='block'
+					dataTab('whichData2div')
+				}
+			}
+			
+		</script>
+		
+	</head>
+	
+	<body onload="parseURL();showDataEntry();loadPrecision();loadColorChoice();linkMenu();setColors();TLN.append_line_numbers('dataGrid');enableTab('dataGrid');refreshCovariates();
+">
+		<div id="container">
+			<div id="title" onClick="setColors()">StatPowers</div>
+			<div id="menu"></div>
+			<form name="form1">
+				<div class="container" >
+					<input type="checkbox" checked name="headerData" id="headerData" class="css-checkbox">
+					<label for="headerData" class="css-label">Data Entry</label>
+					<input type='hidden' id='forceDataEntryMethod' value=-1 onChange='forceTabSwitch()'>
+					<div class='css-content'>
+							<div class="radio-toolbar">
+								<input type="radio" name="whichData" id="whichData1" checked onClick="dataTab('whichData1div')">
+								<label for="whichData1">Survival Times</label>
+								<input type="radio" name="whichData" id="whichData2" onClick="dataTab('whichData2div')">
+								<label for="whichData2">Multivariable</label>
+							</div>
+					<div class="content" id='whichData1div'>
+					<div class='options'>
+						Number of Groups: <select id="nSamples" onchange="console.log('changing nSamples');refresh();">
+						</select><br>
+						<script>
+						var options = ""
+						nSets =1
+						//console.log(nSets)
+						for (var i=1; i<=maxNSets; i++){
+							options += "<option value = '"+i+"' "+(i==nSets?" selected":"")+">"+i+"</option>\n"
+						}
+						document.getElementById("nSamples").innerHTML=options			
+						</script>
+
+						<div id="dataArea">
+							<span style="font-weight:bold">Variable:</span> <input type="text" id="varName1" value="" placeholder="variable name" size="19" maxlength="25" onchange="refresh()" />,  
+							<span style="font-weight:bold">time units:</span> <input type="text" id="varUnits1" value="" placeholder="days" size="14" maxlength="25" onchange="refresh()" /><br/>
+							<div id="dataEntryArea" style="display:block;"  class="content">
+								Enter data separated by comma, semicolon, space, tab or newlines<br>
+								Censored values: use a '+' (e.g. 7+)<br/>
+							</div>
+						</div>
+						</div>
+						<div id="dataAreas"></div>
+					</div>
+					<div class='content' id='whichData2div' style='display:none;'>
+						Enter data separated by 
+						<input class="invisCheck" type="checkbox" checked id="delimComma"><label for="delimComma" class="strikeThroughLabel">comma</label>, 
+						<input class="invisCheck" type="checkbox" checked id="delimSemicolon"><label for="delimSemicolon" class="strikeThroughLabel">semicolon</label>, 
+						<input class="invisCheck" type="checkbox" checked id="delimSpace"><label for="delimSpace" class="strikeThroughLabel">space</label> or 
+						<input class="invisCheck" type="checkbox" checked id="delimTab"><label for="delimTab" class="strikeThroughLabel">tab</label>.<br>
+						Each observation should be placed on a new line.<br>
+						Independent Variables: <input id="nCovars" type="number" min="1" max="50" step="1" value="2" required="true" onChange="refreshCovariates()" /><br>
+						<div style="width:100%; box-sizing:border-box;">
+						<div style="max-height:500px; width:100%; overflow:auto;">
+							<span style="color:red">Variables:</span> 
+							<div id="varnames" style="position:relative;height:10px;">
+								<input type="text" id="variableName1" value="x1" size="20" maxlength="25" onchange='refreshCovariates(false);' style="position:absolute; left:49px; width:200px;"/>
+								<input type="text" id="variableName2" value="x2" size="20" maxlength="25" onchange='refreshCovariates(false);' style="position:absolute; left:249px; width:200px;" />
+								<input type="text" id="variableName3" value="x3" size="20" maxlength="25" onchange='refreshCovariates(false);' style="position:absolute; left:449px; width:200px;" />
+							</div>
+							<div id="wrapper">
+								<textarea id="dataGrid" class="fauxTable niceCols grid multicol" rows=6 cols=60 onkeydown="handleTab()" onchange="cleanDataGrid()"></textarea>
+								
+							</div>
+						</div>					
+						</div>
+						Response Variable: 
+						<select id="ChooseResponse" onchange="updateChooseResponseVar();">
+							<option value="0" selected>x1</option>
+							<option value="1">x2</option>
+							<option value="2">x3</option>
+						</select><br> 
+						Censor Indicator: 
+						<select id="censorChoice" onchange="updateChooseCensor();">
+							<option value="-1" selected>none (indicated with +)</option>
+							<option value="0">x1</option>
+							<option value="1">x2</option>
+							<option value="2">x3</option>
+						</select>
+						<span id="censorValue"></span>
+						<br>
+						
+					</div>
+					<div class='content'>
+							<button TYPE=button VALUE="Calculate Now" onClick="refresh()">Calculate Now</button>
+							&nbsp;&nbsp;&nbsp;
+							<button TYPE=reset VALUE="Clear All" onClick="document.getElementById('data1').innerHTML='';document.getElementById('data2').innerHTML='';document.getElementById('ciMeanSummary').style.display='none';document.getElementById('dataLink').innerHTML='';">Clear All</button>
+							&nbsp;&nbsp;&nbsp;
+							<button TYPE=button VALUE="Share Data" onClick="shareData();">Share Data</button> 
+							<div id="dataLink" ></div><iframe id="frmFile" style="display: none;"></iframe>
+					
+					</div>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" name="headerStats" id="headerStats" class="css-checkbox">
+					<label for="headerStats" class="css-label">Summary Statistics</label>
+					<div class="content css-content">
+						<div id="output" class='results'>
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<h3>Charts</h3>
+					<div>
+						<input type="checkbox" id="headerSurvivalPlot" class="css-checkbox">
+						<label for="headerSurvivalPlot" class="css-label sub">Survival Function</label>
+						<div class="content css-content">
+							<div class='options'>
+							<select id='sfMethod' onChange='survivalPlot();'>
+								<option selected value=0>Kaplan Meier</option>
+								<option disabled value=1 id='sfMethod1'>Cox PH Model</option>
+							</select>
+							<input type="checkbox" id="useColors" checked onChange="survivalPlot();">Use colors 
+							<input type="checkbox" id="showBands" onChange="survivalPlot();">Show Confidence Bounds</br>
+							<span id='SFgroupBySpan'></span>
+							</div>
+							<div class="canvasdiv">
+							<canvas id="survivalPlot" width="490" height="400" class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton bottomleft" href="" onClick="downloadCanvas(this,'survivalPlot','survivalPlot.png');"></a>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div id='multiVarPanels' style='display:none' class='container'>
+					<h3>Cox Proportional Hazard Model</h3>
+					<div>
+						<div>
+							<input type="checkbox" id="headerCPHMoptions" class="css-checkbox">
+							<label for="headerCPHMoptions" class="css-label sub">Options</label>
+							<div class="css-content content">
+						Confidence Level
+						<input type="number" id="cLevel" value="0.95" class="smallNumber" min=".5" max=".999" step=".01"  onchange="" /><br>
+						
+						Model Covariates:
+						<table class="anova" id="modelCovariates">
+							<thead>
+								<tr><td rowspan=2>Variable</td><td colspan=5 style="text-align:center">Transformation</td></tr>
+								<tr><td>x</td><td>x<sup>2</sup></td><td>x<sup>3</sup></td><td>ln(x)</td><td>&radic;<span style="text-decoration:overline">x</span></td><td>Categorical</td></tr>
+							</thead>
+							<tbody id="modelCovariatesTBODY">
+							</tbody>
+						</table>
+						
+						<table class='interactionTable collapse hideRows' id="modelInteractions">
+							<thead>
+								<tr class='perm'><th><input type=checkbox onchange="toggleHideInteractions()">Variable</th><th>Interactions</th></tr>
+							</thead>
+							<tbody id="modelInteractionsTBODY">
+							</tbody>
+						</table>
+
+							
+							</div>
+						</div>
+						<div>
+							<input type="checkbox" id="headerCPHMresults" class="css-checkbox">
+							<label for="headerCPHMresults" class="css-label sub">Results</label>
+							<div class="css-content">
+								<div id='CPHMresults' class='results'>
+								
+								</div>
+							</div>
+							
+						</div>
+					</div>
+				</div>
+
+
+				<div class="container" id="hypTestingPanel">
+					<h3>Hypothesis Testing</h3>
+					<div id="commonHYP" class="content">
+						Significance Level (&alpha;, optional)
+						<input type="number" id="sigLevel" value="0.05" class="smallNumber" min="0" max="1" step=".01" onchange="survivalZTest();logRankTest();" />
+					</div>
+					
+					<div id='SZTpanel'>
+						<input type="checkbox" id="headerSurvivalZTest" class="css-checkbox" onClick="survivalZTest();">
+						<label for="headerSurvivalZTest" class="css-label sub">Survival Function Z Test</label>
+						<div class="css-content">
+							<div  class="content">
+								t: <input type="number" id="testT" min=0 step=1 value =1 class="smallNumber" onChange="refreshZHypSetA();refreshZHypSetB();refreshZAltHyp();survivalZTest();"><br>
+								<table  border="0">
+									<tr><td>H<sub>0</sub>: 
+									<select id="hypZSetA" onChange="refreshZHypSetB();refreshZAltHyp();survivalZTest();">
+									</select>
+									= 
+									<select id="hypZSetB" onChange="refreshZAltHyp();survivalZTest();">
+									</select></td></tr>
+									<tr><td>H<sub>1</sub>: 
+									<span id="ZAltHyp">
+									S&#x2081;    &ne; S&#x2082;</span></td></tr>
+								</table>
+								<div id="survivalZTestOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					<div id='LRTpanel'>
+						<input type="checkbox" id="headerLogRankTest" class="css-checkbox" onClick="logRankTest();">
+						<label for="headerLogRankTest" class="css-label sub">Pairwise Log-Rank Test</label>
+						<div class="css-content">
+							<div  class="content">
+								<table  border="0">
+									<tr><td>H<sub>0</sub>: 
+									<select id="hypSetA" onChange="refreshHypSetB();refreshLogRankAltHyp();logRankTest();">
+									</select>
+									= 
+									<select id="hypSetB" onChange="refreshLogRankAltHyp();logRankTest();">
+									</select></td></tr>
+									<tr><td>H<sub>1</sub>: 
+									<span id="logRankAltHyp">
+									S&#x2081;    &ne; S&#x2082;</span></td></tr>
+								</table>
+								<div id="logRankTestOutput" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+					<div id='LRTpanel2'>
+						<input type="checkbox" id="headerLogRankTest2" class="css-checkbox">
+						<label for="headerLogRankTest2" class="css-label sub">Log-Rank Test (All)</label>
+						<div class="css-content">
+							<div  class="content">
+								<div id="logRankTestOutput2" class="results">
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>	
+			</form>
+		</div>
+	</body>
+</html>	
+<script>
+document.querySelector('#container').onclick=function(ev) {
+if(ev.target.value && ev.target.id.substring(0,6)=="header"){
+	//alert(ev.target.id)
+	if(ev.target.id == "headerSurvivalPlot"){cleanSurvivalData(); survivalPlot();}
+	if(ev.target.id == "headerStats"){refresh();}
+	if(ev.target.id == "headerLogRankTest"){refresh();}
+	if(ev.target.id == "headerSurvivalZTest"){refresh();}
+	}
+}
+</script>

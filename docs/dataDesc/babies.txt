@@ -1,0 +1,35 @@
+The Child Health and Development Studies
+Description
+The Child Health and Development Studies investigate a range of topics. One study, in particular, considered all pregnancies between 1960 and 1967 among women in the Kaiser Foundation Health Plan in the San Francisco East Bay area. The goal is to model the weight of the infants (bwt, in ounces) using variables including length of pregnancy in days (gestation), mother's age in years (age), mother's height in inches (height), whether the child was the first born (parity), mother's pregnancy weight in pounds (weight), and whether the mother was a smoker (smoke).
+
+Usage
+babies
+Format
+A data frame with 1236 rows and 8 variables:
+
+case
+id number
+
+bwt
+birthweight, in ounces
+
+gestation
+length of gestation, in days
+
+parity
+binary indicator for a first pregnancy (0 = first pregnancy)
+
+age
+mother's age in years
+
+height
+mother's height in inches
+
+weight
+mother's weight in pounds
+
+smoke
+binary indicator for whether the mother smokes
+
+Source
+These data come from Child Health and Development Studies.

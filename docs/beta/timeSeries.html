@@ -1,0 +1,1589 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Time Series</title>
+		<script type="text/javascript" src="js/jstat.js"></script>
+		<script type="text/javascript" src="js/commonFunctions.js?v=1.1"></script>
+		<script type="text/javascript" src="js/numeric-1.2.6.min.js"></script>
+		<script type="text/javascript" src="js/chartFunctions.js"></script>
+		<script type="text/javascript" src="js/distributionFunctions.js"></script>
+		<script type="text/javascript" src="js/lambertw.js"></script>
+		<script type="text/javascript" src="js/shapiro-wilk.js"></script>
+		<script type="text/javascript" src="js/tln.min.js"></script>
+		<link rel="stylesheet" type="text/css" href="styles/tln.min.css"/>
+		<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+		<script language="javascript">
+			var nSamples=1
+			var numericData=true
+			var debug=false
+			var streaks=[]
+			var ACF = []
+			var ACFs = []
+			var PACF = []
+			var timeOptions = ["int","hour","day","week","MMM-YY","MMM-YYYY","YYYY"]
+			var defaultT1 = [1,1,"1/1/00",1,"Jan-00","Jan-2000",2000]
+			var timeOptionChoice=0
+			var monthAbbr=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+			var timeLabels=["Time step","Hour","Day","Week","Month","Month","Year"]
+			var timeAxisLabel="time step"
+			
+			var nTransformations=0
+			var transformationReady = []
+			var transformedSeries = []
+			var transFirstIndex = 0
+			var transformedData = []
+			var isTransformation = []
+			var fit = []
+			var seasonIndices=[]
+			var yDot=[]
+			var startingValues = []
+	
+			
+			function cleanData(set){
+				var data = document.getElementById("data"+set).value.split(/[\s,;\t\n]+/)
+				//console.log(data)
+				var n=data.length
+				var dataInput = ""
+				numericData=true
+				for( var i=0; i<n; i++){
+					if(data[i].trim()!="")
+						dataInput += (i>0?"\n":"")+data[i] 
+					if(!isNumeric(data[i])){
+						if(debug)console.log("data ["+i+"] not numeric: "+data[i])
+						numericData=false
+					}
+				}
+			//	console.log("data numeric: "+numericData)
+				//test
+			//	console.log(!isNaN(parseFloat(data[0])) +" " + isFinite(data[0]));
+				
+				document.getElementById("data"+set).value=dataInput
+				TLN.remove_line_numbers('data1')
+				TLN.append_line_numbers('data1')
+			}
+									
+			function refresh(clean=true){
+				setPrecision(document.getElementById('precision').value)
+				if(clean) cleanData(1)			
+				updateTransformation()
+				sampleStats(1,document.getElementById('statResiduals').checked)
+				streakAnalysis()
+
+				updateModels()
+				reviseTimeLabels()
+				drawTimeSeriesPlot(1,'timeseriesplot',document.getElementById("plotTransformed").checked)
+				if(numericData){
+			//		console.log('numeric data')
+					calcACF(1)
+					drawACF(1, 'ACFplot', false)
+					calcPACF(1)
+					drawACF(1, 'PACFplot', true)
+					adfTest();
+				}
+			} 
+			
+			function streakAnalysis(){
+				var data = document.getElementById("data"+1).value.split(/[\s,;\t\n]+/)
+				var n=data.length	
+			//	console.log(data)
+				var successString = "Count streaks <select id='incl' onChange='calcStreaks()'><option value=0>of</option><option value=1>until</option><option value=2>until and including</option></select>: "
+				if(!numericData){
+					var uniqueVals = uniqueValues(data)
+					successString += "<select id='streakValue' onchange='calcStreaks();'>"
+					for(var i=0; i<uniqueVals.length; i++){
+						var selected = (exists('streakValue') && document.getElementById('streakValue').value==uniqueVals[i]?" selected":"")
+						successString += "<option value='"+uniqueVals[i]+"'"+selected+">"+uniqueVals[i]+"</option>"
+					}
+					successString+="</select>"
+				} else {
+					var selIneq = ''
+					if(exists('successIneq')) selIneq = document.getElementById('successIneq').value
+					successString+="<select id='successIneq' onchange='calcStreaks();'>"
+					successString+="	<option value='l'"+(selIneq=='l'?' selected':'')+">&lt;</option>"
+					successString+="	<option value='leq'"+(selIneq=='leq'?' selected':'')+">&le;</option>"
+					successString+="	<option value='g'"+(selIneq=='g'?' selected':'')+">&gt;</option>"
+					successString+="	<option value='geq'"+(selIneq=='geq'?' selected':'')+">&ge;</option>"
+					successString+="	<option value='eq'+(selIneq=='eq'?' selected':'')+>=</option>"
+					successString+="</select>"
+					successString+="<input type='number' class='smallNumber' id='streakValue' value='"+(exists('successIneq')?document.getElementById('streakValue'):0)+"' onchange='calcStreaks();' />"
+				
+				} 
+				document.getElementById('considerStreak').innerHTML=successString
+				calcStreaks()
+			}
+			
+			function isSuccess(val){
+				var compareValue = document.getElementById('streakValue').value
+				if(numericData){
+					var successIneq = document.getElementById('successIneq').value
+					if(successIneq=="l") return (val < compareValue)
+					if(successIneq=="leq") return (val <= compareValue)
+					if(successIneq == "g") return (val > compareValue)
+					if(successIneq == "geq") return (val >= compareValue)
+					if(successIneq == "eq") return (val == compareValue)
+				} else {
+					return (val == compareValue)
+				}
+				return false
+			}
+			
+			var dataQual, dataQuant
+			function calcStreaks(){
+				var data = document.getElementById("data"+1).value.split(/[\s,;\t\n]+/)
+				var inclMode=+document.getElementById('incl').value
+				var n=data.length	
+				streaks=[]
+				var streakLength=(inclMode==2?1:0)
+				var pushLast=true
+				for(var i=0; i<n; i++){
+					if(inclMode==0 && isSuccess(data[i]) || inclMode>0 && !isSuccess(data[i])) {
+					//	console.log(data[i]+" is a success")
+						streakLength++
+					} else {
+					//	console.log(data[i]+" is a fail")
+						streaks.push(streakLength)
+						streakLength=(inclMode==2?1:0)
+						if(i==n-1) pushLast=false
+					}
+				}
+				if(pushLast) streaks.push(streakLength)
+				
+				var streakString = ""
+				for(var i=0; i<streaks.length; i++){
+					streakString += (i>0?", ":"") + streaks[i]
+				}
+				
+				dataQual = compressData(streakString,"*")
+				dataQuant = compressData(streakString,"x")
+				
+				document.getElementById('streakList').innerHTML="<strong>Streak Lengths:</strong> <textarea id='streaks'>"+streakString+"</textarea><br>Analyze as <a class='fauxButton' onClick=\"analyzeAs('quant');\">Quantitative</a> | <a  class='fauxButton' onClick=\"analyzeAs('qual');\">Qualitative</a>"			
+				runsTest()
+			}
+			
+			function analyzeAs(varType="qual"){
+				if(varType=="qual"){
+					openData("descriptiveStatsQualitative.html","data1",dataQual,"Streak Lengths (Qualitative)",true)
+				} else{
+					openData("quant1var.html","data1",dataQuant,"Streak Lengths (Quantitative)",true)
+				}
+			}
+			
+			function runsTest(){
+				var data = document.getElementById("data"+1).value.split(/[\s,;\t\n]+/)
+				var N=data.length	
+				var lastVal=''
+				var r = 0
+				var m=0 //count successes
+				for(var i=0; i<N; i++){
+					if(isSuccess(data[i]))m++
+					if(data[i]!=lastVal){
+						r++
+						lastVal=data[i]
+					}
+				}
+				var n=N-m
+				
+				
+				outputString = "<strong>Runs Test</strong><br>"
+				outputString += "Trials: "+N+"<br>"
+				outputString += "Successes: "+m+" Fails: "+n+"<br>"
+				outputString +="Runs: "+r+"<br>"
+				if(N<=20){ //exact p-value 
+					var lowerTail = 0
+					var upperTail = 0
+					for(var x=1; x<=N; x++){
+						if(x%2==0){ //even R
+							var s=x/2
+							var p= (jStat.combination(m-1,s-1)*jStat.combination(n-1,s)+jStat.combination(m-1,s)*jStat.combination(n-1,s-1))/jStat.combination(N,m)
+							//console.log(x + " " +p)
+						} else {
+							var s = (x-1)/2
+							var p = 2*jStat.combination(m-1,s-1)*jStat.combination(n-1,s-1)/jStat.combination(N,m)
+							//console.log(x + " " +p)
+						}
+						if(isNumeric(p)){
+							if(x<=r) lowerTail += p
+							if(x>=r) upperTail += p
+						}
+					}
+					var pValOneT = Math.min(lowerTail, upperTail)
+					var pValTwoT = Math.min(2*pValOneT,1)
+					outputString +="One Tail <i>p</i>-value: "+fixed(pValOneT)+"<br>"
+					outputString +="Two Tail <i>p</i>-value: "+fixed(pValTwoT)+"<br>"
+				} else {
+					
+					var ER   = 1+2*n*m/N
+					var correction = (r<ER?.5:-.5)
+					var VarR = 2*n*m*(2*n*m-N)/(N*N*(N-1))
+					var Z = (r-ER+correction)/Math.sqrt(VarR)
+					outputString +="Approx Z value: "+fixed(Z)+"<br>"
+					outputString +="One Tail P-Value: "+fixed(jStat.normal.cdf(-Math.abs(Z),0,1))+"<br>"
+					outputString +="Two Tail P-Value: "+fixed(2*jStat.normal.cdf(-Math.abs(Z),0,1))+"<br>"
+				}
+				document.getElementById('streakTest').innerHTML=outputString
+			}
+						
+			function calcACF(dataSet){
+				ACF = []
+				ACFs = []
+				var transformed=document.getElementById("plotTransformed").checked
+				var data = (transformed?transformedData:document.getElementById("data"+dataSet).value.split(/[\s,;\t\n]+/))
+				var n=data.length
+				var firstValue = transFirstIndex;
+				if(!transformed){
+					for(var i=0; i<n; i++) data[i]=+data[i]
+					firstValue = 0
+				}
+				var xBar=jStat.mean(data)
+				var K = n/4
+				var c0 = 0
+				for(var i=firstValue; i<n; i++)
+					c0 += (data[i]-xBar)*(data[i]-xBar)
+				c0 *= 1.0/n
+				
+				//var showACFstring=""
+				for(var k=0; k<=K; k++){
+					var ck = 0
+					for(var t=firstValue; t< n-k; t++)
+						ck += (data[t]-xBar)*(data[t+k]-xBar)
+					ck *= 1.0/n
+					ACFs.push(ck)
+					ACF.push(ck/c0)
+				//	showACFstring+=(ck/c0)+"<br>"
+				}
+				//document.getElementById("showACF").innerHTML=showACFstring
+				recalcAC();
+			}
+			
+			function recalcAC(){
+				var lag=+Math.round(document.getElementById('acLag').value)
+				var output="lag too large"
+				if(lag<ACF.length) output=fixed(ACF[lag])
+				document.getElementById('acValueAt').innerHTML=output
+			}
+			
+			function calcPACF(dataSet){
+				var K = ACFs.length-1
+				PACF[0]=1
+				for(var lag=1; lag<K; lag++){
+					var R = []
+					var C = []
+					for(var i=0; i<lag; i++){
+						R[i]=[]
+						C[i]=ACFs[i+1]
+						for(var j=0; j<lag; j++){
+							R[i][j]=ACFs[Math.abs(i-j)]
+						}
+					}
+					var p=numeric.dot(pinv(R),C)
+					PACF[lag]=p[lag-1]
+				}
+			//	alert(PACF)
+			}
+
+			function updateVarNames(){
+				var vName1 = document.getElementById("name1").value
+			}
+			
+			function pinv(A) {
+				var inv = numeric.inv(A)
+				if (inv) return inv; else return numeric.dot(numeric.inv(numeric.dot(numeric.transpose(A),A)),numeric.transpose(A));
+			}
+						
+			function adfTest(){
+				var t=[[-2.56574,-2.22213,-1.941,-1.61682],[-3.43035,-3.1175,-2.86154,-2.56677],[-3.95877,-3.65722,-3.4109,-3.12705]]
+				var u=[[-2.2358,-1.15384,-0.2686,0.2656],[-6.5393,-4.53235,-2.8903,-1.5384],[-9.0531,-6.48862,-4.3904,-2.5856]]
+				var v=[[-3.627,-3.4829,-3.365,-2.714],[-16.786,-9.8824,-4.234,-2.809],[-28.428,-17.7624,-9.036,-3.925]]
+				var w=[[0,17.17265,31.223,25.364],[-79.433,-57.7669,-40.04,0],[-134.155,-85.3255,-45.374,-22.38]]
+				
+				var model=+document.getElementById("dfModel").value 
+				//0: no constant, no trend
+				//1: constant, no trend
+				//2: constant and trend
+				
+				var sigLevel = +document.getElementById("sigLevel").value
+				//0: .01
+				//1: .025
+				//2: .05
+				//3: .10
+				
+				var constantScalar = (model==0?0:1)
+				var trendScalar = (model==2?1:0)
+				
+				
+				var n=transformedData.length-1
+				var ones=[]
+				var yLag=[]
+				var yDelta=[]
+				var time=[]
+				for(var i=0; i<n; i++){
+					time[i]=i+1
+					ones[i]=1
+					yLag[i]=transformedData[i]
+					yDelta[i]=transformedData[i+1]-transformedData[i]
+				}
+				var X=[]
+				if(model>0) X.push(ones)
+				X.push(yLag)
+				if(model==2) X.push(time)
+				
+				X = numeric.transpose(X)
+				var H = numeric.dot(numeric.dot(X, pinv(numeric.dot(numeric.transpose(X),X))),numeric.transpose(X))
+				var yHat =numeric.dot(H,yDelta)
+
+				var Ydevs=[]		
+				var yBar = jStat.mean(yDelta)
+				for(var i=0; i<n; i++) { 
+					Ydevs[i]=+yDelta[i]-yBar
+				}
+				var b = numeric.dot(pinv(numeric.dot(numeric.transpose(X),X)),numeric.dot(numeric.transpose(X),yDelta) )
+				
+				var	Resid = numeric.sub(yDelta,yHat)
+				var totalSS = jStat.sumsqrd(Ydevs)
+				var withinSS = jStat.sumsqrd(Resid)
+				var betweenSS = totalSS- withinSS
+				var totalDF = n-1
+				var betweenDF = model+1
+				var withinDF = totalDF-betweenDF
+				var betweenMS = betweenSS/betweenDF
+				var withinMS = withinSS/withinDF //MSerror
+//				var F = betweenMS/withinMS
+//				var sigF = 1-jStat.centralF.cdf(F,betweenDF,withinDF)
+//				var Rsq = betweenSS/totalSS
+//				var R = Math.sqrt(Rsq)
+//				var AdjRsq = betweenMS/(betweenMS+withinMS)
+//				var stdError = Math.sqrt(withinMS)
+				var bStdError = new Array(b.length)
+				var SSCPinv = pinv(numeric.dot(numeric.transpose(X),X))
+				for(var i=0; i<b.length; i++){
+					bStdError[i]= Math.sqrt(withinMS*SSCPinv[i][i])
+				}
+				var tau=b[model==0?0:1]/bStdError[model==0?0:1]
+				
+				var tauCrit = t[model][sigLevel] + u[model][sigLevel]/n + v[model][sigLevel]/Math.pow(n,2)+ w[model][sigLevel]/Math.pow(n,3)
+				
+			//	alert(tau + " " +tauCrit)
+				var outputString = "<strong>Dickey-Fuller Test Results:</strong><br>"
+				outputString +="H<sub>0</sub>: time series is not stationary<br>"
+				outputString +="H<sub>1</sub>: time series is stationary<br>"
+				outputString += "&tau; = "+fixed(tau)+"<br>"
+				outputString += "&tau;<sup>*</sup> = "+fixed(tauCrit) + "<br>"
+				outputString += "Conclusion: "+(tau>=tauCrit ? "fail to ":"")+" reject H<sub>0</sub>"
+				document.getElementById("stationaryTestOutput").innerHTML=outputString
+			
+			
+			}
+			
+			// ========TRANSFORMATIONS ======================================
+			
+			
+			function addTransformation(type="transformation"){
+				var newDiv = document.createElement("div");
+				newDiv.id = "transformation"+nTransformations
+				newDiv.classList.add("transformation");
+				var transformations=""
+				transformations += "Type: <select id='transformationType"+nTransformations+"' onChange='updateTransformationOptions("+nTransformations+");transformationReady["+nTransformations+"]=true;updateTransformation();refresh(false);''>"
+				isTransformation[nTransformations] = (type=='transformation')
+				if(type=='transformation'){
+					transformations += "<option selected disabled>Choose Transformation</option>"
+					transformations += "<option value='power'>Power</option>"
+					transformations += "<option value='log'>Logarithmic</option>"
+					transformations += "<option value='difference'>Difference</option>"
+				}else{
+					transformations += "<option selected disabled>Choose Trend</option>"
+					transformations += "<option value='linear'>Linear Trend</option>"
+					transformations += "<option value='quadratic'>Quadratic Trend</option>"
+					transformations += "<option value='exponential'>Exponential Trend</option>"
+					transformations += "<option value='sine'>Sine Wave</option>"
+					transformations += "<option value='harmonic'>Harmonic</option>"
+					transformations += "<option value='season'>Seasonality</option>"
+				}
+				transformations += "</select>"
+				//transformations += "<button type='button' onClick='moveTransformationUp(\"transformation"+nTransformations+"\");' value='&uarr;'>&uarr;</button>"
+				//transformations += "<button type='button' onClick='moveTranformationDown(\"transformation"+nTransformations+"\");' value='&darr;'>&darr;</button>"
+				transformations += "<button type='button' onClick='removeTransformation(\"transformation"+nTransformations+"\");' value='remove'>remove</button>"
+				transformations +="<div id='transformationOptions"+nTransformations+"'></div>"
+				nTransformations++
+				newDiv.innerHTML=transformations;
+				if(type=='transformation'){
+					document.getElementById("allTransformations").appendChild(newDiv);
+				}else {
+					document.getElementById("allTrends").appendChild(newDiv);
+				}
+			}
+			
+			function removeTransformation(elmnt){
+				var element = document.getElementById(elmnt);
+				var transformationIndex = elmnt.substring(14)
+				transformationReady[transformationIndex]=false;
+				element.parentNode.removeChild(element);
+				refresh(false)
+			}
+			
+			function updateTransformationOptions(transformationIndex){
+				var transformationType = document.getElementById("transformationType"+transformationIndex).value;
+				var options = ""
+				switch(transformationType) {
+					case "power":
+						options += "power: <input type='number' class='smallNumber' value=1  step=.1 id='power"+transformationIndex+"' onChange='refresh(false);'><br>"
+						break;
+					case "linear":					
+						options += "intercept: <input type='number' class='smallNumber' value=0  step=.1 id='b0_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						options += "slope: <input type='number' class='smallNumber' value=0  step=.1 id='b1_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						options += "<button type='button' onClick='autoFitLinear("+transformationIndex+");' value='AutoFit'>AutoFit</button>"
+						break;
+					case "quadratic":					
+						options += "intercept: <input type='number' class='smallNumber' value=0  step=.1 id='b0_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						options += "linear coefficient: <input type='number' class='smallNumber' value=0  step=.1 id='b1_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						options += "squared coefficient: <input type='number' class='smallNumber' value=0  step=.1 id='b2_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						options += "<button type='button' onClick='autoFitQuadratic("+transformationIndex+");' value='AutoFit'>AutoFit</button>"
+						break;
+					case "exponential":					
+						options += "scalar: <input type='number' class='smallNumber' value=0  step=.1 id='b0_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						options += "exponent coefficient: <input type='number' class='smallNumber' value=1  step=.1 id='b1_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						options += "<button type='button' onClick='autoFitExponential("+transformationIndex+");' value='AutoFit'>AutoFit</button>"
+						break;
+					case "difference":					
+						options += "lag: <input type='number' class='smallNumber' value=1  step=1 min=1 id='difflag"+transformationIndex+"' onChange='refresh(false);'><br>"
+						break;
+					case "sine":					
+						options += "intercept: <input type='number' class='smallNumber' value=0  step=.1 id='b0_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						options += "amplitude: <input type='number' class='smallNumber' value=1  step=.1 min=0 id='b1_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						options += "period: <input type='number' class='smallNumber' value=12  step=.1 min=.1 id='b2_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						options += "offset: <input type='number' class='smallNumber' value=0  step=.1 id='b3_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						//options += "<button type='button' onClick='autoSine("+transformationIndex+");' value='AutoFit'>AutoFit</button>"
+						break;
+					case "harmonic":
+						options += "major period: <input type='number' class='smallNumber' value=12  step=.1 min=.1 id='period_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						options += "degree: <input type='number' class='smallNumber' value=1 min=1 step=1 id='degree_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						options += "<div id='trendDetails_"+transformationIndex+"'></div>"
+						options += "<button type='button' onClick='autoFitHarmonic("+transformationIndex+");' value='AutoFit'>AutoFit</button>"
+						break;
+					case "season":
+						options += "period: <input type='number' class='smallNumber' value=12  step=1 min=1 id='per_"+transformationIndex+"' onChange='refresh(false);'><br>"
+						break;						
+					default:
+					//nothing;
+				}
+				document.getElementById('transformationOptions'+transformationIndex).innerHTML=options;
+				if(transformationType=='linear') autoFitLinear(transformationIndex)
+				if(transformationType=='quadratic') autoFitQuadratic(transformationIndex)
+				if(transformationType=='exponential') autoFitExponential(transformationIndex)
+			}
+	
+			function autoFitLinear(transformationIndex){
+				updateTransformation(transformationIndex);
+				var tVals = [];
+				for(var i=0; i<transformedData.length; i++){
+					tVals[i]=i+1;
+				}
+				var b1 = jStat.corrcoeff(transformedData,tVals) * jStat.stdev(transformedData,true)/jStat.stdev(tVals,true);
+				var b0 = jStat.mean(transformedData) - b1 * jStat.mean(tVals)
+				document.getElementById("b0_"+transformationIndex).value = b0
+				document.getElementById("b1_"+transformationIndex).value = b1
+				refresh(false)
+			}
+			
+			function autoFitQuadratic(transformationIndex){
+				updateTransformation(transformationIndex);
+				var ones = []
+				var tVals = [];
+				var tSqr = []
+				for(var i=0; i<transformedData.length; i++){
+					ones[i]=1
+					tVals[i]=i+1;
+					tSqr[i] = Math.pow(tVals[i],2)
+				}
+				var X = []
+				X.push(ones)
+				X.push(tVals)
+				X.push(tSqr)
+				console.log(X)
+				X = numeric.transpose(X)
+				var Xt = numeric.transpose(X)
+				var XtX = numeric.dot(Xt,X)
+				XXTinv = pinv(XtX)
+				var XXtinvXt = numeric.dot( XXTinv,Xt)
+				var b = numeric.dot(XXtinvXt,transformedData)
+				console.log(transformedData)
+
+				document.getElementById("b0_"+transformationIndex).value = b[0]
+				document.getElementById("b1_"+transformationIndex).value = b[1]
+				document.getElementById("b2_"+transformationIndex).value = b[2]
+				
+				refresh(false)
+			}
+
+			function autoFitHarmonic(transformationIndex){
+				updateTransformation(transformationIndex);
+				var degree = +document.getElementById("degree_"+transformationIndex).value
+				var period = +document.getElementById("period_"+transformationIndex).value
+				var ones = []
+				var X = []
+				for(var i=0; i<transformedData.length; i++){
+					ones[i]=1
+				}
+//				X.push(ones)
+				for(var j=0; j<degree; j++){
+					var cosines = []
+					var sines = []
+					for(var i=0; i<transformedData.length; i++){
+						cosines[i]=Math.cos(2*Math.PI*i/ (period / Math.pow(2,j)))
+						sines[i]=Math.sin(2*Math.PI*i/ (period / Math.pow(2,j)))
+					}
+					X.push(cosines)
+					X.push(sines)
+				}
+//				console.log(X)
+				X = numeric.transpose(X)
+				var Xt = numeric.transpose(X)
+				var XtX = numeric.dot(Xt,X)
+				XXTinv = pinv(XtX)
+				var XXtinvXt = numeric.dot( XXTinv,Xt)
+				var b = numeric.dot(XXtinvXt,transformedData)
+				console.log(transformedData)
+
+				var hiddenValues = ""
+				var model = ""
+				for(var i=0; i<b.length; i++){
+					hiddenValues += "<input type='hidden' id='b"+i+"_"+transformationIndex+"' value="+b[i]+">"
+					model += (i>0?" + ":"")+fixed(b[i])+(i%2==0?'cos':'sin')+"(2&pi;t/"+(period/Math.pow(2,Math.floor(i/2)))+")"
+				}
+
+				document.getElementById("trendDetails_"+transformationIndex).innerHTML = hiddenValues+model
+//				document.getElementById("b0_"+transformationIndex).value = b[0]
+//				document.getElementById("b1_"+transformationIndex).value = b[1]
+//				document.getElementById("b2_"+transformationIndex).value = b[2]
+				
+				refresh(false)
+			}
+
+
+			function autoFitExponential(transformationIndex){
+				updateTransformation(transformationIndex);
+				var ones = []
+				var tVals = [];
+				var Y = []
+				for(var i=0; i<transformedData.length; i++){
+					ones[i]=1
+					tVals[i]=(i+1);
+					Y[i]=Math.log(transformedData[i])
+				}
+				var X = []
+				X.push(ones)
+				X.push(tVals)
+				console.log(X)
+				X = numeric.transpose(X)
+				var Xt = numeric.transpose(X)
+				var XtX = numeric.dot(Xt,X)
+				XXTinv = pinv(XtX)
+				var XXtinvXt = numeric.dot( XXTinv,Xt)
+				var b = numeric.dot(XXtinvXt,Y)
+//				console.log(transformedData)
+
+				document.getElementById("b0_"+transformationIndex).value = Math.exp(b[0])
+				document.getElementById("b1_"+transformationIndex).value = (b[1])
+				
+				refresh(false)
+			}
+
+			
+			function reverseTransformations(tSeries, T0, trends=true){
+//				console.log("reverse "+tSeries)
+				var transT0 = transFirstIndex;
+				for(i=nTransformations-1; i>=0; i--){
+					if(transformationReady[i]){
+						var tSeriesNew = tSeries.slice()
+						var n=tSeries.length
+						var transformationType = document.getElementById("transformationType"+i).value;
+						switch(transformationType) {
+							case "difference":					
+								var lag = +document.getElementById("difflag"+i).value;
+								//console.log("n="+n + ", transT0=" + transFirstIndex + ", T0=" + T0 + " " +tSeries)
+								for(var k=0; k<n; k++){
+									//take into account transFirstIndex and T0
+									tSeriesNew[k]=tSeries[k] + startingValues[i][k+T0-lag+1]
+//									tSeriesNew[k] = (k>=lag ? tSeriesNew[k-lag] +tSeries[k-lag]: startingValues[i][k+T0+lag-1])
+								}
+								T0 += lag
+								transT0 -= lag
+								break;
+							case "power":
+								var power = +document.getElementById("power"+i).value;
+								
+	//							console.log("reversing power " + power)	
+	//							console.log("reverse: "+tSeries)
+//								console.log(n)
+								for(var k=0; k<n; k++){
+//									console.log(+tSeries[k]*power+1)
+//									console.log(Math.pow((+tSeries[k]*power+1), 0- power))
+									tSeriesNew[k] = (power==0? Math.exp(+tSeries[k]) : Math.pow((+tSeries[k]*power+1 ), 1/power))
+//									console.log(tSeriesNew[k])
+								}
+	//							console.log(tSeriesNew)
+								break;
+							case "log":
+								for(var k=0; k<n; k++) tSeriesNew[k] = Math.exp(tSeries[k])
+								break;
+							default:
+							//nothing
+						}
+						
+						if(trends){
+						console.log("reversing "+transformationType)
+						switch(transformationType) {
+							case "linear":	
+								var b0 = +document.getElementById("b0_"+i).value;
+								var b1 = +document.getElementById("b1_"+i).value;
+								for(var k=0; k<n; k++){
+									tSeriesNew[k] = (b0 + b1*(k+1+T0))+tSeries[k] 
+								}
+								break;
+							case "quadratic":					
+								var b0 = +document.getElementById("b0_"+i).value;
+								var b1 = +document.getElementById("b1_"+i).value;
+								var b2 = +document.getElementById("b2_"+i).value;
+								for(var k=0; k<n; k++){
+									tSeriesNew[k] =  (b0 + b1*(k+1+T0) + b2*Math.pow(k+1+T0,2)) -tSeries[k]
+								}
+								break;
+							case "exponential":					
+								var b0 = +document.getElementById("b0_"+i).value;
+								var b1 = +document.getElementById("b1_"+i).value;
+								for(var k=0; k<n; k++){
+									tSeriesNew[k] = tSeries[k] + (b0 * Math.exp(b1*(k+1+T0)))
+								}
+								break;
+							case "sine":					
+								var b0 = +document.getElementById("b0_"+i).value;
+								var b1 = +document.getElementById("b1_"+i).value;
+								var b2 = +document.getElementById("b2_"+i).value;
+								var b3 = +document.getElementById("b3_"+i).value;
+								for(var k=0; k<n; k++){
+									tSeriesNew[k] = tSeries[k] + (b0 + b1*Math.sin(2.0*Math.PI/b2 * (b3 + k+T0)))
+								}
+								break;
+							case "harmonic":
+								var b=[]
+								var period = +document.getElementById('period_'+i).value;
+								var l=0;
+								while(exists("b"+l+"_"+i)){
+									//console.log("found "+document.getElementById("b"+l+"_"+i).value)
+									b[l]= + document.getElementById("b"+l+"_"+i).value;
+									l++
+								}
+								for(var k=0; k<n; k++){
+									for(var l=0; l<b.length; l++){
+										var t=2*Math.PI * k / (period/Math.pow(2,Math.floor(l/2)))
+										tSeriesNew[k] = tSeries[k] + b[l]*(l%2==0?Math.cos(t):Math.sin(t))
+									}
+								}
+							
+							
+								break;
+							case "season":
+								//var seasonIndices = new Array(+document.getElementById("per_"+i).value)
+								break;
+							default:
+							//nothing
+						}
+						}
+						tSeries = tSeriesNew.slice();
+					}				
+				}
+				return {tSeries:tSeries, T0:T0};
+			}	
+
+			var detrendedData = []
+			var fittedValues=[]
+			var unTransformedFit = []
+			
+			function updateTransformation(stopat = nTransformations, transformFirst=true){
+				var data = document.getElementById("data1").value.split(/[\s,;\t\n]+/)
+				transformedData = []
+				var didATransform=false
+				var n=data.length
+				for(var i=0; i<n; i++) data[i]=+data[i]
+				var originalData = data.slice();
+//				console.log(data)
+//				console.log(originalData)
+				transFirstIndex = 0
+				for(var k=0; k<=n; k++){
+					fit[k]=0;
+				}				
+				
+				for(var j=0; j<2; j++){
+					var doTransforms=true,doDetrends=true
+					if(transformFirst){
+						if (j==0) doDetrends=false
+						if (j==1) doTransforms=false
+					} else {
+						j=1;
+					}
+					
+					if(debug)console.log("doing "+(j==0?"transforms":"detrends"))
+
+					for(var i=0; i< stopat; i++){
+						if(transformationReady[i]){
+							var newData = data
+							n = data.length;
+
+							var transformationType = document.getElementById("transformationType"+i).value;
+
+							console.log(transformationType)
+							if(doTransforms){
+								switch(transformationType) {
+									case "power":
+										var power = +document.getElementById("power"+i).value;
+//										var sumLnX = 0
+//										for(var k=0; k<n; k++){
+//											sumLnX += Math.log(data[k])
+//										}
+//										yDot[i] = Math.exp(sumLnX/n)
+										for(var k=0; k<n; k++){
+											newData[k] = (power==0? Math.log(data[k]) : (Math.pow(data[k],power)-1)/power)
+											//fit[k]+= -newData[k]
+										}
+										didATransform = true
+										data = newData.slice();
+										break;
+									case "log":
+										for(var k=0; k<n; k++){
+											if(data[k]>0) newData[k]=Math.log(data[k]);
+										}
+										didATransform=true
+										data = newData.slice();
+										break;
+									case "difference":					
+										startingValues[i]=[]
+										var lag = +document.getElementById("difflag"+i).value;
+										//for(var k=0; k<n; k++)
+										//	fit[k] = fit[k];
+										for(var k=0; k<n; k++)
+											startingValues[i][k]=data[k]
+											newData=[]
+										for(var k=0; k<n-lag; k++){
+											newData[k] = data[k+lag] - data[k]
+										}
+										transFirstIndex += lag
+										didATransform=true
+										data = newData.slice();
+										break;
+									default:
+									//nothing
+								}
+ 
+							}
+							if(doDetrends){
+								switch(transformationType) {
+									case "linear":	
+										console.log("linear trend")
+										var b0 = +document.getElementById("b0_"+i).value;
+										var b1 = +document.getElementById("b1_"+i).value;
+										for(var k=0; k<=n; k++){
+											if(k<n)newData[k] = data[k] - (b0 + b1*(k+1))
+											fit[k]+= (b0 + b1*(k+1))
+										}
+										data = newData.slice();
+										break;
+									case "quadratic":					
+										var b0 = +document.getElementById("b0_"+i).value;
+										var b1 = +document.getElementById("b1_"+i).value;
+										var b2 = +document.getElementById("b2_"+i).value;
+										for(var k=0; k<=n; k++){
+											if(k<n)newData[k] = data[k] - (b0 + b1*(k+1) + b2*Math.pow(k+1,2))
+											fit[k]+= (b0 + b1*(k+1) + b2*Math.pow(k+1,2))
+										}
+										data = newData.slice();
+										break;
+									case "exponential":					
+										var b0 = +document.getElementById("b0_"+i).value;
+										var b1 = +document.getElementById("b1_"+i).value;
+										for(var k=0; k<=n; k++){
+											if(k<n)newData[k] = data[k] - (b0 * Math.exp(b1*(k+1)))
+											fit[k]+= (b0 * Math.exp(b1*(k+1)))
+										}
+										data = newData.slice();
+										break;
+									case "harmonic":
+										var b=[]
+										var period = +document.getElementById('period_'+i).value;
+										var l=0;
+										while(exists("b"+l+"_"+i)){
+											console.log("found "+document.getElementById("b"+l+"_"+i).value)
+											b[l]= + document.getElementById("b"+l+"_"+i).value;
+											l++
+										}
+										console.log("process harmonic period "+period+" with b="+b)
+										for(var k=0; k<=n; k++){
+											newData[k] = data[k]
+											for(l=0; l<b.length; l++){
+												var t=2*Math.PI * k / (period/Math.pow(2,Math.floor(l/2)))
+												fit[k]+= b[l]*(l%2==0?Math.cos(t):Math.sin(t))
+												if(k<n)newData[k] -= b[l]*(l%2==0?Math.cos(t):Math.sin(t))
+											}
+										}
+										data = newData.slice();
+										break;
+									case "season":
+										var nPeriods = +document.getElementById("per_"+i).value
+									//	console.log(seasonIndices)
+										seasonIndices[i] = new Array(nPeriods)
+										for(var period = 0; period<nPeriods; period++){
+											seasonIndices[i][period]=0
+											var count=0
+											for(var k=period; k<=n; k+=nPeriods){
+												count++
+												seasonIndices[i][period]+=data[k]
+											}
+											seasonIndices[i][period] *= 1.0/count 
+										}
+										for(var k=0; k<=n; k++){
+											if(k<n)newData[k] = data[k]-seasonIndices[i][k%nPeriods]
+											fit[k] += seasonIndices[i][k%nPeriods]
+										}
+										data = newData.slice();
+										break;
+				
+									case "sine":					
+										var b0 = +document.getElementById("b0_"+i).value;
+										var b1 = +document.getElementById("b1_"+i).value;
+										var b2 = +document.getElementById("b2_"+i).value;
+										var b3 = +document.getElementById("b3_"+i).value;
+										for(var k=0; k<=n; k++){
+											if(k<n)newData[k] = data[k] - (b0 + b1*Math.sin(2.0*Math.PI/b2 * (b3 + k)))
+											fit[k]+= (b0 + b1*Math.sin(2.0*Math.PI/b2 * (b3 + k)))
+										}
+										data = newData.slice();
+										break;
+									default:
+									//nothing
+								}
+								
+							}
+						}
+						
+					}
+					if(j==0 && didATransform) transformedData = data.slice()
+					if(j==1) detrendedData = data.slice()
+
+				}
+
+				//transformedData = data;
+			//	alert(transformedData.length + " " + transFirstIndex)
+				
+				fittedValues=[]
+//				console.log(forecastResiduals)
+				var residualTable="<table class='fullWidth thinlines'><tr><th>t</th><th>Value</th>"
+				if(transformedData.length>0) residualTable +="<th>Trans. Value</th>"
+				residualTable +="<th>"+(document.getElementById('residSelect').value==0?"Fit":"Forecast")+"</th><th>Residual</th></tr>\n";
+//				console.log(data)
+	//			console.log(originalData)
+				for(var i=0; i<originalData.length; i++){
+//				console.log(i)
+					residualTable +="<tr><td>"+(i+1)+"<td>"+originalData[i]+"</td>";
+					if(document.getElementById('residSelect').value==0){
+						if(transformedData.length>0) 
+						residualTable +="<td>"+(i<transformedData.length?fixed(transformedData[i]):'')+"</td>";
+						//fittedValues[i]=(i>=transFirstIndex?fixed(originalData[i]-data[i-transFirstIndex]):0)
+						//residualTable +="<td>"+(i>=transFirstIndex?fixed(originalData[i]-data[i-transFirstIndex]):"")+"</td>";
+						residualTable +="<td>"+fixed(fit[i])+"</td>";
+						residualTable +="<td>"+(i>=transFirstIndex?fixed(data[i-transFirstIndex]):"")+"</td></tr>";
+					}else{
+						residualTable +="<td>"+(i>=t0 && i-t0<yVals.length ?fixed(yVals[i-t0]):"")+"</td>";
+						residualTable +="<td>"+(i>=t0 && i-t0<forecastResiduals.length ? fixed(forecastResiduals[i-t0]):"")+"</td></tr>";
+					}
+				}
+				residualTable +="</table>\n";
+
+				document.getElementById("residualTable").innerHTML=residualTable;
+				
+				transformedData = data
+				refrshResidualPlots()
+				
+			}
+
+			function refrshResidualPlots(){
+				var residValues = (document.getElementById('residSelect').value==1 && forecastResiduals.length!=0 ? forecastResiduals.slice():transformedData.slice(transFirstIndex))
+				
+				histogram(residValues,true,"Residual","","residHistogramPlot",true)
+				
+				refreshNormalityPlot(residValues,true,"residQQPlot")
+				
+				//console.log(fittedValues)
+				
+				scatterplot(fit.slice(transFirstIndex),transformedData,false, "Fitted Value", "Residual", false, false, false, false, false, false, false,[],[], "residScatterPlot")
+
+			}		
+		
+		
+
+		
+		//========== MODELS ===============
+			var nModels = 0
+			var modelColors = []
+			var modelT0 = []
+			var modelSeries = []
+			var modelName = []
+			var modelReady = []
+			var modelForecast = []
+			var modelME = []
+			var modelMAD = []
+			var modelMSE = []
+			var modelMPE = []
+			var modelMAPE = []
+			var modelRMSE = []
+			var forecastOptions = "";
+			var forecastModelSelection = -1;
+			var forecastResiduals=[]
+			
+				
+			function addModel(){
+				var newDiv = document.createElement("div");
+				newDiv.id = "model"+nModels
+				newDiv.classList.add("model");
+				
+				var models=""
+//				models += "<div class='model' id='model"+nModels+"'>"
+				models += "Type: <select id='modelType"+nModels+"' onChange='updateModelOptions("+nModels+");updateModel("+nModels+");refresh(false);''>"
+				models += "<option selected disabled>Choose Model</option>"
+				models += "<option value='CMA'>Cumulative Moving Average</option>"
+				models += "<option value='MA'>Moving Average</option>"
+				models += "<option value='Hanning'>Hanning Filter</option>"
+				models += "<option value='RM'>Running Median</option>"
+				models += "<option value='ES'>Exponential Smoothing</option>"
+				models += "<option value='AR(p)'>AR(p)</option>"
+				models += "</select> "
+				var colorIndex = nModels % colors.length;
+				modelColors[nModels]=colorIndex;
+				models+="<select id='color"+nModels+"' style='color:"+colors[modelColors[nModels]]+";'  onChange='reviseColor("+nModels+");'>"
+				for(var j=0; j<10; j++){
+					models+="<option style=\"color:"+colors[j]+";\" value='"+(j)+"' "+(modelColors[nModels]==j?" selected":"")+">&#9644; "+colors[j]+"</option>"
+				}
+				models+="</select> "				
+				models += "<button type='button' onClick='removeModel(\"model"+nModels+"\");' value='remove'>remove</button>"
+				models +="<div id='modelOptions"+nModels+"'></div>"
+
+				models+="<div id='modelEvaluation"+nModels+"' class='results'></div>"
+	//			models += "</div>"
+				nModels++
+				newDiv.innerHTML=models;
+				document.getElementById("allModels").appendChild(newDiv);
+//				document.getElementById("allModels").innerHTML+=models;
+			}
+			
+			function removeModel(elmnt){
+				var element = document.getElementById(elmnt);
+				var modelIndex = elmnt.substring(5)
+				modelReady[modelIndex]=false;
+				element.parentNode.removeChild(element);
+				refresh(false)
+			}
+			
+			function updateModelOptions(modelIndex){
+				var useTransformed = document.getElementById("plotTransformed").checked
+				var data = (useTransformed?transformedData:document.getElementById("data1").value.split(/[\s,;\t\n]+/))
+				var n=data.length
+				if(!useTransformed){ for(var i=0; i<n; i++) data[i]=+data[i]}
+				var modelType = document.getElementById("modelType"+modelIndex).value;
+				var options = ""
+				switch(modelType) {
+					case "MA":
+						options += "Span: <input type='number' class='smallNumber' value=4 min=2 id='span"+modelIndex+"' onChange='updateModel("+modelIndex+");refresh(false);'><br>"
+						options +="<select id='MAtype"+modelIndex+"' onchange='refresh(false);'>"
+						options +="<option value=0 selected>trailing</option>"
+						options +="<option value=1>centered</option>"
+						options +="<option value=2>forecast</option>"
+						options +="</select>"
+//						options += "<input type='checkbox' id='centered"+modelIndex+"' onChange='updateModel("+modelIndex+");refresh(false);'> Centered<br>"
+						break;
+					case "RM":
+						options += "Span: <input type='number' class='smallNumber' value=3 min=3 step = 2 id='span"+modelIndex+"' onChange='updateModel("+ modelIndex +");refresh(false);'><br>"				
+						break;
+					case "ES":
+						options += "<input type='checkbox' id='forecast"+modelIndex+"' onChange='updateModel("+modelIndex+");refresh(false);'> Forecast<br>"
+						options += "Order: <input type='number' class='smallNumber' value=1 min=1 step=1 max=2 id='order"+modelIndex+"' onChange='updateModel("+modelIndex+");refresh(false);'><br>"			
+						options += "Initial Value: <input type='number' class='smallNumber' value="+data[0]+" id='x0_"+modelIndex+"' onChange='updateModel("+ modelIndex +");refresh(false);'> <input type='checkbox' onChange='updateModels();' checked id='useFirst"+modelIndex+"'> auto<br>"
+						options += "&lambda;: <input type='number' class='smallNumber' value=.2 max=1 min=0 step=.01 id='lambda"+modelIndex+"' onChange='updateModel("+ modelIndex +");refresh(false);'><br>"			
+						break;
+					case "AR(p)":
+						options += "p: <input type='number' class='smallNumber' value=1 min=1 step = 1 max=5 id='p"+modelIndex+"' onChange='updateModel("+ modelIndex +");refresh(false);'><br><div id='modelText"+modelIndex+"'></div>"		
+						break;
+					default:
+					
+					//nothing;
+				}
+				document.getElementById('modelOptions'+modelIndex).innerHTML=options;
+			}
+		
+			function reviseColor(modelIndex){
+				modelColors[modelIndex]=document.getElementById('color'+modelIndex).value;
+				document.getElementById('color'+modelIndex).style.color=colors[modelColors[modelIndex]];
+				drawTimeSeriesPlot(1,'timeseriesplot',document.getElementById("plotTransformed").checked)
+			}
+			
+			var t0
+			var yVals
+			var dataT0
+			function updateForecastTable(){
+				var useTransformed = document.getElementById("plotTransformed").checked
+				var data = (useTransformed?transformedData:document.getElementById("data1").value.split(/[\s,;\t\n]+/))
+				var n=data.length
+				if(!useTransformed){ for(var i=0; i<n; i++) data[i]=+data[i]}
+				forecastModelSelection = document.getElementById("forecastModelSelect").value
+				forecastTable = ""
+				if(forecastModelSelection!=""){
+					yVals = []
+					t0 = modelT0[forecastModelSelection]
+					dataT0 = transFirstIndex
+					if(useTransformed){
+						yVals = modelSeries[forecastModelSelection]
+						t0 += dataT0
+					} else {
+						var result = reverseTransformations(modelSeries[forecastModelSelection], modelT0[forecastModelSelection]);
+						yVals = result.tSeries
+						//alert(yVals)
+						t0=result.T0
+						dataT0=0
+					}
+//					console.log("t0="+t0+", dataT0="+dataT0 +" yVals="+yVals)
+//					console.log(yVals)
+					//alert(forecastModelSelection);
+					forecastTable = "<table class='fullWidth thinlines'><tr><th>t</th><th>Value</th><th>Forecast</th><th>Error</th></tr>\n";
+					forecastResiduals=[]
+					for(var i=0; i<data.length+1+dataT0; i++){
+						forecastTable +="<tr><td>"+(i+1)+"<td>"+(i-dataT0>=0&&i-dataT0<data.length?fixed(data[i-dataT0]):"")+"</td>";
+						forecastTable +="<td>"+(i>=t0 && i-t0<yVals.length ?fixed(yVals[i-t0]):"")+"</td>";
+						if(i>=t0 && i-dataT0<data.length) forecastResiduals.push(data[i-dataT0]-yVals[i-t0])
+						forecastTable +="<td>"+(i>=t0 && i-dataT0<data.length ? fixed(data[i-dataT0]-yVals[i-t0]):"")+"</td></tr>";
+					}
+					forecastTable +="</table>\n";
+				}
+				document.getElementById("forecastTable").innerHTML=forecastTable;
+				refrshResidualPlots()
+				//alert(modelSeries[forecastModelSelection])
+			}
+					
+			function updateModels(){
+				forecastOptions = ""
+				for(var i=0; i<nModels; i++){
+					if(modelReady[i]) updateModel(i)
+				}
+				document.getElementById("forecastModelSelect").innerHTML = forecastOptions;
+				//document.getElementById('residSelect').innerHTML='<option value=0>transformation</option>'+forecastOptions
+				updateForecastTable();
+			}
+			
+			function updateModel(modelNum){
+				var useTransformed = document.getElementById("plotTransformed").checked
+				//var data = (useTransformed?transformedData:document.getElementById("data1").value.split(/[\s,;\t\n]+/))
+				var data = transformedData
+				var n=data.length
+				//if(!useTransformed){ for(var i=0; i<n; i++) data[i]=+data[i]}
+				var modelType = document.getElementById("modelType"+modelNum).value;
+				var modelText = ""
+				switch(modelType) {
+					case "CMA":
+						modelName[modelNum] = "Cumulative Moving Average";
+						modelReady[modelNum]=true;
+						modelSeries[modelNum]=[];
+						modelT0[modelNum] = 0
+						modelForecast[modelNum]=false
+						for(var i= 0; i < n; i++){
+							var sum=0
+							for(var k=0; k<=i; k++){
+								sum += data[k]
+							}
+							modelSeries[modelNum].push(sum * (1.0/(i+1)))							
+						}
+						break;
+					case "MA":
+						var span = +document.getElementById('span'+modelNum).value;
+						var spanOrig = span;
+						var centered = document.getElementById('MAtype'+modelNum).value==1
+						var tailScalars =(centered && span%2==0?.5:1);
+						if(centered && span%2==0) span++;
+						modelName[modelNum] = (centered?"Centered ":"")+"Moving Average ("+span+")";
+						modelReady[modelNum]=true;
+						modelSeries[modelNum]=[];
+						modelForecast[modelNum]=document.getElementById('MAtype'+modelNum).value==2
+						modelT0[modelNum] = (centered?((span-1)/2):(span-1))+(modelForecast[modelNum]?1:0)
+						
+						for(var i= (centered?((span-1)/2):(span-1)); i < n-(centered?(span-1)/2:0); i++){
+							var sum=0
+							for(var k=0; k<span; k++){
+								sum += data[i+k-(centered?(span-1)/2:(span-1))]*(k==0 || k==span-1? tailScalars : 1.0)
+							}
+							modelSeries[modelNum].push(sum * (1.0/spanOrig))							
+						}
+						if(modelForecast[modelNum]) forecastOptions +="<option value="+modelNum+(forecastModelSelection==modelNum?' selected':'')+">"+modelName[modelNum]+"</option>"
+						break;
+					case "Hanning":	
+						modelName[modelNum] = "Hanning Filter";
+						modelReady[modelNum]=true;
+						modelSeries[modelNum]=[];
+						modelT0[modelNum] = 1
+						modelForecast[modelNum]=false
+						for(var i= 1; i < n-1; i++){
+							modelSeries[modelNum].push(.25*data[i-1]+.5*data[i]+.25*data[i+1])
+						}
+						break;
+					case "RM":
+						var span = +document.getElementById('span'+modelNum).value;
+						modelName[modelNum] = "Moving Median ("+span+")";
+						modelReady[modelNum]=true;
+						modelSeries[modelNum]=[];
+						modelT0[modelNum] = (span-1)/2
+						modelForecast[modelNum]=false
+						for(var i= (span-1)/2; i < n-(span-1)/2; i++){
+							var dataSub = data.slice(i-(span-1)/2,i+(span-1)/2+1);
+							modelSeries[modelNum].push(jStat.median(dataSub))
+						}
+						break;
+					case "ES":
+						var order = Math.ceil(+document.getElementById('order'+modelNum).value);
+						var useFirst = document.getElementById("useFirst"+modelNum).checked
+						var forecast = document.getElementById("forecast"+modelNum).checked
+						if(useFirst) document.getElementById('x0_'+modelNum).value = data[0];
+						var x0 = +document.getElementById('x0_'+modelNum).value;
+						var lambda = +document.getElementById('lambda'+modelNum).value;
+						modelName[modelNum] = "Order "+order+" Exponential Smoothing  ("+lambda+")";
+						modelReady[modelNum]=true;
+						modelSeries[modelNum]=[];
+						modelT0[modelNum] = 0
+						modelForecast[modelNum]=forecast
+						if(forecast) modelSeries[modelNum].push(x0)
+						for(var i= 0; i < n; i++){
+							modelSeries[modelNum].push(lambda*data[i]+(1-lambda)*(i==0?x0:modelSeries[modelNum][i-(forecast?0:1)]))
+						}
+						for(var k=1; k<order; k++){
+							smoothedData=[]
+//							alert(k)
+							for(var i= 0; i < n; i++){
+								smoothedData.push((lambda*modelSeries[modelNum][i]+(1-lambda)*(i==0?x0:smoothedData[i-1])))
+							}
+						}
+						if(order>1){
+							for(var i=0; i<n; i++){
+								modelSeries[modelNum][i]=2*modelSeries[modelNum][i]-smoothedData[i]
+							}
+						}
+						if(modelForecast[modelNum]) forecastOptions +="<option value="+modelNum+(forecastModelSelection==modelNum?' selected':'')+">"+modelName[modelNum]+"</option>"
+						break;
+					case "AR(p)":
+						var p = Math.ceil(+document.getElementById('p'+modelNum).value);
+						modelName[modelNum] = "AR("+p+")";
+						modelReady[modelNum]=true;
+						modelSeries[modelNum]=[];
+						modelForecast[modelNum]=true
+						var tVals = [];
+						for(var k=0; k<=p; k++){
+							tVals[k]=[]
+							for(var i=0; i<transformedData.length-p; i++){
+								tVals[k][i]=transformedData[i+p-k];
+							}
+						}
+						var b=[]
+						if(p==1){
+							b[1] = jStat.corrcoeff(tVals[0],tVals[1]) * jStat.stdev(tVals[0],true)/jStat.stdev(tVals[1],true);
+							b[0] = jStat.mean(tVals[0]) - b[1] * jStat.mean(tVals[1])
+	//						alert(b[0]+ " " + b[1])
+							for(var i=0; i<transformedData.length-p; i++){
+								var YtHat = 0
+								for(var k=0; k<=p; k++){
+									YtHat += b[k]*(k==0?1:tVals[k][i])
+								}
+								modelSeries[modelNum].push(YtHat)
+							}
+							modelSeries[modelNum].push(b[0] + b[1]*transformedData[transformedData.length-1])
+						} else {
+							var Ones = []
+							for(var i=0; i<transformedData.length-p; i++) Ones[i]=1
+							var X=[]
+							for(var k=0; k<=p; k++){
+								X[k]=(k==0?Ones:tVals[k])
+							}
+							X = numeric.transpose(X)
+							var H = numeric.dot(numeric.dot(X, pinv(numeric.dot(numeric.transpose(X),X))),numeric.transpose(X))
+							var YtHat = numeric.dot(H,tVals[0])
+							modelSeries[modelNum]=YtHat
+							
+							b = numeric.dot(pinv(numeric.dot(numeric.transpose(X),X)),numeric.dot(numeric.transpose(X),tVals[0]) )
+							//alert(b)
+							var yForecast = 0
+							for(var k=0; k<=p; k++){
+								yForecast += b[k]*(k==0?1:transformedData[transformedData.length-1-p+k])
+							}
+							modelSeries[modelNum].push(yForecast)
+						}
+						modelText = "y&#770;<sub>T</sub> = "
+						for(var k=0; k<b.length; k++){
+							if(k>0) modelText += " + "
+							modelText += fixed(b[k]) + (k==0?"":"y<sub>T-"+k+"</sub>")
+						}
+						document.getElementById("modelText"+modelNum).innerHTML=modelText
+						modelT0[modelNum] = p
+						forecastOptions +="<option value="+modelNum+(forecastModelSelection==modelNum?' selected':'')+">"+modelName[modelNum]+"</option>"
+						break;
+					default:
+					//nothing
+				}
+
+				if(modelForecast[modelNum]){
+					var yVals = []
+					var t0 = modelT0[modelNum]
+					var dataT0= transFirstIndex
+//					if(useTransformed){
+						yVals = modelSeries[modelNum]
+						t0 += dataT0
+//					} else {
+//						var result = reverseTransformations(modelSeries[modelNum], t0);
+//						yVals = result.tSeries
+//						t0=result.T0
+//						dataT0=0
+//					}	
+					modelME[modelNum]=0
+					modelMAD[modelNum]=0
+					modelMSE[modelNum]=0
+					modelMPE[modelNum]=0
+					modelMAPE[modelNum]=0
+					modelRMSE[modelNum]=0
+//					var T = yVals.length
+					var nSum = 0
+					for(var i=0; i<data.length+1+dataT0; i++){
+//						var i=t+t0
+
+//(i>=t0 && i-dataT0<data.length ? fixed(data[i-dataT0]-yVals[i-t0]):"")
+						if(i>=t0 && i-dataT0<data.length){
+							var error = data[i-dataT0]-yVals[i-t0]
+							var rerror = error*100/(data[i-dataT0]==0?.00000001:data[i-dataT0])
+							modelME[modelNum] += error
+							modelMAD[modelNum] += Math.abs(error)
+							modelMSE[modelNum] += Math.pow(error,2)
+							modelMPE[modelNum] += rerror
+							modelMAPE[modelNum] += Math.abs(rerror)
+							nSum++
+							//console.log(data[i-dataT0]+" - "+yVals[i-t0]+ " = "+i+"="+error)
+						}
+					}
+					//console.log("nSum = "+nSum)
+					modelME[modelNum] *= 1.0/nSum
+					modelMAD[modelNum] *= 1.0/nSum
+					modelMSE[modelNum] *= 1.0/nSum
+					modelMPE[modelNum] *= 1.0/nSum
+					modelMAPE[modelNum] *= 1.0/nSum
+					modelRMSE[modelNum] = Math.sqrt(modelMSE[modelNum])
+					
+					var evalTable = "<table class='thinlines fullWidth'><tr><th>ME</th><th>MAD</th><th>MSE</th><th>RMSE</th><th>MPE</th><th>MAPE</th></tr>"
+					evalTable += "<tr>"
+					evalTable += "<td>"+fixed(modelME[modelNum],precision)+"</td>"
+					evalTable += "<td>"+fixed(modelMAD[modelNum],precision)+"</td>"
+					evalTable += "<td>"+fixed(modelMSE[modelNum],precision)+"</td>"
+					evalTable += "<td>"+fixed(modelRMSE[modelNum],precision)+"</td>"
+					evalTable += "<td>"+fixed(modelMPE[modelNum],precision)+"</td>"
+					evalTable += "<td>"+fixed(modelMAPE[modelNum],precision)+"</td>"
+					evalTable += "</tr></table>"
+					document.getElementById("modelEvaluation"+modelNum).innerHTML=evalTable
+				} else {
+					document.getElementById("modelEvaluation"+modelNum).innerHTML="";
+				}
+				//alert(reverseTransformations(modelSeries[modelNum],modelT0[modelNum]));
+			}
+			
+			function changeResidView(elmt){
+			//	console.log(elmt)
+				document.getElementById('residualTable').style.display="none"
+				document.getElementById('residualHistogram').style.display="none"
+				document.getElementById('residualvsFitted').style.display="none"
+				document.getElementById('residualQQ').style.display="none"
+				document.getElementById(elmt).style.display="block"
+			}
+	
+			function refreshT1(){
+				for(var i=0; i<timeOptions.length; i++){
+					if(document.getElementById('timeUnits').value==timeOptions[i]){
+						timeOptionChoice=i
+						document.getElementById('t1').value = defaultT1[i]
+						break;
+					}
+				}
+			}
+			
+			function reviseTimeLabels(){
+				timeLabels=[]
+				var data = document.getElementById("data1").value.split(/[\s,;\t\n]+/)
+				var n=data.length
+				var t1 = document.getElementById('t1').value
+				var tStep = document.getElementById('tstep').value
+				timeAxisLabel = timeLabels[timeOptionChoice]
+				switch(timeOptionChoice){
+					case 0:
+					case 1:
+					case 3:
+					case 6:
+						timeLabels[0]=+t1
+						for(var i=1; i<=n; i++) timeLabels[i]=+timeLabels[i-1] + parseInt(tStep)
+						break;
+					case 4:
+					case 5:
+						timeLabels[0]=t1
+						var yrLen = (timeOptionChoice==4?2:4)
+						var parts = t1.split("-")
+						var m1=monthAbbr.indexOf(parts[0])
+						
+						var y1=+parts[1]
+						console.log("m1="+m1+", yr 1 = "+y1)
+						for(var i=1; i<=n; i++){
+							m1 += parseInt(tStep);
+							while(m1>=12){
+								m1 -= 12;
+								y1++
+							}
+							if(timeOptionChoice==4){
+								timeLabels[i]= monthAbbr[m1]+"-"+ (y1%(10*yrLen)).toString().padStart(yrLen,'0')
+							}else{
+								timeLabels[i]= monthAbbr[m1]+"-"+ (y1.toString())
+							}
+						}
+						break;
+					case 2:
+						var d1= new Date(t1)
+						timeLabels[0]=t1
+						for(var i=1; i<=n; i++){
+							d1.setDate(d1.getDate() + parseInt(tStep))
+							timeLabels[i] = d1.getMonth()+1 + "/" + d1.getDate() + "/" + (d1.getFullYear().toString().substr(-2))
+						}
+					default:
+				}
+//				console.log(timeLabels)
+			}
+			
+			function refreshCharts(){
+				refresh(false)
+			}
+			
+
+		</script>
+	</head>
+	
+	<body onload="loadPrecision();loadColorChoice();linkMenu();parseDataFromURL(1);cleanData(1);setColors();TLN.append_line_numbers('data1');generateSampleStatsTable(1,false);">
+		<div id="container">
+			<div id="title" onClick="setColors(); refresh();">StatPowers</div>
+			<div id="menu"></div>
+			<form name="form1">
+				<div class="container" >
+					<input type="checkbox" checked name="headerDataEntry" id="headerDataEntry" class="css-checkbox">
+					<label for="headerDataEntry" class="css-label">Data Entry</label>
+					<div class="content css-content">
+						<div class='helpDiv minimized'>
+							<a name='' onclick='toggle(this);' class='expander'>?</a>
+							<a name='' onclick='toggle(this);' class='collapser'>&#10006;</a>
+							<span>
+							Enter time series data separated by comma, semicolon, space, tab or newline.<br>
+							</span>
+						</div>
+						<div id="dataArea" class="content">
+							<div class='options'>
+							<span style="font-weight:bold">Variable:</span> 
+							<input type="text" id="name1" value="X" size="20" maxlength="25" onchange="updateVarNames();" style="width:150px;"/>
+
+							<span style="font-weight:bold">units:</span> <input type="text" id="varUnits1" value="" placeholder="unset"  size="20" maxlength="25" onchange="refresh()" /><br>
+
+							<span style="font-weight:bold">Time:</span>
+							<select id='timeUnits' onChange='refreshT1();reviseTimeLabels();refreshCharts();'>
+								<option value="int">Time Period: #</option>
+								<option value="hour">Hours: #</option>
+								<option value="day">Days: m/d/y</option>
+								<option value="week">Weeks: #</option>
+								<option value="MMM-YY">Months: MMM-YY</option>
+								<option value="MMM-YYYY">Months: MMM-YYYY</option>
+								<option value="YYYY">Years: YYYY</option>
+							</select>
+							<!--input type="text" id="tUnits" value="" size="20" maxlength="25" onchange="updateVarNames();" style="width:150px;" placeholder="unset"/-->
+
+							<span style="font-weight:bold">t<sub>1</sub>:</span> <input id="t1" value="1" style="width:75px;" onchange="reviseTimeLabels();refresh()" />
+
+							<span style="font-weight:bold">Step:</span> <input type="number" id="tstep" value="1" class='tinyNumber'  onchange="reviseTimeLabels();refresh()" />
+
+							</div>
+							<div id="wrapper" style="width:450px;">
+								<textarea name="data1" id="data1" rows=6 cols=50 style="position:absolute; left:49px; width:400px;" class='lines'></textarea>
+							</div>
+							<button TYPE=button VALUE="Calculate Now" onClick="refresh()">Calculate Now</button>
+							&nbsp;&nbsp;&nbsp;
+							<button TYPE=reset VALUE="Clear All" onClick="document.getElementById('data1').innerHTML='';document.getElementById('dataLink').innerHTML='';">Clear All</button>
+							&nbsp;&nbsp;&nbsp;
+							<button TYPE=button VALUE="Share Data" onClick="makeURL(1,false)">Share Data</button>
+					<div id="dataLink" ></div><iframe id="frmFile" style="display: none;"></iframe>
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerTransformations" class="css-checkbox">
+					<label for="headerTransformations" class="css-label">Transformations</label>
+					<div class="content css-content">
+						<div id="allTransformations">
+						</div>
+						<button type="button" value="add" onClick="addTransformation('transformation');">+</button>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerTrends" class="css-checkbox">
+					<label for="headerTrends" class="css-label">Trends/Seasonality</label>
+					<div class="content css-content">
+						<div id="allTrends">
+						</div>
+						<button type="button" value="add" onClick="addTransformation('trend');">+</button>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerResiduals" class="css-checkbox">
+					<label for="headerResiduals" class="css-label">Residuals</label>
+					<div class="content css-content">
+						<select id='residView' onChange="changeResidView(this.value)">
+							<option value="residualTable">Residual Table</option>
+							<option value="residualHistogram">Histogram</option>
+							<option value="residualQQ">QQ Plot</option>
+							<option value="residualvsFitted">Residuals vs Fitted</option>
+						</select>
+						
+						<span id='residualsChoice'>
+							<select id='residSelect' onChange="updateTransformation();refrshResidualPlots()">
+							<option value=0>Transformed Data Residuals</option>
+							<option value=1>Forecast Model Residuals</option>
+							</select>
+						</span>
+						<div id='residualTable' class='fixedHeight300 results'>
+						</div>
+						<div id='residualHistogram' class="canvasdiv" style="display:none;">
+							<input type="number" id="nBinsOverride" value=10 style="display:none">
+							<canvas id="residHistogramPlot" width="490" height="375" class='zoomable' >
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+						</div>
+						<div id='residualQQ' class="canvasdiv" style="display:none;">
+							<canvas id="residQQPlot" width="490" height="375"  class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+						</div>
+						<div id='residualvsFitted' class="canvasdiv" style="display:none;">
+							<canvas id="residScatterPlot" width="490" height="375"  class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerSummaryStats" class="css-checkbox">
+					<label for="headerSummaryStats" class="css-label">Summary Statistics</label>
+					<div class="content css-content">
+						<input type="checkbox" id="statResiduals" checked onChange="sampleStats(1,document.getElementById('statResiduals').checked);"">
+						<label for="statResiduals">Transformed Data</label><br>
+						<div id="output" class='results'>
+						</div>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerStreaks" class="css-checkbox">
+					<label for="headerStreaks" class="css-label">Streak Analysis</label>
+					<div class="content css-content">
+						<div id='considerStreak'></div>
+						<div id='streakList'></div>
+						<div id='streakTest' class='results'></div>
+					</div>
+				</div>
+
+				<div class="container">
+					<h3>Charts</h3>
+					<div>
+						<input type="checkbox" id="headerTimeSeriesPlot" class="css-checkbox">
+						<label for="headerTimeSeriesPlot" class="css-label sub">Time Series Plot</label>
+						<div class="content css-content">
+						<input type="checkbox" id="plotTransformed" checked onChange="refresh(false);">
+						<label for="plotTransformed">Plot Residuals</label> 
+						<input type="checkbox" id="connectPoints" checked onChange="refresh(false);">
+						<label for="connectPoints">Connect Points</label>
+						<input type="checkbox" id="subtlePoints" onChange="refresh(false);">
+						<label for="subtlePoints">Subtle Points</label>
+
+							<div class="canvasdiv">
+								<canvas id="timeseriesplot" width="490" height="375"  class='zoomable'>
+									<p>Your browser doesn't support canvas. Please update your browser.</p>
+								</canvas>
+								<a class="downloadButton topright" href="" onClick="downloadCanvas(this,'timeseriesplot','timeseriesplot.png');"></a>
+							</div>
+						</div>
+					</div>
+					<div>
+						<input type="checkbox" id="headerACF" class="css-checkbox">
+						<label for="headerACF" class="css-label sub">Autocorrelation Function </label>
+						<div class="content css-content">
+							<div class="canvasdiv">
+							<canvas id="ACFplot" width="490" height="375"  class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton topright" href="" onClick="downloadCanvas(this,'ACFplot','ACF.png');"></a>
+							</div>
+							Autocorrelation at lag <input id='acLag' type='number' min=1 max=100 step=1 value=1 onChange='recalcAC()'>: <span id='acValueAt'></span>
+						</div>
+						<div id="showACF"></div>
+					</div>
+					<div>
+						<input type="checkbox" id="headerPACF" class="css-checkbox">
+						<label for="headerPACF" class="css-label sub">Partial Autocorrelation Function </label>
+						<div class="content css-content">
+							<div class="canvasdiv">
+							<canvas id="PACFplot" width="490" height="375"  class='zoomable'>
+								<p>Your browser doesn't support canvas. Please update your browser.</p>
+							</canvas>
+							<a class="downloadButton topright" href="" onClick="downloadCanvas(this,'PACFplot','PACF.png');"></a>
+							</div>
+						</div>
+						<div id="showPACF"></div>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerStationaryTest" class="css-checkbox">
+					<label for="headerStationaryTest" class="css-label">Stationarity Test</label>
+					<div class="content css-content">
+						Model:<select id="dfModel" onChange="adfTest()">
+							<option value=0>no constant, no trend</option>
+							<option value=1>constant, no trend</option>
+							<option value=2>constant and trend</option>
+						</select><br>
+						Significance Level: <select id="sigLevel" onChange="adfTest()">
+							<option value=0 selected>0.01</option>
+							<option value=1>0.025</option>
+							<option value=2>0.05</option>
+							<option value=3>0.10</option>
+						</select><br>
+						
+						<div id="stationaryTestOutput" class="results">
+						</div>
+					</div>
+				</div>				
+				<div class="container">
+					<input type="checkbox" id="headerModels" class="css-checkbox">
+					<label for="headerModels" class="css-label">Models</label>
+					<div class="content css-content">
+						<div id="allModels"></div>
+						<button type="button" value="add" onClick="addModel();">+</button></h3>
+					</div>
+				</div>
+				<div class="container">
+					<input type="checkbox" id="headerForecasts" class="css-checkbox">
+					<label for="headerForecasts" class="css-label">Forecasts</label>
+					<div class="content css-content">
+						<select id="forecastModelSelect" onChange = 'updateForecastTable();'>
+						</select>
+						<div id="forecastTable" class='fixedHeight300 results'></div>
+					</div>
+				</div>				
+			</form>
+		</div>
+	</body>
+</html>											

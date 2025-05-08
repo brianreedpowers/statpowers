@@ -1,0 +1,222 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sample Size Calculator</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<script type="text/javascript" src="js/jstat.js"></script>
+<script type="text/javascript" src="js/commonFunctions.js"></script>
+<script type="text/javascript" src="js/shapiro-wilk.js"></script>
+<script language="javascript">
+
+function ciPropSize(){
+	var usePHatEst = (document.getElementById("pHatEst").value != "")
+	var pHat = .5
+	if(usePHatEst) pHat = parseFloat(document.getElementById("pHatEst").value)
+	var alpha = 1-parseFloat(document.getElementById("cLevel").value)
+	var ME = parseFloat(document.getElementById("ME").value)
+	document.getElementById("ciPropSSize").innerHTML = Math.ceil(Math.pow(jStat.normal.inv(1-(alpha)/2,0,1),2)*pHat*(1-pHat)/Math.pow(ME,2))
+}
+
+function ciMeanSize(){
+	var alpha = 1-parseFloat(document.getElementById("cLevel").value)
+	var s = parseFloat(document.getElementById("sEst").value)
+	var ME = parseFloat(document.getElementById("meanME").value)
+	document.getElementById("ciMeanSSize").innerHTML = Math.ceil(Math.pow(jStat.normal.inv(1-(alpha)/2,0,1)*s/ME,2))
+}
+
+function refresh(){
+}
+</script>
+
+<link rel="stylesheet" type="text/css" href="styles/statstyle.css">
+<style>
+	.results td {padding: 5px;}
+</style>
+</head>
+
+<body onload="loadColorChoice();linkMenu();setColors();ciPropSize();ciMeanSize()">
+	<div id="container">
+		<div id="title" onClick="setColors()">StatPowers</div>
+		<div id="menu"></div>
+
+<form name="form1">
+
+
+	<div id="commonCI" class="content">
+			Confidence Level (e.g. 0.95)
+		<input name="cLevel" type="number" id="cLevel" value="0.95"  min="0" max=".999999" step=".01" class="tinyNumber" onchange="ciPropSize();ciMeanSize()" />
+	</div>
+
+	<div class="container">	
+		<h3>Mean Sample Size Calculator</h3>
+		<div class="content">
+	  <table  border="0">
+		<tr>
+		  <td>Target Margin of Error</td>
+		  <td> <input name="meanME" type="number" id="meanME" value="1"  min="0" step=".01" class="smallNumber" onchange="ciMeanSize();" /></td>
+		</tr>
+		<tr>
+		  <td>Standard Deviation Estimate</td>
+		  <td> <input name="sEst" type="number" id="sEst" value="1"  min="0" class="smallNumber" onchange="ciMeanSize();" /></td>
+		</tr>
+		<tr class='results'>
+		  <td>Required Sample Size (n) =</td>
+		  <td id="ciMeanSSize"></td>
+		</tr>	  
+		</table>	
+		<!--button type="button" value="Calculate" onClick="ciMeanSize();">Calculate</button-->
+		</div>
+	</div>
+
+
+
+
+	<div class="container">
+	<h3>Proportion Sample Size Calculator</h3>
+		<div class="content">
+		<table  border="0">
+		<tr>
+		  <td>Target Margin of Error</td>
+		  <td> <input name="ME" type="number" id="ME" value="0.02" min="0" max="1" step=".001" class="smallNumber" onchange="ciPropSize();" /></td>
+		</tr>
+		<tr>
+		  <td>Proportion Estimate (p&#770;, optional)</td>
+		  <td> <input name="pHatEst" type="number" id="pHatEst" value=""  min="0" max="1" step=".01" class="smallNumber" onchange="ciPropSize();" /></td>
+		</tr>
+		<tr class='results'>
+		  <td>Required Sample Size (n) =</td>
+		  <td id="ciPropSSize"></td>
+		</tr>	  
+		</table>	
+		<!--button type="button" value="Calculate" onClick="ciPropSize();">Calculate</button-->
+		</div>
+	</div>
+
+
+
+	<div class="container">	
+		<h3>Mean Sample Size / Power Calculator</h3>
+		<div class="content">
+	<div id="commonalpha" class="content">
+			Significance level
+		<input name="alpha" type="number" id="alpha" value="0.05"  min="0.001" max="0.999" step=".001" placeholder='0.05' class="tinyNumber"  onchange="ttpowersamplesizeCalc();" />
+	</div>
+	  <table  border="0">
+		<tr>
+			<td>Test Type</td>
+			<td><select id='meanSSP' onChange='showHidemeanSSPOptions();ttpowersamplesizeCalc();'>
+				<option value='1' selected>One Sample T</option>
+				<option value='2'>Two Sample T</option>
+				</select>
+			</td>
+		</tr>
+		<tr>
+		  <td>Absolute Effect Size</td>
+		  <td> <input name="effect" type="number" id="effect" value=1  min=0 class="smallNumber" onchange="ttpowersamplesizeCalc();" /></td>
+		</tr>
+		<tr>
+		  <td>Standard Deviation Estimate</td>
+		  <td> <input name="s1" type="number" id="s1" value="1"  min="0" class="smallNumber" onchange="ttpowersamplesizeCalc();" /></td>
+		</tr>
+		<tr  id='TThide1' style='display:none;'>
+		  <td></td>
+		  <td> <input name="s2" type="number" id="s2" value="1"  min="0" class="smallNumber" onchange="ttpowersamplesizeCalc();" /></td>
+		</tr>
+		<tr id='powerOutput'>
+		  <td><input type='radio' id='tPower' name='tSSP' value='power' onChange='enableSSP();ttpowersamplesizeCalc();'>
+			  <label for='tPower'>Power</label></td>
+		  <td> <input name="power" type="number" id="power" value=0.80  min=0.1 max=0.99 step=.01 class="smallNumber" onchange="ttpowersamplesizeCalc();" /></td>
+		</tr>
+		<tr id='SSOutput' class='results'>
+		  <td><input type='radio' id='tSS' name='tSSP' value='SS' checked onChange='enableSSP();ttpowersamplesizeCalc();'>
+			  <label for='tSS'>Sample Size</label></td>
+		  <td> 
+		      <div><input name="n1" type="number" id="n1" value="30"  min="0" class="smallNumber" onchange="ttpowersamplesizeCalc();" disabled/></div>
+			   <div id='TThide2' style='display:none;'> <input name="n2" type="number" id="n2" value="30"  min="0" class="smallNumber" onchange="ttpowersamplesizeCalc();" disabled/></div>
+		  </td>
+		</tr>
+		
+		</table>	
+		<!--button type="button" value="Calculate" onClick="ciMeanSize();">Calculate</button-->
+		</div>
+	</div>
+
+<script>
+function enableSSP(){
+	document.getElementById('n1').disabled = document.getElementById('tSS').checked
+	document.getElementById('n2').disabled = document.getElementById('tSS').checked
+	document.getElementById('power').disabled = !document.getElementById('tSS').checked
+	document.getElementById('powerOutput').className=(document.getElementById('tPower').checked?'results':'')
+	document.getElementById('SSOutput').className=(document.getElementById('tPower').checked?'':'results')
+}
+
+function showHidemeanSSPOptions(){
+	console.log(document.getElementById('meanSSP').value)
+	document.getElementById('TThide1').style.display=(document.getElementById('meanSSP').value=='1'?'none':'table-row')
+	document.getElementById('TThide2').style.display=(document.getElementById('meanSSP').value=='1'?'none':'block')
+}
+
+function ttpowersamplesizeCalc(){
+	var s1 = document.getElementById('s1').value
+	var s2 = document.getElementById('s2').value
+	var alpha = document.getElementById('alpha').value
+	var effect = Math.abs(document.getElementById('effect').value)
+	if(document.getElementById('tPower').checked){
+		var n1 = document.getElementById('n1').value
+		var n2 = document.getElementById('n2').value
+		if(document.getElementById('meanSSP').value=='1')n2=0
+		var power = ttpower(alpha, effect,s1,s2,n1,n2)
+		document.getElementById('power').value = fixed(power)
+	} else {
+		var targetPower = document.getElementById('power').value
+		var s = Math.max(s1, s2)
+		console.log(jStat.normal.inv(1-alpha/2,0,1))
+		console.log(jStat.normal.inv(targetPower,0,1))
+		
+		var n = Math.ceil(2 * Math.pow((jStat.normal.inv(1-alpha/2,0,1) + jStat.normal.inv(targetPower,0,1))/(effect/s)  ,2))
+		console.log(n)
+		var power=power = ttpower(alpha, effect, s1, s2, n,n)
+		while(power > targetPower){
+			n--
+			power = ttpower(alpha, effect, s1, s2, n,n)
+		}
+		do{
+			power = ttpower(alpha, effect, s1, s2, n,n)
+			if(power < targetPower) n++
+		}while(power < targetPower)
+
+		
+		
+		document.getElementById('n1').value=n
+		document.getElementById('n2').value=n
+		
+	}
+}
+
+function ttpower(alpha,effect, s1,s2, n1, n2=0){
+	var df=n1-1, eta=1
+	if(n2==0){
+		eta = effect/(s1/Math.sqrt(n1))
+	} else {
+		df = Math.pow(Math.pow(s1,2)/n1 + Math.pow(s2,2)/n2,2)/( Math.pow(Math.pow(s1,2)/n1,2)/(n1-1) + Math.pow(Math.pow(s2,2)/n2,2)/(n2-1))
+		eta = effect/Math.sqrt(s1*s1/n1 + s2*s2/n2)
+	}
+	var power = jStat.studentt.cdf(jStat.studentt.inv(alpha/2, df)-eta,df) + (1-jStat.studentt.cdf(jStat.studentt.inv(1-alpha/2, df)-eta,df))
+	return power
+} 
+</script>
+
+<style>
+.twoSTT {
+	display:none;
+}
+
+</style>
+
+
+<form>
+</div>
+</body>
+</html>

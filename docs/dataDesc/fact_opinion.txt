@@ -1,0 +1,20 @@
+Can Americans categorize facts and opinions?
+Description
+Pew Research Center conducted a survey in 2018, asking participants to categorize five factual and five opinion statements.
+
+Usage
+fact_opinion
+Format
+A data frame with 5035 rows and 3 variables.
+
+age_group
+Age group of survey participant.
+
+fact_correct
+Number of factual statements classified correctly (out of 5).
+
+opinion_correct
+Number of opinion statements classified correctly (out of 5).
+
+Source
+Pew Research Center
